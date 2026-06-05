@@ -71,7 +71,7 @@ export default function Dashboard() {
       });
       wholesaleSales.forEach((w) => {
         if (w.date?.startsWith(yearMonth))
-          rev += w.items.reduce((a, i) => a + i.qty * i.rate, 0);
+          rev += wholesaleTotal(w);
       });
 
       months.push({ label, value: rev });

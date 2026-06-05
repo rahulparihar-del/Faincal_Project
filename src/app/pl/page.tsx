@@ -4,6 +4,7 @@ import React, { useMemo } from "react";
 import { useData } from "@/context/DataContext";
 import { CardGroup, StatCard } from "@/components/ui/Card";
 import { AnimatedCounter } from "@/components/ui/AnimatedCounter";
+import { wholesaleTotal } from "@/lib/wholesale";
 import { Download, TrendingUp, TrendingDown, DollarSign, MinusCircle, BarChart3 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
@@ -48,7 +49,7 @@ export default function ProfitAndLossPage() {
     wholesaleSales.forEach((w) => {
       const mk = getMonthKey(w.date);
       const m = ensureMonth(mk);
-      const orderTotal = w.items.reduce((acc, i) => acc + i.qty * i.rate, 0);
+      const orderTotal = wholesaleTotal(w);
       totalWholesaleRev += orderTotal;
       m.wholesaleRev += orderTotal;
     });
