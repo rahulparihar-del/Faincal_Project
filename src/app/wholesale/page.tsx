@@ -5,7 +5,8 @@ import { useData } from "@/context/DataContext";
 import { Drawer } from "@/components/ui/Drawer";
 import { CardGroup, StatCard } from "@/components/ui/Card";
 import { ConfirmDelete } from "@/components/ui/ConfirmDelete";
-import { WholesaleSale, WholesaleItem, PaymentMode } from "@/lib/types";
+import { WholesaleSale, PaymentMode } from "@/lib/types";
+import { wholesaleTotal } from "@/lib/wholesale";
 import { gsap } from "gsap";
 import { Plus, Trash2, Eye, ShoppingCart, IndianRupee, AlertTriangle } from "lucide-react";
 
@@ -31,7 +32,7 @@ export default function WholesaleSalesPage() {
     let totalValue = 0;
     wholesaleSales.forEach((w) => {
       collected += w.paymentReceived;
-      totalValue += w.items.reduce((acc, i) => acc + i.qty * i.rate, 0);
+      totalValue += wholesaleTotal(w);
     });
     return { orders, collected, outstanding: totalValue - collected };
   }, [wholesaleSales]);
@@ -39,7 +40,7 @@ export default function WholesaleSalesPage() {
   const retailers = useMemo(() => {
     const map = new Map<string, { key: string; name: string; phone: string; city: string; orders: number; total: number; outstanding: number }>();
     wholesaleSales.forEach((w) => {
-      const orderTotal = w.items.reduce((acc, i) => acc + i.qty * i.rate, 0);
+      const orderTotal = wholesaleTotal(w);
       const balance = orderTotal - w.paymentReceived;
       const key = getRetailerKey(w);
       if (!map.has(key)) {
@@ -102,8 +103,6 @@ export default function WholesaleSalesPage() {
             <thead className="bg-white border-b border-[#e8e8e8]">
               <tr>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider">Retailer</th>
-                <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider">Phone</th>
-                <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider">City</th>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-center">Orders</th>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-right">Total Billed</th>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-right">Outstanding</th>
@@ -128,8 +127,6 @@ export default function WholesaleSalesPage() {
                     onClick={() => setSelectedRetailer(r.key)}
                   >
                     <td className="px-5 py-3.5 font-semibold text-black">{r.name}</td>
-                    <td className="px-5 py-3.5 text-[#888] font-mono text-xs">{r.phone}</td>
-                    <td className="px-5 py-3.5 text-[#888]">{r.city}</td>
                     <td className="px-5 py-3.5 text-center font-bold">{r.orders}</td>
                     <td className="px-5 py-3.5 text-right font-bold">₹{r.total.toLocaleString("en-IN")}</td>
                     <td className="px-5 py-3.5 text-right font-bold">₹{Math.max(0, r.outstanding).toLocaleString("en-IN")}</td>
@@ -149,7 +146,7 @@ export default function WholesaleSalesPage() {
               })}
               {retailers.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-5 py-12 text-center text-[#888]">
+                  <td colSpan={6} className="px-5 py-12 text-center text-[#888]">
                     No retailers found. Click &quot;+ Add Order&quot; to create a wholesale order.
                   </td>
                 </tr>
@@ -187,7 +184,9 @@ function WholesaleFormDrawer({ isOpen, onClose, onSave }: { isOpen: boolean; onC
   const [formData, setFormData] = useState<Partial<WholesaleSale>>({
     date: new Date().toISOString().split("T")[0],
     paymentMode: "UPI",
-    items: [{ productName: "", qty: 1, rate: 0 }],
+    billAmount: 0,
+    paymentReceived: 0,
+    receivedDate: "",
   });
 
   useEffect(() => {
@@ -195,31 +194,18 @@ function WholesaleFormDrawer({ isOpen, onClose, onSave }: { isOpen: boolean; onC
       setFormData({
         date: new Date().toISOString().split("T")[0],
         paymentMode: "UPI",
-        items: [{ productName: "", qty: 1, rate: 0 }],
+        billAmount: 0,
         paymentReceived: 0,
+        receivedDate: "",
       });
     }
   }, [isOpen]);
 
-  const updateItem = (index: number, field: keyof WholesaleItem, value: string | number) => {
-    const newItems = [...(formData.items || [])];
-    newItems[index] = { ...newItems[index], [field]: value };
-    setFormData({ ...formData, items: newItems });
-  };
-
-  const addItem = () => setFormData({ ...formData, items: [...(formData.items || []), { productName: "", qty: 1, rate: 0 }] });
-  const removeItem = (index: number) => {
-    const newItems = [...(formData.items || [])];
-    newItems.splice(index, 1);
-    setFormData({ ...formData, items: newItems });
-  };
-
-  const totalValue = (formData.items || []).reduce((acc, i) => acc + i.qty * i.rate, 0);
-  const balanceDue = totalValue - (formData.paymentReceived || 0);
+  const pendingAmount = (Number(formData.billAmount) || 0) - (Number(formData.paymentReceived) || 0);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.retailerName || !formData.phone || formData.items?.length === 0) {
+    if (!formData.retailerName || !formData.billNo || !formData.billAmount) {
       if (formRef.current) gsap.fromTo(formRef.current, { x: -8 }, { x: 0, ease: "elastic.out(1, 0.3)", duration: 0.5, clearProps: "x" });
       return;
     }
@@ -227,10 +213,12 @@ function WholesaleFormDrawer({ isOpen, onClose, onSave }: { isOpen: boolean; onC
     const sale: WholesaleSale = {
       id: Date.now().toString(),
       date: formData.date || "",
+      billNo: formData.billNo,
       retailerName: formData.retailerName,
-      phone: formData.phone,
-      city: formData.city || "",
-      items: formData.items as WholesaleItem[],
+      phone: "",
+      city: "",
+      billAmount: Number(formData.billAmount || 0),
+      receivedDate: formData.receivedDate || "",
       paymentReceived: Number(formData.paymentReceived || 0),
       paymentMode: formData.paymentMode as PaymentMode,
     };
@@ -243,72 +231,49 @@ function WholesaleFormDrawer({ isOpen, onClose, onSave }: { isOpen: boolean; onC
   return (
     <Drawer isOpen={isOpen} onClose={onClose} title="Add Wholesale Order">
       <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className={labelCls}>Bill Date *</label>
+            <input type="date" required className={inputCls} value={formData.date || ""} onChange={(e) => setFormData({ ...formData, date: e.target.value })} />
+          </div>
+          <div>
+            <label className={labelCls}>Bill No *</label>
+            <input type="text" required placeholder="WHL/2026-27/0001" className={inputCls} value={formData.billNo || ""} onChange={(e) => setFormData({ ...formData, billNo: e.target.value })} />
+          </div>
+        </div>
         <div>
-          <label className={labelCls}>Date *</label>
-          <input type="date" required className={inputCls} value={formData.date || ""} onChange={(e) => setFormData({ ...formData, date: e.target.value })} />
+          <label className={labelCls}>Shop Name *</label>
+          <input type="text" required className={inputCls} value={formData.retailerName || ""} onChange={(e) => setFormData({ ...formData, retailerName: e.target.value })} />
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="col-span-2">
-            <label className={labelCls}>Retailer Name *</label>
-            <input type="text" required className={inputCls} value={formData.retailerName || ""} onChange={(e) => setFormData({ ...formData, retailerName: e.target.value })} />
-          </div>
-          <div>
-            <label className={labelCls}>Phone *</label>
-            <input type="text" required className={inputCls} value={formData.phone || ""} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
-          </div>
-          <div>
-            <label className={labelCls}>City</label>
-            <input type="text" className={inputCls} value={formData.city || ""} onChange={(e) => setFormData({ ...formData, city: e.target.value })} />
-          </div>
-        </div>
-
-        <div className="border border-[#e8e8e8] rounded-2xl p-4 bg-[#fafafa]">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="font-bold text-sm text-[#555]">Line Items</h3>
-            <button type="button" onClick={addItem} className="text-xs flex items-center gap-1 font-bold text-black hover:underline">
-              <Plus size={12} /> Add Item
-            </button>
-          </div>
-          {formData.items?.map((item, idx) => (
-            <div key={idx} className="flex gap-2 mb-2 items-end">
-              <div className="flex-1">
-                <input type="text" placeholder="Product" required className={inputCls} value={item.productName} onChange={(e) => updateItem(idx, "productName", e.target.value)} />
-              </div>
-              <div className="w-16">
-                <input type="number" placeholder="Qty" required min="1" className={inputCls} value={item.qty || ""} onChange={(e) => updateItem(idx, "qty", Number(e.target.value))} />
-              </div>
-              <div className="w-20">
-                <input type="number" placeholder="Rate" required min="0" step="0.01" className={inputCls} value={item.rate || ""} onChange={(e) => updateItem(idx, "rate", Number(e.target.value))} />
-              </div>
-              {formData.items!.length > 1 && (
-                <button type="button" onClick={() => removeItem(idx)} className="w-8 h-8 flex items-center justify-center rounded-lg text-[#888] hover:text-black hover:bg-[#f5f5f5] shrink-0">
-                  <Trash2 size={14} />
-                </button>
-              )}
-            </div>
-          ))}
-          <div className="text-right text-sm font-bold mt-3 pt-2 border-t border-[#e8e8e8]">Total: ₹{totalValue.toLocaleString("en-IN")}</div>
+        <div>
+          <label className={labelCls}>Bill Amount (₹) *</label>
+          <input type="number" required min="0" step="0.01" className={inputCls} value={formData.billAmount || ""} onChange={(e) => setFormData({ ...formData, billAmount: Number(e.target.value) })} />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className={labelCls}>Payment Received (₹)</label>
+            <label className={labelCls}>Received Date</label>
+            <input type="date" className={inputCls} value={formData.receivedDate || ""} onChange={(e) => setFormData({ ...formData, receivedDate: e.target.value })} />
+          </div>
+          <div>
+            <label className={labelCls}>Received Amount (₹)</label>
             <input type="number" min="0" step="0.01" className={inputCls} value={formData.paymentReceived || ""} onChange={(e) => setFormData({ ...formData, paymentReceived: Number(e.target.value) })} />
           </div>
-          <div>
-            <label className={labelCls}>Payment Mode</label>
-            <select className={inputCls} value={formData.paymentMode} onChange={(e) => setFormData({ ...formData, paymentMode: e.target.value as PaymentMode })}>
-              <option value="Cash">Cash</option>
-              <option value="UPI">UPI</option>
-              <option value="Bank Transfer">Bank Transfer</option>
-            </select>
-          </div>
+        </div>
+
+        <div>
+          <label className={labelCls}>Payment Mode</label>
+          <select className={inputCls} value={formData.paymentMode} onChange={(e) => setFormData({ ...formData, paymentMode: e.target.value as PaymentMode })}>
+            <option value="Cash">Cash</option>
+            <option value="UPI">UPI</option>
+            <option value="Bank Transfer">Bank Transfer</option>
+          </select>
         </div>
 
         <div className="bg-[#f5f5f5] p-5 rounded-2xl border border-[#e8e8e8] flex justify-between items-center">
-          <span className="text-[12px] font-medium text-[#888] uppercase tracking-wider">Balance Due</span>
-          <span className={`text-2xl font-bold ${balanceDue > 0 ? "text-[#444]" : "text-black"}`}>
-            ₹{balanceDue.toLocaleString("en-IN")}
+          <span className="text-[12px] font-medium text-[#888] uppercase tracking-wider">Pending Amount</span>
+          <span className={`text-2xl font-bold ${pendingAmount > 0 ? "text-[#444]" : "text-black"}`}>
+            ₹{pendingAmount.toLocaleString("en-IN")}
           </span>
         </div>
 
@@ -342,19 +307,26 @@ function RetailerHistoryDrawer({
     [sales, retailerKey]
   );
   const retailerName = retailerSales.length > 0 ? retailerSales[0].retailerName : "Retailer Details";
-  const retailerPhone = retailerSales.length > 0 ? retailerSales[0].phone : "";
+  const totalBusiness = retailerSales.reduce((a, s) => a + wholesaleTotal(s), 0);
+  const totalReceived = retailerSales.reduce((a, s) => a + s.paymentReceived, 0);
 
   return (
     <Drawer isOpen={isOpen} onClose={onClose} title={retailerName}>
       <div className="space-y-4">
-        <div className="bg-[#f5f5f5] p-4 rounded-2xl border border-[#e8e8e8]">
-          <div className="text-[12px] font-medium text-[#888] uppercase tracking-wider mb-1">Phone Number</div>
-          <div className="font-bold text-black font-mono">{retailerPhone || "—"}</div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-[#f5f5f5] p-4 rounded-2xl border border-[#e8e8e8]">
+            <div className="text-[11px] font-medium text-[#888] uppercase tracking-wider mb-1">Total Billed</div>
+            <div className="font-bold text-black">₹{totalBusiness.toLocaleString("en-IN")}</div>
+          </div>
+          <div className="bg-[#f5f5f5] p-4 rounded-2xl border border-[#e8e8e8]">
+            <div className="text-[11px] font-medium text-[#888] uppercase tracking-wider mb-1">Outstanding</div>
+            <div className="font-bold text-black">₹{Math.max(0, totalBusiness - totalReceived).toLocaleString("en-IN")}</div>
+          </div>
         </div>
 
         <h3 className="font-bold text-sm uppercase tracking-wider text-[#555] border-b border-[#e8e8e8] pb-2">Order History</h3>
         {retailerSales.map((sale) => {
-          const total = sale.items.reduce((acc, i) => acc + i.qty * i.rate, 0);
+          const total = wholesaleTotal(sale);
           const balance = total - sale.paymentReceived;
           return (
             <div key={sale.id} id={`ws-row-${sale.id}`} className="border border-[#e8e8e8] rounded-2xl p-4 bg-white relative overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
@@ -364,7 +336,12 @@ function RetailerHistoryDrawer({
                 onCancel={() => setDeletingId(null)}
               />
               <div className="flex justify-between items-center mb-3">
-                <span className="font-semibold text-sm">{sale.date}</span>
+                <div>
+                  <span className="font-semibold text-sm">{sale.billNo || sale.date}</span>
+                  <div className="text-[11px] text-[#888]">
+                    Bill: {sale.date}{sale.receivedDate ? ` · Received: ${sale.receivedDate}` : ""}
+                  </div>
+                </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs bg-[#f5f5f5] text-[#666] px-2 py-1 rounded-lg font-bold">{sale.paymentMode}</span>
                   <button
@@ -375,22 +352,14 @@ function RetailerHistoryDrawer({
                   </button>
                 </div>
               </div>
-              <ul className="text-sm space-y-1 mb-3">
-                {sale.items.map((item, idx) => (
-                  <li key={idx} className="flex justify-between text-[#666]">
-                    <span>{item.qty}x {item.productName}</span>
-                    <span>₹{(item.qty * item.rate).toLocaleString("en-IN")}</span>
-                  </li>
-                ))}
-              </ul>
               <div className="pt-3 border-t border-[#f0f0f0] flex justify-between items-end text-sm">
                 <div className="text-[#888]">
-                  Total: <span className="font-bold text-black">₹{total.toLocaleString("en-IN")}</span>
+                  Bill Amount: <span className="font-bold text-black">₹{total.toLocaleString("en-IN")}</span>
                   <br />
-                  Paid: <span className="text-black">₹{sale.paymentReceived.toLocaleString("en-IN")}</span>
+                  Received: <span className="text-black">₹{sale.paymentReceived.toLocaleString("en-IN")}</span>
                 </div>
                 <div className="text-right">
-                  <span className="text-[11px] block text-[#888] uppercase tracking-wider">Balance</span>
+                  <span className="text-[11px] block text-[#888] uppercase tracking-wider">Pending</span>
                   <span className={`font-bold ${balance > 0 ? "text-[#444]" : "text-black"}`}>
                     ₹{balance.toLocaleString("en-IN")}
                   </span>

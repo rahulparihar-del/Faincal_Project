@@ -29,13 +29,16 @@ export interface WholesaleItem {
 
 export interface WholesaleSale {
   id: string;
-  date: string;
-  retailerName: string;
+  date: string;            // Bill Date (YYYY-MM-DD)
+  billNo: string;          // Bill No
+  retailerName: string;    // Shop Name
   phone: string;
   city: string;
-  items: WholesaleItem[];
-  paymentReceived: number;
+  billAmount: number;      // Bill Amount
+  receivedDate: string;    // Received Date (YYYY-MM-DD), "" if unpaid
+  paymentReceived: number; // Received Amount
   paymentMode: PaymentMode;
+  items?: WholesaleItem[];  // legacy line-items (optional, kept for back-compat)
 }
 
 export interface Manufacturer {

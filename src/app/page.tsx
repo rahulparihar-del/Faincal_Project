@@ -4,6 +4,7 @@ import React, { useMemo, useRef } from "react";
 import { useData } from "@/context/DataContext";
 import { CardGroup, StatCard, Card } from "@/components/ui/Card";
 import { AnimatedCounter } from "@/components/ui/AnimatedCounter";
+import { wholesaleTotal } from "@/lib/wholesale";
 import { useGSAP } from "@gsap/react";
 import { gsap } from "gsap";
 import {
@@ -18,20 +19,16 @@ import {
   Landmark,
   FileText,
 } from "lucide-react";
-import Link from "next/link";
 
 export default function Dashboard() {
   const { ecomSales, wholesaleSales, purchases, transactions, isReady } = useData();
   const chartRef = useRef<HTMLDivElement>(null);
-  const fabRef = useRef<HTMLDivElement>(null);
 
   const metrics = useMemo(() => {
     if (!isReady) return null;
 
     const ecomRev = ecomSales.reduce((acc, sale) => acc + (sale.isRTO ? 0 : sale.netPayout), 0);
-    const wholesaleRev = wholesaleSales.reduce((acc, sale) => {
-      return acc + sale.items.reduce((s, i) => s + i.qty * i.rate, 0);
-    }, 0);
+    const wholesaleRev = wholesaleSales.reduce((acc, sale) => acc + wholesaleTotal(sale), 0);
     const totalRevenue = ecomRev + wholesaleRev;
 
     const totalPurchases = purchases.reduce((acc, p) => acc + p.qty * p.rate, 0);
@@ -47,8 +44,7 @@ export default function Dashboard() {
       .reduce((acc, p) => acc + p.qty * p.rate, 0);
 
     const activeWholesale = wholesaleSales.filter((w) => {
-      const total = w.items.reduce((acc, i) => acc + i.qty * i.rate, 0);
-      return w.paymentReceived < total;
+      return w.paymentReceived < wholesaleTotal(w);
     }).length;
 
     const rtoLosses = ecomSales
@@ -102,7 +98,7 @@ export default function Dashboard() {
     });
 
     wholesaleSales.slice(0, 20).forEach((w) => {
-      const total = w.items.reduce((a, i) => a + i.qty * i.rate, 0);
+      const total = wholesaleTotal(w);
       items.push({
         id: `ws-${w.id}`,
         date: w.date,
@@ -151,18 +147,6 @@ export default function Dashboard() {
       delay: 0.3,
     });
   }, { scope: chartRef, dependencies: [monthlyRevenue] });
-
-  useGSAP(() => {
-    if (!fabRef.current) return;
-    gsap.from(fabRef.current.children, {
-      y: 20,
-      opacity: 0,
-      duration: 0.4,
-      stagger: 0.1,
-      ease: "power2.out",
-      delay: 0.5,
-    });
-  }, { scope: fabRef });
 
   if (!isReady || !metrics)
     return (
@@ -283,31 +267,6 @@ export default function Dashboard() {
             </div>
           </Card>
         </div>
-      </div>
-
-      {/* Floating Action Buttons */}
-      <div ref={fabRef} className="fixed bottom-8 right-8 flex flex-col gap-3 z-30" role="group" aria-label="Quick actions">
-        <Link
-          href="/ecom"
-          className="bg-black text-white px-5 py-2.5 rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.2)] text-sm font-bold hover:scale-105 transition-transform text-center focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
-          aria-label="Add new e-commerce sale"
-        >
-          + Sale
-        </Link>
-        <Link
-          href="/purchases"
-          className="bg-[#1a1a1a] text-white px-5 py-2.5 rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.15)] text-sm font-bold hover:scale-105 transition-transform text-center focus:outline-none focus:ring-2 focus:ring-gray-800 focus:ring-offset-2"
-          aria-label="Add new purchase order"
-        >
-          + Purchase
-        </Link>
-        <Link
-          href="/bank"
-          className="bg-white text-black border border-[#e0e0e0] px-5 py-2.5 rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.08)] text-sm font-bold hover:scale-105 transition-transform text-center focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
-          aria-label="Add new bank transaction"
-        >
-          + Transaction
-        </Link>
       </div>
     </div>
   );
