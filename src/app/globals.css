@@ -151,6 +151,16 @@ label {
   animation: pulse-dot 2s infinite;
 }
 
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+
+.animate-shake {
+  animation: shake 0.45s ease-in-out;
+}
+
 /* ============================================================
    DARK MODE
    Class-based ("dark" on <html>). Default theme is dark.
