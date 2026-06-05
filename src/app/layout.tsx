@@ -30,7 +30,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeNoFlashScript }} />
       </head>
-      <body className="min-h-full flex flex-col bg-[var(--color-gray-50)] text-[var(--color-gray-900)]">
+      <body className="min-h-full flex flex-col bg-[var(--color-gray-50)] text-[var(--color-gray-900)]" suppressHydrationWarning>
         <ErrorBoundary>
           <ThemeProvider>
             <DataProvider>

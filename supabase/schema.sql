@@ -66,3 +66,36 @@ begin
     );
   end loop;
 end $$;
+
+-- ---------- Invoice upload / extraction ----------
+-- `invoices` holds the clean summary record (no line items, no file blob).
+-- `invoice_details` holds the heavy bits (original file + line items + raw text),
+-- fetched only on the View Details page.
+create table if not exists public.invoices (
+  id          text primary key,
+  data        jsonb not null,
+  created_at  timestamptz not null default now()
+);
+
+create table if not exists public.invoice_details (
+  id          text primary key,
+  data        jsonb not null,
+  created_at  timestamptz not null default now()
+);
+
+alter table public.invoices        enable row level security;
+alter table public.invoice_details enable row level security;
+
+do $$
+declare
+  t text;
+begin
+  foreach t in array array['invoices','invoice_details']
+  loop
+    execute format('drop policy if exists "anon_full_access" on public.%I;', t);
+    execute format(
+      'create policy "anon_full_access" on public.%I for all to anon, authenticated using (true) with check (true);',
+      t
+    );
+  end loop;
+end $$;

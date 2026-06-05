@@ -5,6 +5,7 @@ import { useData } from "@/context/DataContext";
 import { Drawer } from "@/components/ui/Drawer";
 import { ConfirmDelete } from "@/components/ui/ConfirmDelete";
 import { Manufacturer } from "@/lib/types";
+import { InvoiceSection } from "@/components/invoice/InvoiceSection";
 import { gsap } from "gsap";
 import { useGSAP } from "@gsap/react";
 import { Plus, Edit2, Trash2, ChevronDown, Users, Phone, MapPin } from "lucide-react";
@@ -125,6 +126,8 @@ export default function ManufacturersPage() {
           setDrawerOpen(false);
         }}
       />
+
+      <InvoiceSection />
     </div>
   );
 }
