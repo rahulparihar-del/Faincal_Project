@@ -1,5 +1,5 @@
 import { ExtractionResult } from "./types";
-import { parseInvoiceText } from "./parse";
+import { extractFields } from "./parse";
 
 export function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -101,6 +101,6 @@ export async function extractInvoice(file: File, onProgress?: ProgressFn): Promi
   }
 
   onProgress?.("Extracting fields…");
-  const { summary, lineItems } = parseInvoiceText(rawText);
-  return { summary, lineItems, rawText, source };
+  const { fields, lineItems } = extractFields(rawText);
+  return { fields, lineItems, rawText, source };
 }

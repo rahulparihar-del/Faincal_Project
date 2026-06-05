@@ -35,14 +35,37 @@ export interface InvoiceDetails {
   lineItems: InvoiceLineItem[];
   rawText: string;
   fileData: string; // data URL of the original file
+  confidence?: Record<string, number>;
 }
 
 export interface ExtractionResult {
-  summary: InvoiceSummary;
+  fields: ExtractedFields;
   lineItems: InvoiceLineItem[];
   rawText: string;
   source: "pdf-text" | "ocr";
 }
+
+/** Per-field extraction result with a 0..1 confidence score. */
+export interface FieldResult<T> {
+  value: T | null;
+  confidence: number;
+}
+
+export interface ExtractedFields {
+  vendorName: FieldResult<string>;
+  gstNumber: FieldResult<string>;
+  invoiceNumber: FieldResult<string>;
+  invoiceDate: FieldResult<string>;
+  city: FieldResult<string>;
+  state: FieldResult<string>;
+  subtotal: FieldResult<number>;
+  gstAmount: FieldResult<number>;
+  totalAmount: FieldResult<number>;
+  gstType: FieldResult<GstType>;
+}
+
+/** Fields below this confidence are flagged for manual review before saving. */
+export const CONFIDENCE_THRESHOLD = 0.8;
 
 export const EMPTY_SUMMARY: InvoiceSummary = {
   vendorName: null,

@@ -3,6 +3,8 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { DataProvider } from "@/context/DataContext";
 import { ThemeProvider, themeNoFlashScript } from "@/context/ThemeContext";
+import { AuthProvider } from "@/context/AuthContext";
+import { AuthGate } from "@/components/auth/AuthGate";
 import { AppShell } from "@/components/layout/AppShell";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 
@@ -33,11 +35,15 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-[var(--color-gray-50)] text-[var(--color-gray-900)]" suppressHydrationWarning>
         <ErrorBoundary>
           <ThemeProvider>
-            <DataProvider>
-              <AppShell>
-                {children}
-              </AppShell>
-            </DataProvider>
+            <AuthProvider>
+              <AuthGate>
+                <DataProvider>
+                  <AppShell>
+                    {children}
+                  </AppShell>
+                </DataProvider>
+              </AuthGate>
+            </AuthProvider>
           </ThemeProvider>
         </ErrorBoundary>
       </body>

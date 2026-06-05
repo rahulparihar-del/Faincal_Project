@@ -5,9 +5,9 @@ import Link from "next/link";
 import { useSupabaseTable } from "@/lib/hooks/useSupabaseTable";
 import { extractInvoice, fileToDataUrl } from "@/lib/invoice/extract";
 import { saveInvoiceDetails, deleteInvoiceDetails } from "@/lib/invoice/store";
-import { InvoiceRecord, InvoiceLineItem, GstType } from "@/lib/invoice/types";
+import { InvoiceRecord, InvoiceLineItem, GstType, CONFIDENCE_THRESHOLD } from "@/lib/invoice/types";
 import { ConfirmDelete } from "@/components/ui/ConfirmDelete";
-import { UploadCloud, FileText, Loader2, Trash2, Eye, X, Sparkles } from "lucide-react";
+import { UploadCloud, FileText, Loader2, Trash2, Eye, X, Sparkles, AlertTriangle } from "lucide-react";
 
 const ACCEPT = ".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png";
 
@@ -45,6 +45,7 @@ export function InvoiceSection() {
 
   // Extracted draft awaiting review/save
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [confidence, setConfidence] = useState<Record<keyof Draft, number>>({} as Record<keyof Draft, number>);
   const [pending, setPending] = useState<{
     lineItems: InvoiceLineItem[];
     rawText: string;
@@ -52,6 +53,7 @@ export function InvoiceSection() {
     fileName: string;
     fileType: string;
     source: string;
+    confidence: Record<string, number>;
   } | null>(null);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -68,19 +70,32 @@ export function InvoiceSection() {
         extractInvoice(file, setProgress),
         fileToDataUrl(file),
       ]);
-      const s = result.summary;
+      const f = result.fields;
       setDraft({
-        vendorName: s.vendorName ?? "",
-        gstNumber: s.gstNumber ?? "",
-        invoiceNumber: s.invoiceNumber ?? "",
-        invoiceDate: s.invoiceDate ?? "",
-        city: s.city ?? "",
-        state: s.state ?? "",
-        subtotal: s.subtotal != null ? String(s.subtotal) : "",
-        gstAmount: s.gstAmount != null ? String(s.gstAmount) : "",
-        totalAmount: s.totalAmount != null ? String(s.totalAmount) : "",
-        gstType: s.gstType ?? "",
+        vendorName: f.vendorName.value ?? "",
+        gstNumber: f.gstNumber.value ?? "",
+        invoiceNumber: f.invoiceNumber.value ?? "",
+        invoiceDate: f.invoiceDate.value ?? "",
+        city: f.city.value ?? "",
+        state: f.state.value ?? "",
+        subtotal: f.subtotal.value != null ? String(f.subtotal.value) : "",
+        gstAmount: f.gstAmount.value != null ? String(f.gstAmount.value) : "",
+        totalAmount: f.totalAmount.value != null ? String(f.totalAmount.value) : "",
+        gstType: f.gstType.value ?? "",
       });
+      const conf: Record<keyof Draft, number> = {
+        vendorName: f.vendorName.confidence,
+        gstNumber: f.gstNumber.confidence,
+        invoiceNumber: f.invoiceNumber.confidence,
+        invoiceDate: f.invoiceDate.confidence,
+        city: f.city.confidence,
+        state: f.state.confidence,
+        subtotal: f.subtotal.confidence,
+        gstAmount: f.gstAmount.confidence,
+        totalAmount: f.totalAmount.confidence,
+        gstType: f.gstType.confidence,
+      };
+      setConfidence(conf);
       setPending({
         lineItems: result.lineItems,
         rawText: result.rawText,
@@ -88,6 +103,7 @@ export function InvoiceSection() {
         fileName: file.name,
         fileType: file.type || (/\.pdf$/i.test(file.name) ? "application/pdf" : "image"),
         source: result.source,
+        confidence: conf,
       });
     } catch (e) {
       console.error(e);
@@ -130,6 +146,7 @@ export function InvoiceSection() {
         lineItems: pending.lineItems,
         rawText: pending.rawText,
         fileData: pending.fileData,
+        confidence: pending.confidence,
       });
       setInvoices((prev) => [record, ...prev]);
       discardDraft();
@@ -147,11 +164,28 @@ export function InvoiceSection() {
     await deleteInvoiceDetails(id);
   };
 
-  const set = (k: keyof Draft, v: string) => setDraft((d) => (d ? { ...d, [k]: v } : d));
+  const set = (k: keyof Draft, v: string) => {
+    setDraft((d) => (d ? { ...d, [k]: v } : d));
+    // Once the user edits a field, treat it as reviewed.
+    setConfidence((c) => ({ ...c, [k]: 1 }));
+  };
+
+  const lowConf = (k: keyof Draft) => (confidence[k] ?? 1) < CONFIDENCE_THRESHOLD;
+  const reviewCount = draft
+    ? (Object.keys(draft) as (keyof Draft)[]).filter((k) => lowConf(k)).length
+    : 0;
 
   const inputCls =
     "w-full bg-[#f5f5f5] border border-[#e8e8e8] rounded-lg px-3 py-2 text-sm font-medium text-black placeholder:text-[#aaa] focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-[#ccc] transition-colors";
-  const labelCls = "block text-[11px] font-semibold text-[#888] uppercase tracking-wider mb-1";
+  const labelCls = "flex items-center gap-1.5 text-[11px] font-semibold text-[#888] uppercase tracking-wider mb-1";
+  const fieldCls = (k: keyof Draft) =>
+    lowConf(k) ? `${inputCls} !border-amber-400 !bg-amber-50/60 ring-1 ring-amber-300` : inputCls;
+  const ReviewTag = ({ k }: { k: keyof Draft }) =>
+    lowConf(k) ? (
+      <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-amber-600 normal-case">
+        <AlertTriangle size={10} /> review {Math.round((confidence[k] ?? 0) * 100)}%
+      </span>
+    ) : null;
 
   return (
     <div className="bg-white border border-[#e8e8e8] rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
@@ -229,46 +263,53 @@ export function InvoiceSection() {
             </div>
             <p className="text-xs text-[#888]">Review the auto-extracted fields and correct anything before saving.</p>
 
+            {reviewCount > 0 && (
+              <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-xl px-4 py-2.5">
+                <AlertTriangle size={15} />
+                <span>{reviewCount} field{reviewCount > 1 ? "s" : ""} below 80% confidence — please verify the highlighted field{reviewCount > 1 ? "s" : ""} before saving.</span>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div className="col-span-2">
-                <label className={labelCls}>Vendor / Manufacturer</label>
-                <input className={inputCls} value={draft.vendorName} onChange={(e) => set("vendorName", e.target.value)} />
+                <label className={labelCls}>Vendor / Manufacturer <ReviewTag k="vendorName" /></label>
+                <input className={fieldCls("vendorName")} value={draft.vendorName} onChange={(e) => set("vendorName", e.target.value)} />
               </div>
               <div className="col-span-2">
-                <label className={labelCls}>GST Number</label>
-                <input className={inputCls} value={draft.gstNumber} onChange={(e) => set("gstNumber", e.target.value)} />
+                <label className={labelCls}>GST Number <ReviewTag k="gstNumber" /></label>
+                <input className={fieldCls("gstNumber")} value={draft.gstNumber} onChange={(e) => set("gstNumber", e.target.value)} />
               </div>
               <div>
-                <label className={labelCls}>Invoice No</label>
-                <input className={inputCls} value={draft.invoiceNumber} onChange={(e) => set("invoiceNumber", e.target.value)} />
+                <label className={labelCls}>Invoice No <ReviewTag k="invoiceNumber" /></label>
+                <input className={fieldCls("invoiceNumber")} value={draft.invoiceNumber} onChange={(e) => set("invoiceNumber", e.target.value)} />
               </div>
               <div>
-                <label className={labelCls}>Invoice Date</label>
-                <input type="date" className={inputCls} value={draft.invoiceDate} onChange={(e) => set("invoiceDate", e.target.value)} />
+                <label className={labelCls}>Invoice Date <ReviewTag k="invoiceDate" /></label>
+                <input type="date" className={fieldCls("invoiceDate")} value={draft.invoiceDate} onChange={(e) => set("invoiceDate", e.target.value)} />
               </div>
               <div>
-                <label className={labelCls}>City</label>
-                <input className={inputCls} value={draft.city} onChange={(e) => set("city", e.target.value)} />
+                <label className={labelCls}>City <ReviewTag k="city" /></label>
+                <input className={fieldCls("city")} value={draft.city} onChange={(e) => set("city", e.target.value)} />
               </div>
               <div>
-                <label className={labelCls}>State</label>
-                <input className={inputCls} value={draft.state} onChange={(e) => set("state", e.target.value)} />
+                <label className={labelCls}>State <ReviewTag k="state" /></label>
+                <input className={fieldCls("state")} value={draft.state} onChange={(e) => set("state", e.target.value)} />
               </div>
               <div>
-                <label className={labelCls}>Subtotal (₹)</label>
-                <input type="number" step="0.01" className={inputCls} value={draft.subtotal} onChange={(e) => set("subtotal", e.target.value)} />
+                <label className={labelCls}>Subtotal (₹) <ReviewTag k="subtotal" /></label>
+                <input type="number" step="0.01" className={fieldCls("subtotal")} value={draft.subtotal} onChange={(e) => set("subtotal", e.target.value)} />
               </div>
               <div>
-                <label className={labelCls}>GST Amount (₹)</label>
-                <input type="number" step="0.01" className={inputCls} value={draft.gstAmount} onChange={(e) => set("gstAmount", e.target.value)} />
+                <label className={labelCls}>GST Amount (₹) <ReviewTag k="gstAmount" /></label>
+                <input type="number" step="0.01" className={fieldCls("gstAmount")} value={draft.gstAmount} onChange={(e) => set("gstAmount", e.target.value)} />
               </div>
               <div>
-                <label className={labelCls}>Total (₹)</label>
-                <input type="number" step="0.01" className={inputCls} value={draft.totalAmount} onChange={(e) => set("totalAmount", e.target.value)} />
+                <label className={labelCls}>Total (₹) <ReviewTag k="totalAmount" /></label>
+                <input type="number" step="0.01" className={fieldCls("totalAmount")} value={draft.totalAmount} onChange={(e) => set("totalAmount", e.target.value)} />
               </div>
               <div>
-                <label className={labelCls}>GST Type</label>
-                <select className={inputCls} value={draft.gstType} onChange={(e) => set("gstType", e.target.value)}>
+                <label className={labelCls}>GST Type <ReviewTag k="gstType" /></label>
+                <select className={fieldCls("gstType")} value={draft.gstType} onChange={(e) => set("gstType", e.target.value)}>
                   <option value="">—</option>
                   <option value="CGST/SGST">CGST/SGST</option>
                   <option value="IGST">IGST</option>

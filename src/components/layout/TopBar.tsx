@@ -1,9 +1,10 @@
 "use client";
 
 import React from "react";
-import { Menu, Sun, Moon, Database, CloudOff } from "lucide-react";
+import { Menu, Sun, Moon, Database, CloudOff, LogOut } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTheme } from "@/context/ThemeContext";
+import { useAuth } from "@/context/AuthContext";
 import { useSupabaseStatus, type ConnectionStatus } from "@/lib/hooks/useSupabaseStatus";
 
 const TAB_NAMES: Record<string, string> = {
@@ -68,6 +69,7 @@ export function TopBar({ setMobileOpen }: { setMobileOpen: (v: boolean) => void 
   const title = TAB_NAMES[pathname] || "BizTrack";
   const { theme, toggleTheme } = useTheme();
   const status = useSupabaseStatus();
+  const { logout } = useAuth();
 
   return (
     <header className="h-16 bg-white border-b border-[#e0e0e0] flex items-center px-5 lg:px-8 shrink-0 z-30">
@@ -89,6 +91,14 @@ export function TopBar({ setMobileOpen }: { setMobileOpen: (v: boolean) => void 
           title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
         >
           {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
+        <button
+          onClick={logout}
+          className="w-9 h-9 flex items-center justify-center rounded-lg text-[#666] hover:text-black hover:bg-[#f5f5f5] transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400"
+          aria-label="Sign out"
+          title="Sign out"
+        >
+          <LogOut size={18} />
         </button>
       </div>
     </header>
