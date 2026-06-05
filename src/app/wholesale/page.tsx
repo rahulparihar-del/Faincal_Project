@@ -9,6 +9,16 @@ import { WholesaleSale, WholesaleItem, PaymentMode } from "@/lib/types";
 import { gsap } from "gsap";
 import { Plus, Trash2, Eye, ShoppingCart, IndianRupee, AlertTriangle } from "lucide-react";
 
+/**
+ * Stable identity for a retailer. Prefers the phone number (so two shops with
+ * the same name stay separate), but falls back to the normalised name when no
+ * phone is recorded — otherwise phone-less records all collapse into one.
+ */
+function getRetailerKey(w: { phone: string; retailerName: string }): string {
+  const phone = (w.phone || "").trim();
+  return phone || `name:${(w.retailerName || "").trim().toLowerCase()}`;
+}
+
 export default function WholesaleSalesPage() {
   const { wholesaleSales, setWholesaleSales } = useData();
   const [isDrawerOpen, setDrawerOpen] = useState(false);
@@ -27,15 +37,17 @@ export default function WholesaleSalesPage() {
   }, [wholesaleSales]);
 
   const retailers = useMemo(() => {
-    const map = new Map<string, { name: string; phone: string; city: string; orders: number; outstanding: number }>();
+    const map = new Map<string, { key: string; name: string; phone: string; city: string; orders: number; total: number; outstanding: number }>();
     wholesaleSales.forEach((w) => {
       const orderTotal = w.items.reduce((acc, i) => acc + i.qty * i.rate, 0);
       const balance = orderTotal - w.paymentReceived;
-      if (!map.has(w.phone)) {
-        map.set(w.phone, { name: w.retailerName, phone: w.phone, city: w.city, orders: 1, outstanding: balance });
+      const key = getRetailerKey(w);
+      if (!map.has(key)) {
+        map.set(key, { key, name: w.retailerName, phone: w.phone, city: w.city, orders: 1, total: orderTotal, outstanding: balance });
       } else {
-        const r = map.get(w.phone)!;
+        const r = map.get(key)!;
         r.orders += 1;
+        r.total += orderTotal;
         r.outstanding += balance;
       }
     });
@@ -93,6 +105,7 @@ export default function WholesaleSalesPage() {
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider">Phone</th>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider">City</th>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-center">Orders</th>
+                <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-right">Total Billed</th>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-right">Outstanding</th>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-center">Status</th>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-right">Actions</th>
@@ -110,14 +123,15 @@ export default function WholesaleSalesPage() {
 
                 return (
                   <tr
-                    key={r.phone}
+                    key={r.key}
                     className="hover:bg-[#fafafa] transition-colors cursor-pointer"
-                    onClick={() => setSelectedRetailer(r.phone)}
+                    onClick={() => setSelectedRetailer(r.key)}
                   >
                     <td className="px-5 py-3.5 font-semibold text-black">{r.name}</td>
                     <td className="px-5 py-3.5 text-[#888] font-mono text-xs">{r.phone}</td>
                     <td className="px-5 py-3.5 text-[#888]">{r.city}</td>
                     <td className="px-5 py-3.5 text-center font-bold">{r.orders}</td>
+                    <td className="px-5 py-3.5 text-right font-bold">₹{r.total.toLocaleString("en-IN")}</td>
                     <td className="px-5 py-3.5 text-right font-bold">₹{Math.max(0, r.outstanding).toLocaleString("en-IN")}</td>
                     <td className="px-5 py-3.5 text-center">
                       <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${statusClass}`}>{status}</span>
@@ -125,7 +139,7 @@ export default function WholesaleSalesPage() {
                     <td className="px-5 py-3.5 text-right">
                       <button
                         className="w-8 h-8 flex items-center justify-center rounded-lg text-[#888] hover:text-black hover:bg-[#f5f5f5] transition-colors"
-                        onClick={(e) => { e.stopPropagation(); setSelectedRetailer(r.phone); }}
+                        onClick={(e) => { e.stopPropagation(); setSelectedRetailer(r.key); }}
                       >
                         <Eye size={14} />
                       </button>
@@ -135,7 +149,7 @@ export default function WholesaleSalesPage() {
               })}
               {retailers.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-5 py-12 text-center text-[#888]">
+                  <td colSpan={8} className="px-5 py-12 text-center text-[#888]">
                     No retailers found. Click &quot;+ Add Order&quot; to create a wholesale order.
                   </td>
                 </tr>
@@ -155,9 +169,9 @@ export default function WholesaleSalesPage() {
       />
 
       <RetailerHistoryDrawer
-        isOpen={!!selectedRetailer}
+        isOpen={selectedRetailer !== null}
         onClose={() => { setSelectedRetailer(null); setDeletingId(null); }}
-        retailerPhone={selectedRetailer}
+        retailerKey={selectedRetailer}
         sales={wholesaleSales}
         deletingId={deletingId}
         setDeletingId={setDeletingId}
@@ -309,7 +323,7 @@ function WholesaleFormDrawer({ isOpen, onClose, onSave }: { isOpen: boolean; onC
 function RetailerHistoryDrawer({
   isOpen,
   onClose,
-  retailerPhone,
+  retailerKey,
   sales,
   deletingId,
   setDeletingId,
@@ -317,21 +331,25 @@ function RetailerHistoryDrawer({
 }: {
   isOpen: boolean;
   onClose: () => void;
-  retailerPhone: string | null;
+  retailerKey: string | null;
   sales: WholesaleSale[];
   deletingId: string | null;
   setDeletingId: (id: string | null) => void;
   onDeleteOrder: (id: string) => void;
 }) {
-  const retailerSales = useMemo(() => sales.filter((s) => s.phone === retailerPhone), [sales, retailerPhone]);
+  const retailerSales = useMemo(
+    () => sales.filter((s) => getRetailerKey(s) === retailerKey),
+    [sales, retailerKey]
+  );
   const retailerName = retailerSales.length > 0 ? retailerSales[0].retailerName : "Retailer Details";
+  const retailerPhone = retailerSales.length > 0 ? retailerSales[0].phone : "";
 
   return (
     <Drawer isOpen={isOpen} onClose={onClose} title={retailerName}>
       <div className="space-y-4">
         <div className="bg-[#f5f5f5] p-4 rounded-2xl border border-[#e8e8e8]">
           <div className="text-[12px] font-medium text-[#888] uppercase tracking-wider mb-1">Phone Number</div>
-          <div className="font-bold text-black font-mono">{retailerPhone}</div>
+          <div className="font-bold text-black font-mono">{retailerPhone || "—"}</div>
         </div>
 
         <h3 className="font-bold text-sm uppercase tracking-wider text-[#555] border-b border-[#e8e8e8] pb-2">Order History</h3>
