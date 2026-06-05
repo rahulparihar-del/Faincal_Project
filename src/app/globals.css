@@ -269,3 +269,22 @@ label {
 body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
+
+/* ============================================================
+   FOCUS RINGS
+   Show focus rings only for keyboard navigation (:focus-visible),
+   not for mouse clicks. This removes the "white border" that
+   appeared when clicking buttons/links. Only the ring shadow
+   variables are reset, so elements keep their own drop shadows.
+   ============================================================ */
+:focus:not(:focus-visible) {
+  --tw-ring-shadow: 0 0 #0000;
+  --tw-ring-offset-shadow: 0 0 #0000;
+  outline: none;
+}
+
+/* In dark mode, make the keyboard focus-ring offset blend with the
+   dark background instead of defaulting to white. */
+.dark {
+  --tw-ring-offset-color: #0f0f0f;
+}
