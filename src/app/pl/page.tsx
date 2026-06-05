@@ -5,11 +5,13 @@ import { useData } from "@/context/DataContext";
 import { CardGroup, StatCard } from "@/components/ui/Card";
 import { AnimatedCounter } from "@/components/ui/AnimatedCounter";
 import { wholesaleTotal } from "@/lib/wholesale";
-import { Download, TrendingUp, TrendingDown, DollarSign, MinusCircle, BarChart3 } from "lucide-react";
+import { Download, FileSpreadsheet, TrendingUp, TrendingDown, DollarSign, MinusCircle, BarChart3 } from "lucide-react";
 import { format, parseISO } from "date-fns";
+import { exportExcelReport } from "@/lib/export/excelReport";
 
 export default function ProfitAndLossPage() {
-  const { ecomSales, wholesaleSales, purchases, transactions } = useData();
+  const { ecomSales, wholesaleSales, manufacturers, purchases, transactions } = useData();
+  const [isExporting, setIsExporting] = React.useState(false);
 
   const { overall, monthly } = useMemo(() => {
     const monthlyMap = new Map<string, {
@@ -111,6 +113,27 @@ export default function ProfitAndLossPage() {
     document.body.removeChild(a);
   };
 
+  const handleExportExcel = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    try {
+      await exportExcelReport({
+        ecomSales,
+        wholesaleSales,
+        manufacturers,
+        purchases,
+        transactions,
+        overall,
+        monthly,
+      });
+    } catch (err) {
+      console.error("Excel export failed:", err);
+      alert("Could not generate the Excel report. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -119,13 +142,23 @@ export default function ProfitAndLossPage() {
           <h2 className="text-2xl font-bold text-black tracking-tight">Profit & Loss</h2>
           <p className="text-sm text-[#888] mt-1">Auto-calculated from all modules</p>
         </div>
-        <button
-          onClick={exportCSV}
-          className="flex items-center gap-2 bg-black text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-[#1a1a1a] transition-colors shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
-        >
-          <Download size={16} />
-          Export CSV
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={exportCSV}
+            className="flex items-center gap-2 bg-white text-black border border-[#e0e0e0] px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-[#f5f5f5] transition-colors"
+          >
+            <Download size={16} />
+            Export CSV
+          </button>
+          <button
+            onClick={handleExportExcel}
+            disabled={isExporting}
+            className="flex items-center gap-2 bg-black text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-[#1a1a1a] transition-colors shadow-[0_2px_8px_rgba(0,0,0,0.15)] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <FileSpreadsheet size={16} />
+            {isExporting ? "Generating…" : "Export Excel"}
+          </button>
+        </div>
       </div>
 
       <CardGroup cols="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
