@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { useData } from "@/context/DataContext";
 import { Drawer } from "@/components/ui/Drawer";
 import { CardGroup, StatCard } from "@/components/ui/Card";
@@ -22,9 +22,20 @@ function getRetailerKey(w: { phone: string; retailerName: string }): string {
 
 export default function WholesaleSalesPage() {
   const { wholesaleSales, setWholesaleSales } = useData();
-  const [isDrawerOpen, setDrawerOpen] = useState(false);
   const [selectedRetailer, setSelectedRetailer] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Inline "add bill" form state
+  const today = new Date().toISOString().split("T")[0];
+  const [draft, setDraft] = useState({
+    date: today,
+    billNo: "",
+    retailerName: "",
+    billAmount: "",
+    receivedDate: "",
+    paymentReceived: "",
+    paymentMode: "UPI" as PaymentMode,
+  });
 
   const stats = useMemo(() => {
     let orders = wholesaleSales.length;
@@ -70,21 +81,36 @@ export default function WholesaleSalesPage() {
     }
   };
 
+  const draftPending = (Number(draft.billAmount) || 0) - (Number(draft.paymentReceived) || 0);
+  const canAdd = !!draft.date && !!draft.billNo.trim() && !!draft.retailerName.trim() && Number(draft.billAmount) > 0;
+
+  const handleAddBill = () => {
+    if (!canAdd) return;
+    const sale: WholesaleSale = {
+      id: Date.now().toString(),
+      date: draft.date,
+      billNo: draft.billNo.trim(),
+      retailerName: draft.retailerName.trim(),
+      phone: "",
+      city: "",
+      billAmount: Number(draft.billAmount),
+      receivedDate: draft.receivedDate,
+      paymentReceived: Number(draft.paymentReceived) || 0,
+      paymentMode: draft.paymentMode,
+    };
+    setWholesaleSales((prev) => [sale, ...prev]);
+    setDraft({ date: today, billNo: "", retailerName: "", billAmount: "", receivedDate: "", paymentReceived: "", paymentMode: "UPI" });
+  };
+
+  const inputCls = "w-full bg-[#f5f5f5] border border-[#e8e8e8] rounded-lg px-3 py-2 text-sm font-medium text-black placeholder:text-[#aaa] focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-[#ccc] transition-colors";
+  const labelCls = "block text-[11px] font-semibold text-[#888] uppercase tracking-wider mb-1";
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-black tracking-tight">Wholesale Sales</h2>
-          <p className="text-sm text-[#888] mt-1">{retailers.length} retailers · {stats.orders} orders</p>
-        </div>
-        <button
-          onClick={() => setDrawerOpen(true)}
-          className="flex items-center gap-2 bg-black text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-[#1a1a1a] transition-colors shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
-        >
-          <Plus size={16} />
-          Add Order
-        </button>
+      <div>
+        <h2 className="text-2xl font-bold text-black tracking-tight">Wholesale Sales</h2>
+        <p className="text-sm text-[#888] mt-1">{retailers.length} retailers · {stats.orders} orders</p>
       </div>
 
       <CardGroup>
@@ -92,6 +118,61 @@ export default function WholesaleSalesPage() {
         <StatCard title="Total Collected" value={`₹${stats.collected.toLocaleString("en-IN")}`} icon={IndianRupee} />
         <StatCard title="Outstanding" value={`₹${Math.max(0, stats.outstanding).toLocaleString("en-IN")}`} icon={AlertTriangle} />
       </CardGroup>
+
+      {/* Inline Add Bill */}
+      <div className="bg-white border border-[#e8e8e8] rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+        <div className="flex items-center gap-2 mb-4">
+          <Plus size={16} className="text-[#888]" />
+          <h3 className="font-bold text-sm uppercase tracking-wider text-[#555]">Add Bill</h3>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div>
+            <label className={labelCls}>Bill Date *</label>
+            <input type="date" className={inputCls} value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} />
+          </div>
+          <div>
+            <label className={labelCls}>Bill No *</label>
+            <input type="text" placeholder="WHL/2026-27/0001" className={inputCls} value={draft.billNo} onChange={(e) => setDraft({ ...draft, billNo: e.target.value })} />
+          </div>
+          <div className="col-span-2">
+            <label className={labelCls}>Shop Name *</label>
+            <input type="text" placeholder="Shop name" className={inputCls} value={draft.retailerName} onChange={(e) => setDraft({ ...draft, retailerName: e.target.value })} />
+          </div>
+          <div>
+            <label className={labelCls}>Bill Amount (₹) *</label>
+            <input type="number" min="0" step="0.01" placeholder="0" className={inputCls} value={draft.billAmount} onChange={(e) => setDraft({ ...draft, billAmount: e.target.value })} />
+          </div>
+          <div>
+            <label className={labelCls}>Received Date</label>
+            <input type="date" className={inputCls} value={draft.receivedDate} onChange={(e) => setDraft({ ...draft, receivedDate: e.target.value })} />
+          </div>
+          <div>
+            <label className={labelCls}>Received Amount (₹)</label>
+            <input type="number" min="0" step="0.01" placeholder="0" className={inputCls} value={draft.paymentReceived} onChange={(e) => setDraft({ ...draft, paymentReceived: e.target.value })} />
+          </div>
+          <div>
+            <label className={labelCls}>Payment Mode</label>
+            <select className={inputCls} value={draft.paymentMode} onChange={(e) => setDraft({ ...draft, paymentMode: e.target.value as PaymentMode })}>
+              <option value="Cash">Cash</option>
+              <option value="UPI">UPI</option>
+              <option value="Bank Transfer">Bank Transfer</option>
+            </select>
+          </div>
+        </div>
+        <div className="flex items-center justify-between mt-4 flex-wrap gap-3">
+          <div className="text-sm text-[#888]">
+            Pending: <span className="font-bold text-black">₹{draftPending.toLocaleString("en-IN")}</span>
+          </div>
+          <button
+            onClick={handleAddBill}
+            disabled={!canAdd}
+            className="inline-flex items-center gap-1.5 bg-black text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-[#1a1a1a] transition-colors shadow-[0_2px_8px_rgba(0,0,0,0.15)] disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Plus size={16} />
+            Add Bill
+          </button>
+        </div>
+      </div>
 
       {/* Retailer Directory */}
       <div className="bg-white border border-[#e8e8e8] rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
@@ -147,7 +228,7 @@ export default function WholesaleSalesPage() {
               {retailers.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-5 py-12 text-center text-[#888]">
-                    No retailers found. Click &quot;+ Add Order&quot; to create a wholesale order.
+                    No retailers found. Add a bill using the form above.
                   </td>
                 </tr>
               )}
@@ -155,15 +236,6 @@ export default function WholesaleSalesPage() {
           </table>
         </div>
       </div>
-
-      <WholesaleFormDrawer
-        isOpen={isDrawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        onSave={(newSale) => {
-          setWholesaleSales((prev) => [newSale, ...prev]);
-          setDrawerOpen(false);
-        }}
-      />
 
       <RetailerHistoryDrawer
         isOpen={selectedRetailer !== null}
@@ -175,113 +247,6 @@ export default function WholesaleSalesPage() {
         onDeleteOrder={handleDeleteOrder}
       />
     </div>
-  );
-}
-
-function WholesaleFormDrawer({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: () => void; onSave: (sale: WholesaleSale) => void }) {
-  const formRef = useRef<HTMLFormElement>(null);
-
-  const [formData, setFormData] = useState<Partial<WholesaleSale>>({
-    date: new Date().toISOString().split("T")[0],
-    paymentMode: "UPI",
-    billAmount: 0,
-    paymentReceived: 0,
-    receivedDate: "",
-  });
-
-  useEffect(() => {
-    if (isOpen) {
-      setFormData({
-        date: new Date().toISOString().split("T")[0],
-        paymentMode: "UPI",
-        billAmount: 0,
-        paymentReceived: 0,
-        receivedDate: "",
-      });
-    }
-  }, [isOpen]);
-
-  const pendingAmount = (Number(formData.billAmount) || 0) - (Number(formData.paymentReceived) || 0);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.retailerName || !formData.billNo || !formData.billAmount) {
-      if (formRef.current) gsap.fromTo(formRef.current, { x: -8 }, { x: 0, ease: "elastic.out(1, 0.3)", duration: 0.5, clearProps: "x" });
-      return;
-    }
-
-    const sale: WholesaleSale = {
-      id: Date.now().toString(),
-      date: formData.date || "",
-      billNo: formData.billNo,
-      retailerName: formData.retailerName,
-      phone: "",
-      city: "",
-      billAmount: Number(formData.billAmount || 0),
-      receivedDate: formData.receivedDate || "",
-      paymentReceived: Number(formData.paymentReceived || 0),
-      paymentMode: formData.paymentMode as PaymentMode,
-    };
-    onSave(sale);
-  };
-
-  const inputCls = "w-full bg-[#f5f5f5] border border-[#e8e8e8] rounded-xl px-4 py-2.5 text-sm font-medium text-black placeholder:text-[#aaa] focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-[#ccc] transition-colors";
-  const labelCls = "block text-[13px] font-semibold text-[#555] mb-1.5";
-
-  return (
-    <Drawer isOpen={isOpen} onClose={onClose} title="Add Wholesale Order">
-      <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-5">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className={labelCls}>Bill Date *</label>
-            <input type="date" required className={inputCls} value={formData.date || ""} onChange={(e) => setFormData({ ...formData, date: e.target.value })} />
-          </div>
-          <div>
-            <label className={labelCls}>Bill No *</label>
-            <input type="text" required placeholder="WHL/2026-27/0001" className={inputCls} value={formData.billNo || ""} onChange={(e) => setFormData({ ...formData, billNo: e.target.value })} />
-          </div>
-        </div>
-        <div>
-          <label className={labelCls}>Shop Name *</label>
-          <input type="text" required className={inputCls} value={formData.retailerName || ""} onChange={(e) => setFormData({ ...formData, retailerName: e.target.value })} />
-        </div>
-        <div>
-          <label className={labelCls}>Bill Amount (₹) *</label>
-          <input type="number" required min="0" step="0.01" className={inputCls} value={formData.billAmount || ""} onChange={(e) => setFormData({ ...formData, billAmount: Number(e.target.value) })} />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className={labelCls}>Received Date</label>
-            <input type="date" className={inputCls} value={formData.receivedDate || ""} onChange={(e) => setFormData({ ...formData, receivedDate: e.target.value })} />
-          </div>
-          <div>
-            <label className={labelCls}>Received Amount (₹)</label>
-            <input type="number" min="0" step="0.01" className={inputCls} value={formData.paymentReceived || ""} onChange={(e) => setFormData({ ...formData, paymentReceived: Number(e.target.value) })} />
-          </div>
-        </div>
-
-        <div>
-          <label className={labelCls}>Payment Mode</label>
-          <select className={inputCls} value={formData.paymentMode} onChange={(e) => setFormData({ ...formData, paymentMode: e.target.value as PaymentMode })}>
-            <option value="Cash">Cash</option>
-            <option value="UPI">UPI</option>
-            <option value="Bank Transfer">Bank Transfer</option>
-          </select>
-        </div>
-
-        <div className="bg-[#f5f5f5] p-5 rounded-2xl border border-[#e8e8e8] flex justify-between items-center">
-          <span className="text-[12px] font-medium text-[#888] uppercase tracking-wider">Pending Amount</span>
-          <span className={`text-2xl font-bold ${pendingAmount > 0 ? "text-[#444]" : "text-black"}`}>
-            ₹{pendingAmount.toLocaleString("en-IN")}
-          </span>
-        </div>
-
-        <button type="submit" className="w-full bg-black text-white font-bold py-3.5 rounded-xl mt-2 hover:bg-[#1a1a1a] transition-colors shadow-[0_2px_8px_rgba(0,0,0,0.15)]">
-          Save Order
-        </button>
-      </form>
-    </Drawer>
   );
 }
 
