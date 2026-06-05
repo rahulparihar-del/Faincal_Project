@@ -1,13 +1,12 @@
 "use client";
 
-import React, { useState, useRef, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { useData } from "@/context/DataContext";
-import { Drawer } from "@/components/ui/Drawer";
 import { CardGroup, StatCard } from "@/components/ui/Card";
 import { ConfirmDelete } from "@/components/ui/ConfirmDelete";
 import { Transaction, AccountType, TransactionType, Category } from "@/lib/types";
 import { gsap } from "gsap";
-import { Plus, Edit2, Trash2, Search, ArrowUpRight, ArrowDownRight, Wallet, CreditCard } from "lucide-react";
+import { Plus, Trash2, Search, ArrowUpRight, ArrowDownRight, Wallet, CreditCard, ChevronDown, PiggyBank } from "lucide-react";
 
 const CATEGORIES: Category[] = [
   "Business Income", "Manufacturer Payment", "Ad Spend",
@@ -17,12 +16,23 @@ const CATEGORIES: Category[] = [
 
 export default function BankTransactionsPage() {
   const { transactions, setTransactions } = useData();
-  const [isDrawerOpen, setDrawerOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [activeCategory, setActiveCategory] = useState<Category | "All">("All");
   const [searchQuery, setSearchQuery] = useState("");
+  const [showCategories, setShowCategories] = useState(false);
+
+  // Inline "add transaction" state
+  const today = new Date().toISOString().split("T")[0];
+  const [draft, setDraft] = useState({
+    date: today,
+    account: "IDFC Current" as AccountType,
+    type: "Debit" as TransactionType,
+    category: "Other" as Category,
+    description: "",
+    utr: "",
+    amount: "",
+  });
 
   const stats = useMemo(() => {
     let bizCredits = 0, bizDebits = 0, personalSpend = 0;
@@ -58,6 +68,25 @@ export default function BankTransactionsPage() {
     });
   }, [transactions, activeCategory, searchQuery]);
 
+  const canAdd = Number(draft.amount) > 0 && draft.description.trim().length > 0;
+
+  const handleAdd = () => {
+    if (!canAdd) return;
+    const tx: Transaction = {
+      id: Date.now().toString(),
+      date: draft.date,
+      account: draft.account,
+      type: draft.type,
+      amount: Number(draft.amount),
+      category: draft.category,
+      description: draft.description.trim(),
+      utr: draft.utr.trim(),
+    };
+    setTransactions((prev) => [tx, ...prev]);
+    // Keep date/account/type/category for fast repeated entry.
+    setDraft((d) => ({ ...d, description: "", utr: "", amount: "" }));
+  };
+
   const handleDelete = (id: string) => {
     const el = document.getElementById(`tx-row-${id}`);
     if (el) {
@@ -73,48 +102,41 @@ export default function BankTransactionsPage() {
     }
   };
 
+  const cellInput =
+    "w-full bg-[#f5f5f5] border border-[#e8e8e8] rounded-lg px-2.5 py-2 text-sm font-medium text-black placeholder:text-[#aaa] focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-[#ccc] transition-colors";
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-black tracking-tight">Bank Transactions</h2>
-          <p className="text-sm text-[#888] mt-1">{transactions.length} transactions</p>
-        </div>
-        <button
-          onClick={() => {
-            setEditingId(null);
-            setDrawerOpen(true);
-          }}
-          className="flex items-center gap-2 bg-black text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-[#1a1a1a] transition-colors shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
-        >
-          <Plus size={16} />
-          Add Transaction
-        </button>
+      <div>
+        <h2 className="text-2xl font-bold text-black tracking-tight">Bank Transactions</h2>
+        <p className="text-sm text-[#888] mt-1">{transactions.length} transactions</p>
       </div>
 
-      <CardGroup>
+      <CardGroup cols="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
         <StatCard title="Business Credits" value={`₹${stats.bizCredits.toLocaleString("en-IN")}`} icon={ArrowUpRight} />
         <StatCard title="Business Debits" value={`₹${stats.bizDebits.toLocaleString("en-IN")}`} icon={ArrowDownRight} />
         <StatCard title="Personal Spend" value={`₹${stats.personalSpend.toLocaleString("en-IN")}`} icon={Wallet} />
         <StatCard title="Current A/C" value={`₹${stats.currentBalance.toLocaleString("en-IN")}`} icon={CreditCard} subtitle="IDFC Current" />
+        <StatCard title="Savings A/C" value={`₹${stats.savingsBalance.toLocaleString("en-IN")}`} icon={PiggyBank} subtitle="IDFC Savings" />
       </CardGroup>
 
       <div className="bg-white border border-[#e8e8e8] rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
         {/* Filters */}
         <div className="p-4 border-b border-[#e8e8e8] bg-[#fafafa] flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 items-center">
             <button
-              onClick={() => setActiveCategory("All")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              onClick={() => { setShowCategories((v) => !v); setActiveCategory("All"); }}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                 activeCategory === "All"
                   ? "bg-black text-white shadow-[0_2px_6px_rgba(0,0,0,0.15)]"
                   : "bg-white border border-[#e0e0e0] text-[#666] hover:bg-[#f5f5f5]"
               }`}
             >
               All
+              <ChevronDown size={13} className={`transition-transform ${showCategories ? "rotate-180" : ""}`} />
             </button>
-            {CATEGORIES.map((cat) => (
+            {showCategories && CATEGORIES.map((cat) => (
               <button
                 key={cat}
                 onClick={() => setActiveCategory(cat)}
@@ -154,6 +176,72 @@ export default function BankTransactionsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#f0f0f0]">
+              {/* Inline add row */}
+              <tr className="bg-[#fafafa]/60 align-top">
+                <td className="px-3 py-3">
+                  <input type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} className={cellInput} />
+                </td>
+                <td className="px-3 py-3">
+                  <select value={draft.account} onChange={(e) => setDraft({ ...draft, account: e.target.value as AccountType })} className={cellInput}>
+                    <option value="IDFC Current">IDFC Current</option>
+                    <option value="IDFC Savings">IDFC Savings</option>
+                  </select>
+                </td>
+                <td className="px-3 py-3 min-w-[180px]">
+                  <input
+                    type="text"
+                    placeholder="What was this for?"
+                    value={draft.description}
+                    onChange={(e) => setDraft({ ...draft, description: e.target.value })}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
+                    className={cellInput}
+                  />
+                </td>
+                <td className="px-3 py-3">
+                  <input type="text" placeholder="UTR" value={draft.utr} onChange={(e) => setDraft({ ...draft, utr: e.target.value })} className={`${cellInput} font-mono`} />
+                </td>
+                <td className="px-3 py-3 min-w-[150px]">
+                  <select value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value as Category })} className={cellInput}>
+                    {CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </td>
+                <td className="px-3 py-3">
+                  <div className="flex gap-1.5 justify-end">
+                    <select
+                      value={draft.type}
+                      onChange={(e) => setDraft({ ...draft, type: e.target.value as TransactionType })}
+                      className={`${cellInput} w-[68px]`}
+                      aria-label="Credit or Debit"
+                    >
+                      <option value="Credit">Cr ↑</option>
+                      <option value="Debit">Dr ↓</option>
+                    </select>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="Amount"
+                      value={draft.amount}
+                      onChange={(e) => setDraft({ ...draft, amount: e.target.value })}
+                      onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
+                      className={`${cellInput} text-right w-[110px]`}
+                    />
+                  </div>
+                </td>
+                <td className="px-3 py-3 text-right">
+                  <button
+                    onClick={handleAdd}
+                    disabled={!canAdd}
+                    className="inline-flex items-center gap-1.5 bg-black text-white px-4 py-2 rounded-lg font-bold text-xs hover:bg-[#1a1a1a] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <Plus size={14} />
+                    Add
+                  </button>
+                </td>
+              </tr>
+
               {filteredTransactions.map((t) => {
                 const isCredit = t.type === "Credit";
                 return (
@@ -176,14 +264,9 @@ export default function BankTransactionsPage() {
                           onCancel={() => setDeletingId(null)}
                         />
                         <button
-                          onClick={() => { setEditingId(t.id); setDrawerOpen(true); }}
-                          className="w-8 h-8 flex items-center justify-center rounded-lg text-[#888] hover:text-black hover:bg-[#f5f5f5] transition-colors"
-                        >
-                          <Edit2 size={14} />
-                        </button>
-                        <button
                           onClick={() => setDeletingId(t.id)}
                           className="w-8 h-8 flex items-center justify-center rounded-lg text-[#888] hover:text-black hover:bg-[#f5f5f5] transition-colors"
+                          aria-label="Delete transaction"
                         >
                           <Trash2 size={14} />
                         </button>
@@ -195,7 +278,7 @@ export default function BankTransactionsPage() {
               {filteredTransactions.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-5 py-12 text-center text-[#888]">
-                    No transactions found.
+                    No transactions found. Add one using the row above.
                   </td>
                 </tr>
               )}
@@ -203,154 +286,6 @@ export default function BankTransactionsPage() {
           </table>
         </div>
       </div>
-
-      <TxFormDrawer
-        isOpen={isDrawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        editingId={editingId}
-        onSave={(newTx) => {
-          if (editingId) {
-            setTransactions((prev) => prev.map((t) => (t.id === editingId ? newTx : t)));
-          } else {
-            setTransactions((prev) => [newTx, ...prev]);
-          }
-          setDrawerOpen(false);
-        }}
-      />
     </div>
-  );
-}
-
-function TxFormDrawer({
-  isOpen,
-  onClose,
-  editingId,
-  onSave,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  editingId: string | null;
-  onSave: (tx: Transaction) => void;
-}) {
-  const { transactions } = useData();
-  const formRef = useRef<HTMLFormElement>(null);
-
-  const [formData, setFormData] = useState<Partial<Transaction>>({
-    date: new Date().toISOString().split("T")[0],
-    account: "IDFC Current",
-    type: "Debit",
-    category: "Other",
-  });
-
-  useEffect(() => {
-    if (isOpen && editingId) {
-      const tx = transactions.find((t) => t.id === editingId);
-      if (tx) setFormData(tx);
-    } else if (isOpen) {
-      setFormData({
-        date: new Date().toISOString().split("T")[0],
-        account: "IDFC Current",
-        type: "Debit",
-        category: "Other",
-      });
-    }
-  }, [isOpen, editingId, transactions]);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.amount || !formData.description) {
-      if (formRef.current)
-        gsap.fromTo(formRef.current, { x: -8 }, { x: 0, ease: "elastic.out(1, 0.3)", duration: 0.5, clearProps: "x" });
-      return;
-    }
-
-    const tx: Transaction = {
-      id: editingId || Date.now().toString(),
-      date: formData.date || "",
-      account: formData.account as AccountType,
-      type: formData.type as TransactionType,
-      amount: Number(formData.amount),
-      category: formData.category as Category,
-      description: formData.description,
-      utr: formData.utr || "",
-    };
-    onSave(tx);
-  };
-
-  const inputCls =
-    "w-full bg-[#f5f5f5] border border-[#e8e8e8] rounded-xl px-4 py-2.5 text-sm font-medium text-black placeholder:text-[#aaa] focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-[#ccc] transition-colors";
-  const labelCls = "block text-[13px] font-semibold text-[#555] mb-1.5";
-
-  return (
-    <Drawer isOpen={isOpen} onClose={onClose} title={editingId ? "Edit Transaction" : "Add Transaction"}>
-      <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-5">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className={labelCls}>Date *</label>
-            <input type="date" required className={inputCls} value={formData.date || ""} onChange={(e) => setFormData({ ...formData, date: e.target.value })} />
-          </div>
-          <div>
-            <label className={labelCls}>Account</label>
-            <select className={inputCls} value={formData.account} onChange={(e) => setFormData({ ...formData, account: e.target.value as AccountType })}>
-              <option value="IDFC Current">IDFC Current</option>
-              <option value="IDFC Savings">IDFC Savings</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className={labelCls}>Type</label>
-            <div className="flex rounded-xl overflow-hidden border border-[#e8e8e8]">
-              <button
-                type="button"
-                className={`flex-1 py-2.5 text-sm font-bold transition-colors ${
-                  formData.type === "Credit" ? "bg-black text-white" : "bg-[#f5f5f5] text-[#888]"
-                }`}
-                onClick={() => setFormData({ ...formData, type: "Credit" })}
-              >
-                Credit ↑
-              </button>
-              <button
-                type="button"
-                className={`flex-1 py-2.5 text-sm font-bold transition-colors ${
-                  formData.type === "Debit" ? "bg-black text-white" : "bg-[#f5f5f5] text-[#888]"
-                }`}
-                onClick={() => setFormData({ ...formData, type: "Debit" })}
-              >
-                Debit ↓
-              </button>
-            </div>
-          </div>
-          <div>
-            <label className={labelCls}>Amount (₹) *</label>
-            <input type="number" required min="0.01" step="0.01" className={inputCls} value={formData.amount || ""} onChange={(e) => setFormData({ ...formData, amount: Number(e.target.value) })} />
-          </div>
-        </div>
-
-        <div>
-          <label className={labelCls}>Category</label>
-          <select className={inputCls} value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value as Category })}>
-            {CATEGORIES.map((cat) => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className={labelCls}>Description *</label>
-          <input type="text" required placeholder="What was this for?" className={inputCls} value={formData.description || ""} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
-        </div>
-
-        <div>
-          <label className={labelCls}>UTR / Ref Number</label>
-          <input type="text" placeholder="Optional" className={`${inputCls} font-mono`} value={formData.utr || ""} onChange={(e) => setFormData({ ...formData, utr: e.target.value })} />
-        </div>
-
-        <button type="submit" className="w-full bg-black text-white font-bold py-3.5 rounded-xl mt-2 hover:bg-[#1a1a1a] transition-colors shadow-[0_2px_8px_rgba(0,0,0,0.15)]">
-          {editingId ? "Update Transaction" : "Save Transaction"}
-        </button>
-      </form>
-    </Drawer>
   );
 }

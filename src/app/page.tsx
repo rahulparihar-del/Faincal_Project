@@ -51,7 +51,7 @@ export default function Dashboard() {
       .filter((e) => e.isRTO)
       .reduce((acc, e) => acc + e.rtoLossAmount, 0);
 
-    return { totalRevenue, totalExpenses, netProfit, pendingPayments, activeWholesale, rtoLosses };
+    return { totalRevenue, ecomRev, wholesaleRev, totalExpenses, netProfit, pendingPayments, activeWholesale, rtoLosses };
   }, [ecomSales, wholesaleSales, purchases, transactions, isReady]);
 
   // Build monthly revenue data from actual data for bar chart
@@ -164,6 +164,19 @@ export default function Dashboard() {
           title="Total Revenue"
           value={<AnimatedCounter value={metrics.totalRevenue} prefix="₹" isCurrency />}
           icon={DollarSign}
+          subtitle="E-commerce + Wholesale"
+        />
+        <StatCard
+          title="E-commerce Revenue"
+          value={<AnimatedCounter value={metrics.ecomRev} prefix="₹" isCurrency />}
+          icon={ShoppingBag}
+          subtitle="Online sales payouts"
+        />
+        <StatCard
+          title="Wholesale Revenue"
+          value={<AnimatedCounter value={metrics.wholesaleRev} prefix="₹" isCurrency />}
+          icon={Truck}
+          subtitle="Retailer bills"
         />
         <StatCard
           title="Total Expenses"

@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { useSupabaseStatus, type ConnectionStatus } from "@/lib/hooks/useSupabaseStatus";
+import { useSupabaseUsage, type UsageInfo, type UsageState } from "@/lib/hooks/useSupabaseUsage";
 
 const TAB_NAMES: Record<string, string> = {
   "/": "Dashboard",
@@ -64,11 +65,58 @@ function ConnectionBadge({ status }: { status: ConnectionStatus }) {
   );
 }
 
+function formatSize(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function UsageRing({ info, state }: { info: UsageInfo | null; state: UsageState }) {
+  if (state === "unavailable") return null;
+
+  const pct = info ? info.percent : 0;
+  const size = 26;
+  const stroke = 3;
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const dash = circ * (pct / 100);
+  const warn = pct >= 95 ? "#dc2626" : pct >= 80 ? "#d97706" : null;
+
+  const title = info
+    ? `Supabase database: ${formatSize(info.usedBytes)} of ${formatSize(info.limitBytes)} used (${pct.toFixed(1)}%)`
+    : "Checking Supabase usage…";
+
+  return (
+    <div
+      className="flex items-center gap-1.5 h-8 px-2 rounded-lg border border-[#e0e0e0] bg-[#fafafa]"
+      title={title}
+      role="img"
+      aria-label={title}
+    >
+      <svg width={size} height={size} className="-rotate-90 shrink-0">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} className="stroke-[#e0e0e0] dark:stroke-[#333]" />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          stroke={warn ?? "currentColor"}
+          className={warn ? "" : "text-black"}
+          strokeDasharray={`${dash} ${circ}`}
+        />
+      </svg>
+      <span className="text-[11px] font-bold text-[#666] hidden md:inline">{info ? `${Math.round(pct)}%` : "…"}</span>
+    </div>
+  );
+}
+
 export function TopBar({ setMobileOpen }: { setMobileOpen: (v: boolean) => void }) {
   const pathname = usePathname();
   const title = TAB_NAMES[pathname] || "BizTrack";
   const { theme, toggleTheme } = useTheme();
   const status = useSupabaseStatus();
+  const { info: usage, state: usageState } = useSupabaseUsage();
   const { logout } = useAuth();
 
   return (
@@ -83,6 +131,7 @@ export function TopBar({ setMobileOpen }: { setMobileOpen: (v: boolean) => void 
       <h1 className="text-lg font-bold text-black tracking-tight">{title}</h1>
 
       <div className="ml-auto flex items-center gap-2">
+        <UsageRing info={usage} state={usageState} />
         <ConnectionBadge status={status} />
         <button
           onClick={toggleTheme}

@@ -99,3 +99,20 @@ begin
     );
   end loop;
 end $$;
+
+-- ---------- DB usage (for the top-bar usage ring) ----------
+-- Returns the database size and the free-tier limit (500 MB). SECURITY DEFINER
+-- so the anon/publishable role can read the size without elevated rights.
+create or replace function public.biztrack_db_usage()
+returns json
+language sql
+security definer
+set search_path = public
+as $$
+  select json_build_object(
+    'used_bytes', pg_database_size(current_database()),
+    'limit_bytes', 524288000
+  );
+$$;
+
+grant execute on function public.biztrack_db_usage() to anon, authenticated;
