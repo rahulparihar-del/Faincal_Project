@@ -1,57 +1,69 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
 
 /**
- * ⚠️ CLIENT-SIDE GATE ONLY.
- * This keeps the UI behind a login, but it is NOT real data security:
- * the credentials and the Supabase publishable key both ship in the browser
- * bundle, so a determined person can still read the database directly.
- * For real protection, move to Supabase Auth and restrict RLS to
- * `authenticated` users (see README / the note from setup).
+ * Authentication backed by Supabase Auth. Credentials live in Supabase's
+ * managed `auth.users` table (passwords hashed by Supabase) — never in code.
  */
-const AUTH_KEY = "biztrack_auth";
-const VALID_EMAIL = "kiddieka.store";
-const VALID_PASSWORD = "Rahul@2001";
-
 interface AuthContextType {
   isAuthed: boolean;
   ready: boolean;
-  login: (email: string, password: string) => boolean;
-  logout: () => void;
+  userEmail: string | null;
+  login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthed, setIsAuthed] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    try {
-      setIsAuthed(window.localStorage.getItem(AUTH_KEY) === "1");
-    } catch {
-      /* ignore */
+    if (!isSupabaseConfigured || !supabase) {
+      setReady(true);
+      return;
     }
-    setReady(true);
+    let active = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!active) return;
+      setIsAuthed(!!data.session);
+      setUserEmail(data.session?.user.email ?? null);
+      setReady(true);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAuthed(!!session);
+      setUserEmail(session?.user.email ?? null);
+    });
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
-  const login = useCallback((email: string, password: string) => {
-    const ok = email.trim().toLowerCase() === VALID_EMAIL && password === VALID_PASSWORD;
-    if (ok) {
-      try { window.localStorage.setItem(AUTH_KEY, "1"); } catch { /* ignore */ }
-      setIsAuthed(true);
+  const login = useCallback(async (email: string, password: string) => {
+    if (!isSupabaseConfigured || !supabase) {
+      return { ok: false, error: "Authentication is not configured." };
     }
-    return ok;
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
   }, []);
 
-  const logout = useCallback(() => {
-    try { window.localStorage.removeItem(AUTH_KEY); } catch { /* ignore */ }
+  const logout = useCallback(async () => {
+    await supabase?.auth.signOut();
     setIsAuthed(false);
+    setUserEmail(null);
   }, []);
 
   return (
-    <AuthContext.Provider value={{ isAuthed, ready, login, logout }}>
+    <AuthContext.Provider value={{ isAuthed, ready, userEmail, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

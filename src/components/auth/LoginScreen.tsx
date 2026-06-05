@@ -15,14 +15,19 @@ export function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [shake, setShake] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const ok = login(email, password);
-    if (!ok) {
-      setError(true);
+    if (submitting) return;
+    setSubmitting(true);
+    setError(null);
+    const res = await login(email, password);
+    setSubmitting(false);
+    if (!res.ok) {
+      setError(res.error || "Incorrect email or password.");
       setShake(true);
       setTimeout(() => setShake(false), 500);
     }
@@ -116,7 +121,7 @@ export function LoginScreen() {
                   type="text"
                   autoFocus
                   value={email}
-                  onChange={(e) => { setEmail(e.target.value); setError(false); }}
+                  onChange={(e) => { setEmail(e.target.value); setError(null); }}
                   placeholder="you@example.com"
                   className={inputCls}
                   style={{ paddingLeft: "2.75rem" }}
@@ -131,9 +136,10 @@ export function LoginScreen() {
                 <input
                   type={show ? "text" : "password"}
                   value={password}
-                  onChange={(e) => { setPassword(e.target.value); setError(false); }}
+                  onChange={(e) => { setPassword(e.target.value); setError(null); }}
                   placeholder="••••••••"
-                  className={`${inputCls} pr-11`}
+                  className={inputCls}
+                  style={{ paddingLeft: "2.75rem", paddingRight: "2.75rem" }}
                 />
                 <button
                   type="button"
@@ -148,16 +154,17 @@ export function LoginScreen() {
 
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-2.5">
-                Incorrect email or password.
+                {error}
               </div>
             )}
 
             <button
               type="submit"
-              className="group w-full bg-black text-white font-bold py-3 rounded-xl hover:bg-[#1a1a1a] transition-colors shadow-[0_2px_8px_rgba(0,0,0,0.15)] flex items-center justify-center gap-2"
+              disabled={submitting}
+              className="group w-full bg-black text-white font-bold py-3 rounded-xl hover:bg-[#1a1a1a] transition-colors shadow-[0_2px_8px_rgba(0,0,0,0.15)] flex items-center justify-center gap-2 disabled:opacity-60"
             >
-              Sign In
-              <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
+              {submitting ? "Signing in…" : "Sign In"}
+              {!submitting && <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />}
             </button>
           </form>
 
