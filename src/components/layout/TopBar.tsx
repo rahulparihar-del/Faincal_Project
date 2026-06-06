@@ -121,18 +121,15 @@ export function TopBar({ setMobileOpen }: { setMobileOpen: (v: boolean) => void 
 
   return (
     <header className="h-16 bg-white border-b border-[#e0e0e0] flex items-center px-5 lg:px-8 shrink-0 z-30">
-      <button 
-        className="lg:hidden block text-black mr-4 p-2 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-400" 
-        onClick={() => setMobileOpen(true)}
-        aria-label="Open navigation menu"
-      >
-        <Menu size={20} />
-      </button>
-      <h1 className="text-lg font-bold text-black tracking-tight">{title}</h1>
+      {/* Bottom tab bar handles mobile nav — hamburger not needed on mobile */}
+      <h1 className="text-lg font-bold text-black tracking-tight flex-1 min-w-0 truncate mr-2 lg:flex-none lg:truncate-none">{title}</h1>
 
-      <div className="ml-auto flex items-center gap-2">
-        <UsageRing info={usage} state={usageState} />
-        <ConnectionBadge status={status} />
+      <div className="ml-auto flex items-center gap-2 shrink-0">
+        {/* Badges visible on desktop; hidden on mobile to avoid crowding the title */}
+        <div className="hidden lg:contents">
+          <UsageRing info={usage} state={usageState} />
+          <ConnectionBadge status={status} />
+        </div>
         <button
           onClick={toggleTheme}
           className="w-9 h-9 flex items-center justify-center rounded-lg text-[#666] hover:text-black hover:bg-[#f5f5f5] transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400"

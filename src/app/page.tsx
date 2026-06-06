@@ -164,47 +164,59 @@ export default function Dashboard() {
           title="Total Revenue"
           value={<AnimatedCounter value={metrics.totalRevenue} prefix="₹" isCurrency />}
           icon={DollarSign}
+          variant="profit"
           subtitle="E-commerce + Wholesale"
         />
         <StatCard
           title="E-commerce Revenue"
           value={<AnimatedCounter value={metrics.ecomRev} prefix="₹" isCurrency />}
           icon={ShoppingBag}
+          variant="profit"
           subtitle="Online sales payouts"
         />
         <StatCard
           title="Wholesale Revenue"
           value={<AnimatedCounter value={metrics.wholesaleRev} prefix="₹" isCurrency />}
           icon={Truck}
+          variant="profit"
           subtitle="Retailer bills"
         />
         <StatCard
           title="Total Expenses"
           value={<AnimatedCounter value={metrics.totalExpenses} prefix="₹" isCurrency />}
           icon={TrendingDown}
+          variant="loss"
         />
         <StatCard
           title="Net Profit"
-          value={<AnimatedCounter value={metrics.netProfit} prefix="₹" isCurrency />}
+          value={
+            <span style={{ color: metrics.netProfit >= 0 ? "var(--color-profit)" : "var(--color-loss)" }}>
+              <AnimatedCounter value={metrics.netProfit} prefix="₹" isCurrency />
+            </span>
+          }
           icon={TrendingUp}
+          variant={metrics.netProfit >= 0 ? "profit" : "loss"}
           subtitle={metrics.netProfit >= 0 ? "Profitable" : "Loss"}
         />
         <StatCard
           title="Pending Payments"
           value={<AnimatedCounter value={metrics.pendingPayments} prefix="₹" isCurrency />}
           icon={AlertCircle}
+          variant="loss"
           subtitle="Manufacturer dues"
         />
         <StatCard
           title="Active Wholesale"
           value={<AnimatedCounter value={metrics.activeWholesale} />}
           icon={ShoppingCart}
+          variant="neutral"
           subtitle="Unpaid orders"
         />
         <StatCard
           title="RTO Losses"
           value={<AnimatedCounter value={metrics.rtoLosses} prefix="₹" isCurrency />}
           icon={PackageX}
+          variant="loss"
         />
       </CardGroup>
 
@@ -269,7 +281,9 @@ export default function Dashboard() {
                     </div>
                     <div
                       className={`text-sm font-bold shrink-0 ${
-                        item.type === "credit" ? "text-black" : "text-[#888]"
+                        item.type === "credit"
+                          ? "text-[var(--color-profit)]"
+                          : "text-[var(--color-loss)]"
                       }`}
                     >
                       {item.type === "credit" ? "+" : "−"}₹{Math.abs(item.amount).toLocaleString("en-IN")}

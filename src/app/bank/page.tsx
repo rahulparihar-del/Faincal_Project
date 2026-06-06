@@ -114,12 +114,62 @@ export default function BankTransactionsPage() {
       </div>
 
       <CardGroup cols="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
-        <StatCard title="Business Credits" value={`₹${stats.bizCredits.toLocaleString("en-IN")}`} icon={ArrowUpRight} />
-        <StatCard title="Business Debits" value={`₹${stats.bizDebits.toLocaleString("en-IN")}`} icon={ArrowDownRight} />
-        <StatCard title="Personal Spend" value={`₹${stats.personalSpend.toLocaleString("en-IN")}`} icon={Wallet} />
-        <StatCard title="Current A/C" value={`₹${stats.currentBalance.toLocaleString("en-IN")}`} icon={CreditCard} subtitle="IDFC Current" />
-        <StatCard title="Savings A/C" value={`₹${stats.savingsBalance.toLocaleString("en-IN")}`} icon={PiggyBank} subtitle="IDFC Savings" />
+        <StatCard title="Business Credits" value={`₹${stats.bizCredits.toLocaleString("en-IN")}`} icon={ArrowUpRight} variant="profit" />
+        <StatCard title="Business Debits" value={`₹${stats.bizDebits.toLocaleString("en-IN")}`} icon={ArrowDownRight} variant="loss" />
+        <StatCard title="Personal Spend" value={`₹${stats.personalSpend.toLocaleString("en-IN")}`} icon={Wallet} variant="loss" />
+        <StatCard title="Current A/C" value={`₹${stats.currentBalance.toLocaleString("en-IN")}`} icon={CreditCard} subtitle="IDFC Current" variant={stats.currentBalance >= 0 ? "profit" : "loss"} />
+        <StatCard title="Savings A/C" value={`₹${stats.savingsBalance.toLocaleString("en-IN")}`} icon={PiggyBank} subtitle="IDFC Savings" variant={stats.savingsBalance >= 0 ? "profit" : "loss"} />
       </CardGroup>
+
+      {/* ── Mobile: stacked add form (replaces the table-row version on small screens) ── */}
+      <div className="lg:hidden bg-white border border-[#e8e8e8] rounded-2xl p-4 space-y-3 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-[#555]">Add Transaction</h3>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-[11px] font-semibold text-[#888] uppercase tracking-wider mb-1">Date</label>
+            <input type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} className={cellInput} />
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-[#888] uppercase tracking-wider mb-1">Account</label>
+            <select value={draft.account} onChange={(e) => setDraft({ ...draft, account: e.target.value as AccountType })} className={cellInput}>
+              <option value="IDFC Current">Current A/C</option>
+              <option value="IDFC Savings">Savings A/C</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label className="block text-[11px] font-semibold text-[#888] uppercase tracking-wider mb-1">Description *</label>
+          <input type="text" placeholder="What was this for?" value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }} className={cellInput} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-[11px] font-semibold text-[#888] uppercase tracking-wider mb-1">Category</label>
+            <select value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value as Category })} className={cellInput}>
+              {CATEGORIES.map((cat) => (<option key={cat} value={cat}>{cat}</option>))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-[#888] uppercase tracking-wider mb-1">UTR / Ref</label>
+            <input type="text" placeholder="Optional" value={draft.utr} onChange={(e) => setDraft({ ...draft, utr: e.target.value })} className={`${cellInput} font-mono`} />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-[11px] font-semibold text-[#888] uppercase tracking-wider mb-1">Type</label>
+            <select value={draft.type} onChange={(e) => setDraft({ ...draft, type: e.target.value as TransactionType })} className={cellInput} aria-label="Credit or Debit">
+              <option value="Credit">Credit ↑</option>
+              <option value="Debit">Debit ↓</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-[#888] uppercase tracking-wider mb-1">Amount *</label>
+            <input type="number" min="0" step="0.01" placeholder="0.00" value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }} className={`${cellInput} text-right`} />
+          </div>
+        </div>
+        <button onClick={handleAdd} disabled={!canAdd} className="w-full bg-black text-white font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#1a1a1a] transition-colors">
+          <Plus size={16} /> Add Transaction
+        </button>
+      </div>
 
       <div className="bg-white border border-[#e8e8e8] rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
         {/* Filters */}
@@ -167,17 +217,17 @@ export default function BankTransactionsPage() {
             <thead className="bg-white border-b border-[#e8e8e8]">
               <tr>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider">Date</th>
-                <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider">Account</th>
+                <th className="hidden lg:table-cell px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider">Account</th>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider">Description</th>
-                <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider">UTR/Ref</th>
-                <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider">Category</th>
+                <th className="hidden lg:table-cell px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider">UTR/Ref</th>
+                <th className="hidden lg:table-cell px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider">Category</th>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-right">Amount</th>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#f0f0f0]">
-              {/* Inline add row */}
-              <tr className="bg-[#fafafa]/60 align-top">
+              {/* Inline add row — hidden on mobile, a stacked form card is shown instead */}
+              <tr className="bg-[#fafafa]/60 align-top hidden lg:table-row">
                 <td className="px-3 py-3">
                   <input type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} className={cellInput} />
                 </td>
@@ -247,13 +297,16 @@ export default function BankTransactionsPage() {
                 return (
                   <tr key={t.id} id={`tx-row-${t.id}`} className="hover:bg-[#fafafa] transition-colors relative">
                     <td className="px-5 py-3.5 text-[#888]">{t.date}</td>
-                    <td className="px-5 py-3.5 text-[#666] font-medium text-xs">{t.account}</td>
+                    <td className="hidden lg:table-cell px-5 py-3.5 text-[#666] font-medium text-xs">{t.account}</td>
                     <td className="px-5 py-3.5 text-black font-medium max-w-xs truncate">{t.description}</td>
-                    <td className="px-5 py-3.5 text-[#aaa] text-xs font-mono">{t.utr || "—"}</td>
-                    <td className="px-5 py-3.5">
+                    <td className="hidden lg:table-cell px-5 py-3.5 text-[#aaa] text-xs font-mono">{t.utr || "—"}</td>
+                    <td className="hidden lg:table-cell px-5 py-3.5">
                       <span className="bg-[#f5f5f5] text-[#555] px-2.5 py-1 rounded-lg text-xs font-bold">{t.category}</span>
                     </td>
-                    <td className={`px-5 py-3.5 text-right font-bold ${isCredit ? "text-black" : "text-[#aaa]"}`}>
+                    <td
+                      className="px-5 py-3.5 text-right font-bold"
+                      style={{ color: isCredit ? "var(--color-profit)" : "var(--color-loss)" }}
+                    >
                       {isCredit ? "↑" : "↓"} ₹{t.amount.toLocaleString("en-IN")}
                     </td>
                     <td className="px-5 py-3.5 text-right">

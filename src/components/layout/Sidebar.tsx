@@ -12,22 +12,22 @@ import {
   Landmark,
   BarChart3,
   Menu,
-  X,
   Calendar,
 } from "lucide-react";
 import { gsap } from "gsap";
 import { useGSAP } from "@gsap/react";
 
 const NAV_ITEMS = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "E-commerce Sales", href: "/ecom", icon: ShoppingCart },
-  { name: "Wholesale Sales", href: "/wholesale", icon: Truck },
+  { name: "Dashboard",     href: "/",             icon: LayoutDashboard },
+  { name: "E-commerce",    href: "/ecom",          icon: ShoppingCart },
+  { name: "Wholesale",     href: "/wholesale",     icon: Truck },
+  { name: "Purchases",     href: "/purchases",     icon: FileText },
+  { name: "Bank",          href: "/bank",          icon: Landmark },
+  { name: "P&L",           href: "/pl",            icon: BarChart3 },
   { name: "Manufacturers", href: "/manufacturers", icon: Users },
-  { name: "Purchase Orders", href: "/purchases", icon: FileText },
-  { name: "Bank Transactions", href: "/bank", icon: Landmark },
-  { name: "P&L Report", href: "/pl", icon: BarChart3 },
 ];
 
+/* ─── Desktop Sidebar ──────────────────────────────────────────────────────── */
 export function Sidebar({
   isMobileOpen,
   setMobileOpen,
@@ -44,30 +44,18 @@ export function Sidebar({
   useEffect(() => {
     const updateDateTime = () => {
       const now = new Date();
-      setDateStr(
-        now.toLocaleDateString("en-IN", {
-          day: "2-digit",
-          month: "short",
-          year: "numeric",
-        })
-      );
+      setDateStr(now.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }));
       setDayName(now.toLocaleDateString("en-IN", { weekday: "long" }));
     };
-    
     updateDateTime();
-    
-    // Update at midnight
     const now = new Date();
     const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
     const msUntilMidnight = tomorrow.getTime() - now.getTime();
-    
     const timeoutId = setTimeout(() => {
       updateDateTime();
-      // Then update daily
       const intervalId = setInterval(updateDateTime, 24 * 60 * 60 * 1000);
       return () => clearInterval(intervalId);
     }, msUntilMidnight);
-    
     return () => clearTimeout(timeoutId);
   }, []);
 
@@ -75,28 +63,11 @@ export function Sidebar({
     () => {
       if (!sidebarRef.current) return;
       if (collapsed) {
-        gsap.to(sidebarRef.current, {
-          width: 72,
-          duration: 0.3,
-          ease: "power2.out",
-        });
-        gsap.to(".nav-label, .nav-title", {
-          opacity: 0,
-          display: "none",
-          duration: 0.15,
-        });
+        gsap.to(sidebarRef.current, { width: 72, duration: 0.3, ease: "power2.out" });
+        gsap.to(".nav-label, .nav-title", { opacity: 0, display: "none", duration: 0.15 });
       } else {
-        gsap.to(sidebarRef.current, {
-          width: 256,
-          duration: 0.3,
-          ease: "power2.out",
-        });
-        gsap.to(".nav-label, .nav-title", {
-          opacity: 1,
-          display: "block",
-          duration: 0.2,
-          delay: 0.1,
-        });
+        gsap.to(sidebarRef.current, { width: 256, duration: 0.3, ease: "power2.out" });
+        gsap.to(".nav-label, .nav-title", { opacity: 1, display: "block", duration: 0.2, delay: 0.1 });
       }
     },
     [collapsed]
@@ -104,25 +75,10 @@ export function Sidebar({
 
   return (
     <>
-      {isMobileOpen && (
-        <div
-          className="fixed inset-0 bg-black/30 backdrop-blur-[2px] z-40 lg:hidden"
-          onClick={() => setMobileOpen(false)}
-          role="button"
-          tabIndex={0}
-          aria-label="Close navigation menu"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              setMobileOpen(false);
-            }
-          }}
-        />
-      )}
+      {/* Desktop sidebar — completely hidden on mobile */}
       <aside
         ref={sidebarRef}
-        className={`fixed inset-y-0 left-0 z-50 flex flex-col bg-white border-r border-[#e8e8e8] transform transition-transform duration-300 lg:translate-x-0 ${
-          isMobileOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:static lg:h-screen w-64 shrink-0`}
+        className="hidden lg:flex fixed inset-y-0 left-0 z-50 flex-col bg-white border-r border-[#e8e8e8] lg:static lg:h-screen w-64 shrink-0"
         aria-label="Main navigation"
       >
         {/* Logo */}
@@ -131,23 +87,14 @@ export function Sidebar({
             <div className="w-9 h-9 bg-black text-white flex items-center justify-center font-bold rounded-xl text-sm shrink-0 shadow-[0_2px_8px_rgba(0,0,0,0.15)]">
               B
             </div>
-            <span className="nav-title font-bold text-[1.1rem] tracking-tight whitespace-nowrap">
-              BizTrack
-            </span>
+            <span className="nav-title font-bold text-[1.1rem] tracking-tight whitespace-nowrap">BizTrack</span>
           </Link>
           <button
-            className="hidden lg:flex w-8 h-8 items-center justify-center rounded-lg hover:bg-[#f5f5f5] transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-gray-400"
+            className="flex w-8 h-8 items-center justify-center rounded-lg hover:bg-[#f5f5f5] transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-gray-400"
             onClick={() => setCollapsed(!collapsed)}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             <Menu size={16} className="text-[#888]" />
-          </button>
-          <button
-            className="lg:hidden flex w-8 h-8 items-center justify-center rounded-lg hover:bg-[#f5f5f5] transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-gray-400"
-            onClick={() => setMobileOpen(false)}
-            aria-label="Close navigation menu"
-          >
-            <X size={16} />
           </button>
         </div>
 
@@ -160,7 +107,6 @@ export function Sidebar({
                 <Link
                   key={item.name}
                   href={item.href}
-                  onClick={() => setMobileOpen(false)}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                     isActive
                       ? "bg-black text-white shadow-[0_2px_8px_rgba(0,0,0,0.12)] focus:ring-black"
@@ -170,15 +116,9 @@ export function Sidebar({
                 >
                   <item.icon
                     size={18}
-                    className={`shrink-0 transition-colors ${
-                      isActive
-                        ? "text-white"
-                        : "text-[#888] group-hover:text-black"
-                    }`}
+                    className={`shrink-0 transition-colors ${isActive ? "text-white" : "text-[#888] group-hover:text-black"}`}
                   />
-                  <span className="nav-label whitespace-nowrap font-medium text-[0.8125rem]">
-                    {item.name}
-                  </span>
+                  <span className="nav-label whitespace-nowrap font-medium text-[0.8125rem]">{item.name}</span>
                 </Link>
               );
             })}
@@ -192,16 +132,118 @@ export function Sidebar({
               <Calendar size={15} className="text-[#888]" />
             </div>
             <div className="flex flex-col nav-label">
-              <span className="text-[11px] text-[#aaa] font-medium uppercase tracking-widest">
-                {dayName}
-              </span>
-              <span className="text-sm font-bold tracking-tight">
-                {dateStr}
-              </span>
+              <span className="text-[11px] text-[#aaa] font-medium uppercase tracking-widest">{dayName}</span>
+              <span className="text-sm font-bold tracking-tight">{dateStr}</span>
             </div>
           </div>
         </div>
       </aside>
+    </>
+  );
+}
+
+/* ─── Mobile Bottom Tab Bar ───────────────────────────────────────────────── */
+// Only visible on mobile (< lg). Native-app feel — pill indicator + labels.
+export function MobileTabBar() {
+  const pathname = usePathname();
+  const PRIMARY = NAV_ITEMS.slice(0, 5);
+
+  return (
+    <nav
+      className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-[#e8e8e8] flex items-stretch"
+      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      aria-label="Mobile navigation"
+    >
+      {PRIMARY.map((item) => {
+        const isActive = pathname === item.href;
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            className="flex-1 flex flex-col items-center justify-center py-2 gap-0.5 transition-colors focus:outline-none"
+            aria-current={isActive ? "page" : undefined}
+          >
+            <div
+              className={`flex items-center justify-center w-10 h-6 rounded-full transition-all duration-200 ${
+                isActive ? "bg-black" : "bg-transparent"
+              }`}
+            >
+              <item.icon
+                size={18}
+                className={`transition-colors ${isActive ? "text-white" : "text-[#999]"}`}
+              />
+            </div>
+            <span
+              className={`text-[10px] font-semibold tracking-tight transition-colors ${
+                isActive ? "text-black" : "text-[#aaa]"
+              }`}
+            >
+              {item.name}
+            </span>
+          </Link>
+        );
+      })}
+
+      {/* "More" tab for Manufacturers (item 6) */}
+      <MoreTab extraItems={NAV_ITEMS.slice(5)} pathname={pathname} />
+    </nav>
+  );
+}
+
+function MoreTab({ extraItems, pathname }: { extraItems: typeof NAV_ITEMS; pathname: string }) {
+  const [open, setOpen] = useState(false);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const isExtraActive = extraItems.some((i) => i.href === pathname);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent | TouchEvent) => {
+      if (sheetRef.current && !sheetRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
+  }, [open]);
+
+  return (
+    <>
+      {open && (
+        <div
+          ref={sheetRef}
+          className="absolute bottom-full right-0 mb-1 mr-1 bg-white rounded-2xl border border-[#e8e8e8] shadow-[0_8px_32px_rgba(0,0,0,0.12)] p-2 min-w-[180px] z-50"
+        >
+          {extraItems.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setOpen(false)}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
+                  isActive ? "bg-black text-white" : "text-[#555] hover:bg-[#f5f5f5]"
+                }`}
+              >
+                <item.icon size={16} className={isActive ? "text-white" : "text-[#888]"} />
+                <span className="text-sm font-semibold">{item.name}</span>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex-1 flex flex-col items-center justify-center py-2 gap-0.5 focus:outline-none"
+        aria-label="More navigation options"
+        aria-expanded={open}
+      >
+        <div className={`flex items-center justify-center w-10 h-6 rounded-full transition-all duration-200 ${isExtraActive || open ? "bg-black" : "bg-transparent"}`}>
+          <Menu size={18} className={isExtraActive || open ? "text-white" : "text-[#999]"} />
+        </div>
+        <span className={`text-[10px] font-semibold tracking-tight ${isExtraActive || open ? "text-black" : "text-[#aaa]"}`}>More</span>
+      </button>
     </>
   );
 }

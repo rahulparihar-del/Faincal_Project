@@ -108,7 +108,7 @@ export default function PurchaseOrdersPage() {
         <StatCard title="This Month" value={`₹${stats.thisMonth.toLocaleString("en-IN")}`} icon={Package} />
         <StatCard title="Sample Costs" value={`₹${stats.sampleCosts.toLocaleString("en-IN")}`} icon={FlaskConical} />
         <StatCard title="Bulk Costs" value={`₹${stats.bulkCosts.toLocaleString("en-IN")}`} icon={Boxes} />
-        <StatCard title="Pending Payments" value={`₹${stats.pending.toLocaleString("en-IN")}`} icon={IndianRupee} />
+        <StatCard title="Pending Payments" value={`₹${stats.pending.toLocaleString("en-IN")}`} icon={IndianRupee} variant="loss" />
       </CardGroup>
 
       <div className="bg-white border border-[#e8e8e8] rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
@@ -117,12 +117,12 @@ export default function PurchaseOrdersPage() {
             <thead className="bg-[#fafafa] border-b border-[#e8e8e8]">
               <tr>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider">Date</th>
-                <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider">Manufacturer</th>
+                <th className="hidden lg:table-cell px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider">Manufacturer</th>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider">Product</th>
-                <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider">Type</th>
+                <th className="hidden lg:table-cell px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider">Type</th>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-right">Total</th>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-center">Payment</th>
-                <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-center">Shipment</th>
+                <th className="hidden lg:table-cell px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-center">Shipment</th>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
@@ -137,12 +137,26 @@ export default function PurchaseOrdersPage() {
                     className="hover:bg-[#fafafa] transition-colors relative"
                   >
                     <td className="px-5 py-3.5 text-[#888]">{p.date}</td>
-                    <td className="px-5 py-3.5 font-semibold text-black">{mfgName}</td>
+                    <td className="hidden lg:table-cell px-5 py-3.5 font-semibold text-black">{mfgName}</td>
                     <td className="px-5 py-3.5">
-                      <div className="font-medium">{p.productName}</div>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-medium">{p.productName}</span>
+                        {/* Mobile Order Type tag */}
+                        <span
+                          className={`lg:hidden px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                            p.orderType === "Sample"
+                              ? "bg-amber-50 text-amber-700 border border-amber-200"
+                              : "bg-black text-white"
+                          }`}
+                        >
+                          {p.orderType === "Sample" ? "★ Sample" : "Bulk"}
+                        </span>
+                      </div>
                       <div className="text-xs text-[#888]">{p.qty} × ₹{p.rate.toLocaleString("en-IN")}</div>
+                      {/* Manufacturer shown as sub-line on mobile */}
+                      <div className="lg:hidden text-xs text-[#aaa] mt-0.5">{mfgName}</div>
                     </td>
-                    <td className="px-5 py-3.5">
+                    <td className="hidden lg:table-cell px-5 py-3.5">
                       <span
                         className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
                           p.orderType === "Sample"
@@ -156,13 +170,24 @@ export default function PurchaseOrdersPage() {
                     <td className="px-5 py-3.5 text-right font-bold">₹{total.toLocaleString("en-IN")}</td>
                     <td className="px-5 py-3.5 text-center">
                       <span
-                        className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
-                          p.paymentStatus === "Paid"
-                            ? "bg-black text-white"
+                        className="px-2.5 py-1 rounded-lg text-xs font-bold"
+                        style={{
+                          background: p.paymentStatus === "Paid"
+                            ? "var(--color-profit-bg)"
                             : p.paymentStatus === "Partial"
-                            ? "bg-[#f0f0f0] text-[#555]"
-                            : "border border-[#e0e0e0] text-[#888]"
-                        }`}
+                            ? "#f0f0f0"
+                            : "var(--color-loss-bg)",
+                          color: p.paymentStatus === "Paid"
+                            ? "var(--color-profit)"
+                            : p.paymentStatus === "Partial"
+                            ? "#555"
+                            : "var(--color-loss)",
+                          border: p.paymentStatus === "Paid"
+                            ? "1px solid var(--color-profit-border)"
+                            : p.paymentStatus === "Partial"
+                            ? "1px solid #e0e0e0"
+                            : "1px solid var(--color-loss-border)",
+                        }}
                       >
                         {p.paymentStatus}
                       </span>
@@ -171,13 +196,24 @@ export default function PurchaseOrdersPage() {
                       <button
                         id={`ship-badge-${p.id}`}
                         onClick={() => advanceShipment(p, `ship-badge-${p.id}`)}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer inline-block ${
-                          p.shipmentStatus === "Delivered"
-                            ? "bg-black text-white"
+                        className="px-2.5 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer inline-block"
+                        style={{
+                          background: p.shipmentStatus === "Delivered"
+                            ? "var(--color-profit-bg)"
                             : p.shipmentStatus === "Shipped"
-                            ? "bg-[#e0e0e0] text-[#444]"
-                            : "border border-[#e0e0e0] text-[#888] bg-white hover:bg-[#f5f5f5]"
-                        }`}
+                            ? "#e0e0e0"
+                            : "#ffffff",
+                          color: p.shipmentStatus === "Delivered"
+                            ? "var(--color-profit)"
+                            : p.shipmentStatus === "Shipped"
+                            ? "#444"
+                            : "#888",
+                          border: p.shipmentStatus === "Delivered"
+                            ? "1px solid var(--color-profit-border)"
+                            : p.shipmentStatus === "Shipped"
+                            ? "1px solid #e0e0e0"
+                            : "1px solid #e0e0e0",
+                        }}
                         title={p.shipmentStatus !== "Delivered" ? "Click to advance" : ""}
                       >
                         {p.shipmentStatus}

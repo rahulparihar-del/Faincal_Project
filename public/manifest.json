@@ -1,0 +1,17 @@
+{
+  "name": "BizTrack",
+  "short_name": "BizTrack",
+  "description": "Business management for e-commerce, wholesale, purchases & bank",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    }
+  ]
+}

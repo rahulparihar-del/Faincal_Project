@@ -115,8 +115,8 @@ export default function WholesaleSalesPage() {
 
       <CardGroup>
         <StatCard title="Total Orders" value={stats.orders} icon={ShoppingCart} />
-        <StatCard title="Total Collected" value={`₹${stats.collected.toLocaleString("en-IN")}`} icon={IndianRupee} />
-        <StatCard title="Outstanding" value={`₹${Math.max(0, stats.outstanding).toLocaleString("en-IN")}`} icon={AlertTriangle} />
+        <StatCard title="Total Collected" value={`₹${stats.collected.toLocaleString("en-IN")}`} icon={IndianRupee} variant="profit" />
+        <StatCard title="Outstanding" value={`₹${Math.max(0, stats.outstanding).toLocaleString("en-IN")}`} icon={AlertTriangle} variant={stats.outstanding > 0 ? "loss" : "neutral"} />
       </CardGroup>
 
       {/* Inline Add Bill */}
@@ -125,7 +125,7 @@ export default function WholesaleSalesPage() {
           <Plus size={16} className="text-[#888]" />
           <h3 className="font-bold text-sm uppercase tracking-wider text-[#555]">Add Bill</h3>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
           <div>
             <label className={labelCls}>Bill Date *</label>
             <input type="date" className={inputCls} value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} />
@@ -184,8 +184,8 @@ export default function WholesaleSalesPage() {
             <thead className="bg-white border-b border-[#e8e8e8]">
               <tr>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider">Retailer</th>
-                <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-center">Orders</th>
-                <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-right">Total Billed</th>
+                <th className="hidden lg:table-cell px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-center">Orders</th>
+                <th className="hidden lg:table-cell px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-right">Total Billed</th>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-right">Outstanding</th>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-center">Status</th>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-right">Actions</th>
@@ -194,12 +194,12 @@ export default function WholesaleSalesPage() {
             <tbody className="divide-y divide-[#f0f0f0]">
               {retailers.map((r) => {
                 const status = r.outstanding <= 0 ? "Paid" : r.outstanding > 10000 ? "Overdue" : "Partial";
-                const statusClass =
+                const statusStyle =
                   status === "Paid"
-                    ? "bg-black text-white"
+                    ? { background: "var(--color-profit-bg)", color: "var(--color-profit)", border: "1px solid var(--color-profit-border)" }
                     : status === "Overdue"
-                    ? "bg-[#f0f0f0] text-[#444]"
-                    : "border border-[#e0e0e0] text-[#666] bg-white";
+                    ? { background: "var(--color-loss-bg)", color: "var(--color-loss)", border: "1px solid var(--color-loss-border)" }
+                    : { background: "#f0f0f0", color: "#666", border: "1px solid #e0e0e0" };
 
                 return (
                   <tr
@@ -208,11 +208,11 @@ export default function WholesaleSalesPage() {
                     onClick={() => setSelectedRetailer(r.key)}
                   >
                     <td className="px-5 py-3.5 font-semibold text-black">{r.name}</td>
-                    <td className="px-5 py-3.5 text-center font-bold">{r.orders}</td>
-                    <td className="px-5 py-3.5 text-right font-bold">₹{r.total.toLocaleString("en-IN")}</td>
-                    <td className="px-5 py-3.5 text-right font-bold">₹{Math.max(0, r.outstanding).toLocaleString("en-IN")}</td>
+                    <td className="hidden lg:table-cell px-5 py-3.5 text-center font-bold">{r.orders}</td>
+                    <td className="hidden lg:table-cell px-5 py-3.5 text-right font-bold">₹{r.total.toLocaleString("en-IN")}</td>
+                    <td className="px-5 py-3.5 text-right font-bold" style={{ color: r.outstanding > 0 ? "var(--color-loss)" : "var(--color-profit)" }}>₹{Math.max(0, r.outstanding).toLocaleString("en-IN")}</td>
                     <td className="px-5 py-3.5 text-center">
-                      <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${statusClass}`}>{status}</span>
+                      <span className="px-2.5 py-1 rounded-lg text-xs font-bold" style={statusStyle}>{status}</span>
                     </td>
                     <td className="px-5 py-3.5 text-right">
                       <button
@@ -325,7 +325,7 @@ function RetailerHistoryDrawer({
                 </div>
                 <div className="text-right">
                   <span className="text-[11px] block text-[#888] uppercase tracking-wider">Pending</span>
-                  <span className={`font-bold ${balance > 0 ? "text-[#444]" : "text-black"}`}>
+                  <span className="font-bold" style={{ color: balance > 0 ? "var(--color-loss)" : "var(--color-profit)" }}>
                     ₹{balance.toLocaleString("en-IN")}
                   </span>
                 </div>

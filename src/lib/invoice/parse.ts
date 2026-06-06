@@ -76,7 +76,7 @@ function extractGstin(rawText: string, hEnd: number, lines: string[]): FieldResu
   const headerText = lines.slice(0, Math.max(hEnd, 6)).join("\n").toUpperCase();
   const inHeader = all.find((g) => headerText.includes(g));
   if (inHeader) return F(inHeader, 0.95);
-  return F(all[0], all.length === 1 ? 0.85 : 0.7);
+  return F(all[0] ?? null, all.length === 1 ? 0.85 : 0.7);
 }
 
 // ── Vendor name (company name in header, before address & GST) ──
@@ -317,7 +317,7 @@ export function extractFields(rawText: string): { fields: ExtractedFields; lineI
       totalAmount = { ...totalAmount, confidence: clamp(totalAmount.confidence - 0.3) };
     }
     if (gstAmount.value == null) {
-      const diff = Math.round((totalAmount.value - subtotal.value) * 100) / 100;
+      const diff = Math.round((totalAmount.value! - subtotal.value!) * 100) / 100;
       if (diff > 0) gstAmount = F(diff, 0.6);
     }
   }

@@ -343,25 +343,30 @@ export function InvoiceSection() {
             <thead className="border-y border-[#e8e8e8] bg-[#fafafa]">
               <tr>
                 <th className="px-5 py-3 text-[11px] font-semibold text-[#888] uppercase tracking-wider">Vendor</th>
-                <th className="px-5 py-3 text-[11px] font-semibold text-[#888] uppercase tracking-wider">GST No</th>
-                <th className="px-5 py-3 text-[11px] font-semibold text-[#888] uppercase tracking-wider">Invoice No</th>
+                <th className="hidden lg:table-cell px-5 py-3 text-[11px] font-semibold text-[#888] uppercase tracking-wider">GST No</th>
+                <th className="hidden lg:table-cell px-5 py-3 text-[11px] font-semibold text-[#888] uppercase tracking-wider">Invoice No</th>
                 <th className="px-5 py-3 text-[11px] font-semibold text-[#888] uppercase tracking-wider">Date</th>
                 <th className="px-5 py-3 text-[11px] font-semibold text-[#888] uppercase tracking-wider text-right">Total</th>
-                <th className="px-5 py-3 text-[11px] font-semibold text-[#888] uppercase tracking-wider text-center">GST</th>
+                <th className="hidden lg:table-cell px-5 py-3 text-[11px] font-semibold text-[#888] uppercase tracking-wider text-center">GST</th>
                 <th className="px-5 py-3 text-[11px] font-semibold text-[#888] uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#f0f0f0]">
               {invoices.map((inv) => (
                 <tr key={inv.id} className="hover:bg-[#fafafa] transition-colors relative">
-                  <td className="px-5 py-3 font-semibold text-black">{inv.vendorName || "—"}</td>
-                  <td className="px-5 py-3 text-[#888] font-mono text-xs">{inv.gstNumber || "—"}</td>
-                  <td className="px-5 py-3 text-[#888]">{inv.invoiceNumber || "—"}</td>
+                  <td className="px-5 py-3 font-semibold text-black">
+                    <div>{inv.vendorName || "—"}</div>
+                    <div className="lg:hidden text-xs text-[#888] font-normal mt-0.5">
+                      Inv: {inv.invoiceNumber || "—"}
+                    </div>
+                  </td>
+                  <td className="hidden lg:table-cell px-5 py-3 text-[#888] font-mono text-xs">{inv.gstNumber || "—"}</td>
+                  <td className="hidden lg:table-cell px-5 py-3 text-[#888]">{inv.invoiceNumber || "—"}</td>
                   <td className="px-5 py-3 text-[#888]">{inv.invoiceDate || "—"}</td>
                   <td className="px-5 py-3 text-right font-bold">
                     {inv.totalAmount != null ? `₹${inv.totalAmount.toLocaleString("en-IN")}` : "—"}
                   </td>
-                  <td className="px-5 py-3 text-center">
+                  <td className="hidden lg:table-cell px-5 py-3 text-center">
                     {inv.gstType ? (
                       <span className="bg-[#f0f0f0] text-[#555] px-2 py-1 rounded-lg text-xs font-bold">{inv.gstType}</span>
                     ) : (
@@ -371,7 +376,7 @@ export function InvoiceSection() {
                   <td className="px-5 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
                       <Link
-                        href={`/manufacturers/invoice/${inv.id}`}
+                         href={`/manufacturers/invoice/${inv.id}`}
                         className="w-8 h-8 flex items-center justify-center rounded-lg text-[#888] hover:text-black hover:bg-[#f5f5f5] transition-colors"
                         aria-label="View details"
                       >

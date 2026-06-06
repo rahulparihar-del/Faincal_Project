@@ -166,28 +166,37 @@ export default function ProfitAndLossPage() {
           title="Total Revenue"
           value={<AnimatedCounter value={overall.totalRevenue} prefix="₹" isCurrency />}
           icon={DollarSign}
+          variant="profit"
         />
         <StatCard
           title="COGS"
           value={<AnimatedCounter value={overall.totalCogs} prefix="₹" isCurrency />}
           icon={TrendingDown}
+          variant="loss"
           subtitle="Bulk purchases only"
         />
         <StatCard
           title="Gross Profit"
           value={<AnimatedCounter value={overall.grossProfit} prefix="₹" isCurrency />}
           icon={BarChart3}
+          variant={overall.grossProfit >= 0 ? "profit" : "loss"}
         />
         <StatCard
           title="Deductions"
           value={<AnimatedCounter value={overall.totalDeductions} prefix="₹" isCurrency />}
           icon={MinusCircle}
+          variant="loss"
           subtitle="Commissions + Ads + RTO"
         />
         <StatCard
           title="Net Profit"
-          value={<AnimatedCounter value={overall.netProfit} prefix="₹" isCurrency />}
+          value={
+            <span style={{ color: overall.netProfit >= 0 ? "var(--color-profit)" : "var(--color-loss)" }}>
+              <AnimatedCounter value={overall.netProfit} prefix="₹" isCurrency />
+            </span>
+          }
           icon={TrendingUp}
+          variant={overall.netProfit >= 0 ? "profit" : "loss"}
           subtitle={overall.netProfit >= 0 ? "Profitable" : "Loss"}
         />
       </CardGroup>
@@ -202,9 +211,9 @@ export default function ProfitAndLossPage() {
               <tr>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider">Month</th>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-right">Revenue</th>
-                <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-right">COGS</th>
-                <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-right">Gross Profit</th>
-                <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-right">Deductions</th>
+                <th className="hidden lg:table-cell px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-right">COGS</th>
+                <th className="hidden lg:table-cell px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-right">Gross Profit</th>
+                <th className="hidden lg:table-cell px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-right">Deductions</th>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-right">Net Profit</th>
               </tr>
             </thead>
@@ -217,12 +226,15 @@ export default function ProfitAndLossPage() {
                       {format(parseISO(`${m.monthStr}-01`), "MMMM yyyy")}
                     </td>
                     <td className="px-5 py-3.5 text-right font-medium">₹{m.rev.toLocaleString("en-IN")}</td>
-                    <td className="px-5 py-3.5 text-right text-[#888]">₹{m.cogs.toLocaleString("en-IN")}</td>
-                    <td className="px-5 py-3.5 text-right font-bold">₹{m.gp.toLocaleString("en-IN")}</td>
-                    <td className="px-5 py-3.5 text-right text-[#888]">
+                    <td className="hidden lg:table-cell px-5 py-3.5 text-right text-[#888]">₹{m.cogs.toLocaleString("en-IN")}</td>
+                    <td className="hidden lg:table-cell px-5 py-3.5 text-right font-bold" style={{ color: m.gp >= 0 ? "var(--color-profit)" : "var(--color-loss)" }}>₹{m.gp.toLocaleString("en-IN")}</td>
+                    <td className="hidden lg:table-cell px-5 py-3.5 text-right text-[#888]">
                       ₹{(m.deductions + m.rto + m.otherExpenses).toLocaleString("en-IN")}
                     </td>
-                    <td className={`px-5 py-3.5 text-right font-bold ${isPositive ? "text-black" : "text-[#888]"}`}>
+                    <td
+                      className="px-5 py-3.5 text-right font-bold"
+                      style={{ color: isPositive ? "var(--color-profit)" : "var(--color-loss)" }}
+                    >
                       ₹{m.np.toLocaleString("en-IN")}
                     </td>
                   </tr>

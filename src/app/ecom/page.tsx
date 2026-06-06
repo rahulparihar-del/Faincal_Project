@@ -102,9 +102,9 @@ export default function EcomSales() {
       </div>
 
       <CardGroup cols="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-        <StatCard title="Gross Revenue" value={`₹${stats.gross.toLocaleString("en-IN")}`} icon={ShoppingBag} />
-        <StatCard title="Net Payout" value={`₹${stats.net.toLocaleString("en-IN")}`} icon={TrendingUp} />
-        <StatCard title="RTO Losses" value={`₹${stats.returns.toLocaleString("en-IN")}`} icon={PackageX} />
+        <StatCard title="Gross Revenue" value={`₹${stats.gross.toLocaleString("en-IN")}`} icon={ShoppingBag} variant="profit" />
+        <StatCard title="Net Payout" value={`₹${stats.net.toLocaleString("en-IN")}`} icon={TrendingUp} variant={stats.net >= 0 ? "profit" : "loss"} />
+        <StatCard title="RTO Losses" value={`₹${stats.returns.toLocaleString("en-IN")}`} icon={PackageX} variant="loss" />
       </CardGroup>
 
       {/* Filter Bar */}
@@ -145,6 +145,39 @@ export default function EcomSales() {
         )}
       </div>
 
+      {/* ── Mobile: stacked add form ── */}
+      <div className="lg:hidden bg-white border border-[#e8e8e8] rounded-2xl p-4 space-y-3 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-[#555]">Add Sale</h3>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-[11px] font-semibold text-[#888] uppercase tracking-wider mb-1">Date</label>
+            <input type="date" value={draftDate} onChange={(e) => setDraftDate(e.target.value)} className={cellInput} />
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-[#888] uppercase tracking-wider mb-1">Platform</label>
+            <select value={draftPlatform} onChange={(e) => setDraftPlatform(e.target.value as Platform)} className={cellInput}>
+              {PLATFORMS.map((p) => (<option key={p} value={p}>{p}</option>))}
+            </select>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-[11px] font-semibold text-[#888] uppercase tracking-wider mb-1">Amount *</label>
+            <input type="number" min="0" step="0.01" placeholder="0.00" value={draftAmount} onChange={(e) => setDraftAmount(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }} className={`${cellInput} text-right`} />
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-[#888] uppercase tracking-wider mb-1">Status</label>
+            <select value={draftStatus} onChange={(e) => setDraftStatus(e.target.value as "Received" | "RTO")} className={cellInput}>
+              <option value="Received">Received</option>
+              <option value="RTO">RTO</option>
+            </select>
+          </div>
+        </div>
+        <button onClick={handleAdd} disabled={!draftAmount || Number(draftAmount) <= 0} className="w-full bg-black text-white font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#1a1a1a] transition-colors">
+          <Plus size={16} /> Add Sale
+        </button>
+      </div>
+
       {/* Table */}
       <div className="bg-white border border-[#e8e8e8] rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
         <div className="overflow-x-auto">
@@ -153,14 +186,14 @@ export default function EcomSales() {
               <tr>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider">Date</th>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider">Platform</th>
-                <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-right">Net Payout</th>
+                <th className="hidden lg:table-cell px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-right">Net Payout</th>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-center">Status</th>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#f0f0f0]">
-              {/* Inline add row */}
-              <tr className="bg-[#fafafa]/60">
+              {/* Inline add row — hidden on mobile */}
+              <tr className="bg-[#fafafa]/60 hidden lg:table-row">
                 <td className="px-5 py-3">
                   <input
                     type="date"
@@ -221,13 +254,25 @@ export default function EcomSales() {
                   className="hover:bg-[#fafafa] transition-colors relative group"
                 >
                   <td className="px-5 py-3.5 text-[#888]">{sale.date}</td>
-                  <td className="px-5 py-3.5 font-semibold text-black">{sale.platform}</td>
-                  <td className="px-5 py-3.5 text-right font-bold">₹{sale.netPayout.toLocaleString("en-IN")}</td>
+                  <td className="px-5 py-3.5">
+                    <div className="font-semibold text-black">{sale.platform}</div>
+                    {/* Amount shown inline on mobile only (Net Payout column is hidden on mobile) */}
+                    <div className="lg:hidden text-xs font-bold mt-0.5" style={{ color: sale.isRTO ? "var(--color-loss)" : "var(--color-profit)" }}>
+                      ₹{sale.isRTO ? sale.rtoLossAmount.toLocaleString("en-IN") : sale.netPayout.toLocaleString("en-IN")}
+                    </div>
+                  </td>
+                  <td className="hidden lg:table-cell px-5 py-3.5 text-right font-bold" style={{ color: sale.isRTO ? "var(--color-loss)" : "var(--color-profit)" }}>
+                    ₹{sale.isRTO ? sale.rtoLossAmount.toLocaleString("en-IN") : sale.netPayout.toLocaleString("en-IN")}
+                  </td>
                   <td className="px-5 py-3.5 text-center">
                     {sale.isRTO ? (
-                      <span className="bg-[#f0f0f0] text-[#666] px-2.5 py-1 rounded-lg text-xs font-bold">RTO</span>
+                      <span className="px-2.5 py-1 rounded-lg text-xs font-bold"
+                        style={{ background: "var(--color-loss-bg)", color: "var(--color-loss)", border: "1px solid var(--color-loss-border)" }}
+                      >RTO</span>
                     ) : (
-                      <span className="bg-black text-white px-2.5 py-1 rounded-lg text-xs font-bold">Received</span>
+                      <span className="px-2.5 py-1 rounded-lg text-xs font-bold"
+                        style={{ background: "var(--color-profit-bg)", color: "var(--color-profit)", border: "1px solid var(--color-profit-border)" }}
+                      >Received</span>
                     )}
                   </td>
                   <td className="px-5 py-3.5 text-right">

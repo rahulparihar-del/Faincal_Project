@@ -14,6 +14,17 @@
   --color-gray-700: #444444;
   --color-gray-800: #2a2a2a;
   --color-gray-900: #1a1a1a;
+
+  /* ── Semantic accent tokens (profit / loss only) ── */
+  --color-profit: #16a34a;        /* emerald-700 — text on white */
+  --color-profit-bg: #f0fdf4;     /* emerald-50  — pill / icon bg */
+  --color-profit-border: #bbf7d0; /* emerald-200 — pill border    */
+  --color-profit-icon: #22c55e;   /* emerald-500 — icon fill      */
+
+  --color-loss: #dc2626;          /* red-600 — text on white      */
+  --color-loss-bg: #fef2f2;       /* red-50  — pill / icon bg     */
+  --color-loss-border: #fecaca;   /* red-200 — pill border        */
+  --color-loss-icon: #ef4444;     /* red-500 — icon fill          */
 }
 
 /* ── Base ── */
@@ -40,6 +51,68 @@ body {
   color: #1a1a1a;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Prevent overscroll bounce from bubbling to browser chrome on iOS */
+  overscroll-behavior: none;
+}
+
+/* ── Mobile-only: touch performance (does NOT affect desktop mouse users) ── */
+@media (pointer: coarse) {
+  /* Remove tap highlight flash on iOS/Android */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Minimum 44px touch targets (WCAG 2.5.5) */
+  button, a, [role="button"] {
+    min-height: 44px;
+  }
+
+  /* Momentum scrolling on scrollable containers (iOS Safari) */
+  .overflow-y-auto, .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Prevent accidental zoom on input focus in iOS Safari */
+@media (max-width: 768px) {
+  input[type="text"],
+  input[type="number"],
+  input[type="date"],
+  input[type="tel"],
+  input[type="email"],
+  select,
+  textarea {
+    font-size: 16px; /* 16px prevents iOS auto-zoom */
+  }
+}
+
+/* ── Mobile tables: zero horizontal scroll ──────────────────────────────────
+   All data tables are wrapped in .overflow-x-auto.
+   On mobile (<1024px) we:
+   1. Override whitespace-nowrap so cells can wrap → table fits in viewport
+   2. Tighten padding so 4 columns comfortably fit a 360px screen
+   3. Cap truncated description cells so they don't force the table wide
+   Desktop is completely unaffected (>= 1024px). */
+@media (max-width: 1023px) {
+  .overflow-x-auto table {
+    white-space: normal; /* overrides Tailwind's whitespace-nowrap on the <table> */
+  }
+
+  .overflow-x-auto th,
+  .overflow-x-auto td {
+    padding-left:   12px;
+    padding-right:  12px;
+    padding-top:    8px;
+    padding-bottom: 8px;
+    font-size: 0.8125rem; /* 13px — slightly more compact */
+  }
+
+  /* Description / long-text cells use Tailwind's truncate class.
+     Cap them so they don't push the table wider than the viewport. */
+  .overflow-x-auto td.truncate,
+  .overflow-x-auto td.max-w-xs {
+    max-width: 130px;
+  }
 }
 
 /* ── Premium Input Styles ── */
@@ -188,6 +261,17 @@ label {
   --color-gray-700: #e0e0e0;
   --color-gray-800: #f2f2f2;
   --color-gray-900: #ffffff;
+
+  /* Semantic accents stay readable on dark surfaces */
+  --color-profit: #4ade80;        /* green-400 — bright on dark   */
+  --color-profit-bg: #052e16;     /* green-950 — deep bg          */
+  --color-profit-border: #166534; /* green-800 — muted border     */
+  --color-profit-icon: #4ade80;
+
+  --color-loss: #f87171;          /* red-400 — bright on dark     */
+  --color-loss-bg: #450a0a;       /* red-950 — deep bg            */
+  --color-loss-border: #991b1b;   /* red-800 — muted border       */
+  --color-loss-icon: #f87171;
 }
 
 /* ── Base elements ── */

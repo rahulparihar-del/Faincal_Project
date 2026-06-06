@@ -15,8 +15,23 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "BizTrack | SaaS Management",
-  description: "Business management SaaS web application",
+  title: "BizTrack | Business Management",
+  description: "Business management app for e-commerce, wholesale, purchases and bank tracking",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "BizTrack",
+  },
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({
