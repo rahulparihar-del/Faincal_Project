@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo, useRef } from "react";
+import Link from "next/link";
 import { useData } from "@/context/DataContext";
 import { CardGroup, StatCard, Card } from "@/components/ui/Card";
 import { AnimatedCounter } from "@/components/ui/AnimatedCounter";
@@ -160,64 +161,80 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       <CardGroup cols="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-        <StatCard
-          title="Total Revenue"
-          value={<AnimatedCounter value={metrics.totalRevenue} prefix="₹" isCurrency />}
-          icon={DollarSign}
-          variant="profit"
-          subtitle="E-commerce + Wholesale"
-        />
-        <StatCard
-          title="E-commerce Revenue"
-          value={<AnimatedCounter value={metrics.ecomRev} prefix="₹" isCurrency />}
-          icon={ShoppingBag}
-          variant="profit"
-          subtitle="Online sales payouts"
-        />
-        <StatCard
-          title="Wholesale Revenue"
-          value={<AnimatedCounter value={metrics.wholesaleRev} prefix="₹" isCurrency />}
-          icon={Truck}
-          variant="profit"
-          subtitle="Retailer bills"
-        />
-        <StatCard
-          title="Total Expenses"
-          value={<AnimatedCounter value={metrics.totalExpenses} prefix="₹" isCurrency />}
-          icon={TrendingDown}
-          variant="loss"
-        />
-        <StatCard
-          title="Net Profit"
-          value={
-            <span style={{ color: metrics.netProfit >= 0 ? "var(--color-profit)" : "var(--color-loss)" }}>
-              <AnimatedCounter value={metrics.netProfit} prefix="₹" isCurrency />
-            </span>
-          }
-          icon={TrendingUp}
-          variant={metrics.netProfit >= 0 ? "profit" : "loss"}
-          subtitle={metrics.netProfit >= 0 ? "Profitable" : "Loss"}
-        />
-        <StatCard
-          title="Pending Payments"
-          value={<AnimatedCounter value={metrics.pendingPayments} prefix="₹" isCurrency />}
-          icon={AlertCircle}
-          variant="loss"
-          subtitle="Manufacturer dues"
-        />
-        <StatCard
-          title="Active Wholesale"
-          value={<AnimatedCounter value={metrics.activeWholesale} />}
-          icon={ShoppingCart}
-          variant="neutral"
-          subtitle="Unpaid orders"
-        />
-        <StatCard
-          title="RTO Losses"
-          value={<AnimatedCounter value={metrics.rtoLosses} prefix="₹" isCurrency />}
-          icon={PackageX}
-          variant="loss"
-        />
+        <Link href="/pl" className="block hover:scale-[1.01] active:scale-[0.99] transition-transform duration-200">
+          <StatCard
+            title="Total Revenue"
+            value={<AnimatedCounter value={metrics.totalRevenue} prefix="₹" isCurrency />}
+            icon={DollarSign}
+            variant="profit"
+            subtitle="E-commerce + Wholesale"
+          />
+        </Link>
+        <Link href="/ecom" className="block hover:scale-[1.01] active:scale-[0.99] transition-transform duration-200">
+          <StatCard
+            title="E-commerce Revenue"
+            value={<AnimatedCounter value={metrics.ecomRev} prefix="₹" isCurrency />}
+            icon={ShoppingBag}
+            variant="profit"
+            subtitle="Online sales payouts"
+          />
+        </Link>
+        <Link href="/wholesale" className="block hover:scale-[1.01] active:scale-[0.99] transition-transform duration-200">
+          <StatCard
+            title="Wholesale Revenue"
+            value={<AnimatedCounter value={metrics.wholesaleRev} prefix="₹" isCurrency />}
+            icon={Truck}
+            variant="profit"
+            subtitle="Retailer bills"
+          />
+        </Link>
+        <Link href="/expenses" className="block hover:scale-[1.01] active:scale-[0.99] transition-transform duration-200">
+          <StatCard
+            title="Total Expenses"
+            value={<AnimatedCounter value={metrics.totalExpenses} prefix="₹" isCurrency />}
+            icon={TrendingDown}
+            variant="loss"
+          />
+        </Link>
+        <Link href="/pl" className="block hover:scale-[1.01] active:scale-[0.99] transition-transform duration-200">
+          <StatCard
+            title="Net Profit"
+            value={
+              <span style={{ color: metrics.netProfit >= 0 ? "var(--color-profit)" : "var(--color-loss)" }}>
+                <AnimatedCounter value={metrics.netProfit} prefix="₹" isCurrency />
+              </span>
+            }
+            icon={TrendingUp}
+            variant={metrics.netProfit >= 0 ? "profit" : "loss"}
+            subtitle={metrics.netProfit >= 0 ? "Profitable" : "Loss"}
+          />
+        </Link>
+        <Link href="/purchases" className="block hover:scale-[1.01] active:scale-[0.99] transition-transform duration-200">
+          <StatCard
+            title="Pending Payments"
+            value={<AnimatedCounter value={metrics.pendingPayments} prefix="₹" isCurrency />}
+            icon={AlertCircle}
+            variant="loss"
+            subtitle="Manufacturer dues"
+          />
+        </Link>
+        <Link href="/wholesale" className="block hover:scale-[1.01] active:scale-[0.99] transition-transform duration-200">
+          <StatCard
+            title="Active Wholesale"
+            value={<AnimatedCounter value={metrics.activeWholesale} />}
+            icon={ShoppingCart}
+            variant="neutral"
+            subtitle="Unpaid orders"
+          />
+        </Link>
+        <Link href="/ecom" className="block hover:scale-[1.01] active:scale-[0.99] transition-transform duration-200">
+          <StatCard
+            title="RTO Losses"
+            value={<AnimatedCounter value={metrics.rtoLosses} prefix="₹" isCurrency />}
+            icon={PackageX}
+            variant="loss"
+          />
+        </Link>
       </CardGroup>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
