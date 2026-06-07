@@ -450,7 +450,7 @@ export default function PurchaseOrdersPage() {
                                 const idx = files.findIndex((f) => f.url === p.billPdf);
                                 setViewingPdf({ files, activeIndex: idx !== -1 ? idx : 0 });
                               }}
-                              className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-700 rounded-lg text-xs font-semibold transition-colors border border-red-100 shadow-sm"
+                              className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-700 rounded-lg text-xs font-semibold transition-colors border border-red-100 shadow-sm cursor-pointer"
                               title={p.billPdfName || "View Bill"}
                             >
                               <FileText size={12} />
@@ -458,21 +458,19 @@ export default function PurchaseOrdersPage() {
                             </button>
                           ) : null}
                           {p.txnImages && p.txnImages.length > 0 ? (
-                            p.txnImages.map((img, idx) => (
-                              <button
-                                key={idx}
-                                onClick={() => {
-                                  const files = getPoAttachments(p);
-                                  const activeIdx = files.findIndex((f) => f.url === img);
-                                  setViewingPdf({ files, activeIndex: activeIdx !== -1 ? activeIdx : 0 });
-                                }}
-                                className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-500 hover:text-blue-700 rounded-lg text-xs font-semibold transition-colors border border-blue-100 shadow-sm"
-                                title={p.txnImageNames?.[idx] || `View Receipt ${idx + 1}`}
-                              >
-                                <Eye size={12} />
-                                {p.txnImages!.length > 1 ? `Receipt ${idx + 1}` : "Receipt"}
-                              </button>
-                            ))
+                            <button
+                              onClick={() => {
+                                const files = getPoAttachments(p);
+                                const firstReceiptUrl = p.txnImages![0];
+                                const activeIdx = files.findIndex((f) => f.url === firstReceiptUrl);
+                                setViewingPdf({ files, activeIndex: activeIdx !== -1 ? activeIdx : 0 });
+                              }}
+                              className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-500 hover:text-blue-700 rounded-lg text-xs font-semibold transition-colors border border-blue-100 shadow-sm cursor-pointer"
+                              title={`View Receipts (${p.txnImages.length})`}
+                            >
+                              <Eye size={12} />
+                              {p.txnImages.length > 1 ? `Receipts (${p.txnImages.length})` : "Receipt"}
+                            </button>
                           ) : (
                             p.txnImage ? (
                               <button
@@ -481,7 +479,7 @@ export default function PurchaseOrdersPage() {
                                   const idx = files.findIndex((f) => f.url === p.txnImage);
                                   setViewingPdf({ files, activeIndex: idx !== -1 ? idx : 0 });
                                 }}
-                                className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-500 hover:text-blue-700 rounded-lg text-xs font-semibold transition-colors border border-blue-100 shadow-sm"
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-500 hover:text-blue-700 rounded-lg text-xs font-semibold transition-colors border border-blue-100 shadow-sm cursor-pointer"
                                 title={p.txnImageName || "View Receipt"}
                               >
                                 <Eye size={12} />

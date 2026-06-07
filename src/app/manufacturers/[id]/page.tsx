@@ -445,28 +445,31 @@ export default function ManufacturerDetailPage() {
                               const idx = files.findIndex((f) => f.url === p.billPdf);
                               setViewingPdf({ files, activeIndex: idx !== -1 ? idx : 0 });
                             }}
-                            className="w-7 h-7 flex items-center justify-center rounded-lg bg-red-50 text-red-400 hover:text-red-600 hover:bg-red-100 transition-colors"
+                            className="w-7 h-7 flex items-center justify-center rounded-lg bg-red-50 text-red-400 hover:text-red-600 hover:bg-red-100 transition-colors cursor-pointer"
                             title={p.billPdfName || "View Bill"}
                           >
                             <FileText size={12} />
                           </button>
                         )}
                         {p.txnImages && p.txnImages.length > 0 ? (
-                          p.txnImages.map((img, idx) => (
-                            <button
-                              key={idx}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const files = getPoAttachments(p);
-                                const activeIdx = files.findIndex((f) => f.url === img);
-                                setViewingPdf({ files, activeIndex: activeIdx !== -1 ? activeIdx : 0 });
-                              }}
-                              className="w-7 h-7 flex items-center justify-center rounded-lg bg-blue-50 text-blue-400 hover:text-blue-600 hover:bg-blue-100 transition-colors"
-                              title={p.txnImageNames?.[idx] || `View Receipt ${idx + 1}`}
-                            >
-                              <Eye size={12} />
-                            </button>
-                          ))
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const files = getPoAttachments(p);
+                              const firstReceiptUrl = p.txnImages![0];
+                              const activeIdx = files.findIndex((f) => f.url === firstReceiptUrl);
+                              setViewingPdf({ files, activeIndex: activeIdx !== -1 ? activeIdx : 0 });
+                            }}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg bg-blue-50 text-blue-400 hover:text-blue-600 hover:bg-blue-100 transition-colors cursor-pointer relative"
+                            title={`View Receipts (${p.txnImages.length})`}
+                          >
+                            <Eye size={12} />
+                            {p.txnImages.length > 1 && (
+                              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-blue-600 text-white rounded-full text-[8px] font-bold flex items-center justify-center border border-white">
+                                {p.txnImages.length}
+                              </span>
+                            )}
+                          </button>
                         ) : (
                           p.txnImage ? (
                             <button
@@ -476,7 +479,7 @@ export default function ManufacturerDetailPage() {
                                 const idx = files.findIndex((f) => f.url === p.txnImage);
                                 setViewingPdf({ files, activeIndex: idx !== -1 ? idx : 0 });
                               }}
-                              className="w-7 h-7 flex items-center justify-center rounded-lg bg-blue-50 text-blue-400 hover:text-blue-600 hover:bg-blue-100 transition-colors"
+                              className="w-7 h-7 flex items-center justify-center rounded-lg bg-blue-50 text-blue-400 hover:text-blue-600 hover:bg-blue-100 transition-colors cursor-pointer"
                               title={p.txnImageName || "View Receipt"}
                             >
                               <Eye size={12} />
