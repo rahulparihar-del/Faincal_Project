@@ -10,7 +10,7 @@ import { PurchaseOrder, PurchaseItem, OrderType, PaymentStatus, ShipmentStatus }
 import { gsap } from "gsap";
 import {
   Plus, Edit2, Trash2, Package, IndianRupee, Boxes,
-  X, ChevronDown, ChevronRight, CheckCircle2, Truck, FileText,
+  X, ChevronDown, ChevronLeft, ChevronRight, CheckCircle2, Truck, FileText,
   Upload, Eye, Paperclip, AlertCircle,
 } from "lucide-react";
 
@@ -32,6 +32,27 @@ function getGrandTotal(p: PurchaseOrder): number {
   return sub + gst + (p.transport ?? 0) + (p.roundingAmount ?? 0);
 }
 
+function getPoAttachments(p: PurchaseOrder): { url: string; filename: string }[] {
+  const attachments: { url: string; filename: string }[] = [];
+  if (p.billPdf) {
+    attachments.push({ url: p.billPdf, filename: p.billPdfName || "Bill.pdf" });
+  }
+  if (p.txnImages && p.txnImages.length > 0) {
+    p.txnImages.forEach((img, idx) => {
+      attachments.push({
+        url: img,
+        filename: p.txnImageNames?.[idx] || `Receipt ${idx + 1}`,
+      });
+    });
+  } else if (p.txnImage) {
+    attachments.push({
+      url: p.txnImage,
+      filename: p.txnImageName || "Receipt.png",
+    });
+  }
+  return attachments;
+}
+
 /* ─── Toast ─────────────────────────────────────────────────── */
 function Toast({ message, visible }: { message: string; visible: boolean }) {
   return (
@@ -49,15 +70,22 @@ function Toast({ message, visible }: { message: string; visible: boolean }) {
 
 /* ─── PDF Viewer Modal ───────────────────────────── */
 function PdfViewerModal({
-  pdf,
-  filename,
+  files,
+  initialActiveIndex,
   onClose,
 }: {
-  pdf: string;
-  filename: string;
+  files: { url: string; filename: string }[];
+  initialActiveIndex: number;
   onClose: () => void;
 }) {
-  const isImage = pdf.startsWith("data:image/") || /\.(jpg|jpeg|png|webp|gif)$/i.test(filename);
+  const [activeIndex, setActiveIndex] = useState(initialActiveIndex);
+  
+  // Guard if files is empty or index out of bounds
+  const activeFile = files[activeIndex] || files[0];
+  if (!activeFile) return null;
+  
+  const { url, filename } = activeFile;
+  const isImage = url.startsWith("data:image/") || /\.(jpg|jpeg|png|webp|gif)$/i.test(filename);
 
   return (
     <div
@@ -68,22 +96,29 @@ function PdfViewerModal({
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
 
       {/* Modal */}
-      <div className="relative z-10 bg-white rounded-2xl shadow-2xl flex flex-col" style={{ width: "min(92vw, 900px)", height: "min(92vh, 800px)" }}>
+      <div className="relative z-10 bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200" style={{ width: "min(92vw, 900px)", height: "min(92vh, 800px)" }}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#e8e8e8] shrink-0">
-          <div className="flex items-center gap-3">
-            <div className={`w-9 h-9 ${isImage ? "bg-blue-50" : "bg-red-50"} rounded-xl flex items-center justify-center`}>
+          <div className="flex items-center gap-3 min-w-0">
+            <div className={`w-9 h-9 ${isImage ? "bg-blue-50" : "bg-red-50"} rounded-xl flex items-center justify-center shrink-0`}>
               <FileText size={18} className={isImage ? "text-blue-500" : "text-red-500"} />
             </div>
-            <div>
-              <div className="font-semibold text-sm text-black truncate max-w-[320px]">{filename}</div>
-              <div className="text-[11px] text-[#888]">{isImage ? "Transaction Receipt Image" : "Manufacturer Bill PDF"}</div>
+            <div className="min-w-0">
+              <div className="font-semibold text-sm text-black truncate max-w-[280px] sm:max-w-[400px]">{filename}</div>
+              <div className="text-[11px] text-[#888] flex items-center gap-1.5 mt-0.5">
+                <span>{isImage ? "Transaction Receipt Image" : "Manufacturer Bill PDF"}</span>
+                {files.length > 1 && (
+                  <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-bold text-[10px]">
+                    {activeIndex + 1} of {files.length}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {/* Download button */}
             <a
-              href={pdf}
+              href={url}
               download={filename}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-[#f5f5f5] hover:bg-[#eee] text-[#555] rounded-lg text-xs font-semibold transition-colors"
             >
@@ -98,24 +133,85 @@ function PdfViewerModal({
           </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-hidden rounded-b-2xl bg-[#fafafa]">
-          {isImage ? (
-            <div className="w-full h-full overflow-auto flex items-center justify-center p-6">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={pdf}
-                alt={filename}
-                className="max-w-full max-h-full object-contain rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.08)] bg-white"
+        {/* Content Area */}
+        <div className="flex-1 overflow-hidden bg-[#fafafa] flex flex-col min-h-0">
+          {/* Main Viewer container */}
+          <div className="flex-1 overflow-hidden relative flex items-center justify-center">
+            {isImage ? (
+              <div className="w-full h-full overflow-auto flex items-center justify-center p-6">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={url}
+                  alt={filename}
+                  className="max-w-full max-h-full object-contain rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.08)] bg-white"
+                />
+              </div>
+            ) : (
+              <iframe
+                src={url}
+                className="w-full h-full"
+                title={filename}
+                style={{ border: "none" }}
               />
+            )}
+
+            {/* Navigation Arrows overlay */}
+            {files.length > 1 && (
+              <>
+                <button
+                  onClick={() => setActiveIndex((prev) => (prev > 0 ? prev - 1 : files.length - 1))}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/95 hover:bg-white text-gray-700 hover:text-black flex items-center justify-center shadow-lg transition-all border border-gray-100 z-10 hover:scale-105"
+                  title="Previous"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+                <button
+                  onClick={() => setActiveIndex((prev) => (prev < files.length - 1 ? prev + 1 : 0))}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/95 hover:bg-white text-gray-700 hover:text-black flex items-center justify-center shadow-lg transition-all border border-gray-100 z-10 hover:scale-105"
+                  title="Next"
+                >
+                  <ChevronRight size={20} />
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Thumbnails strip */}
+          {files.length > 1 && (
+            <div className="shrink-0 bg-white border-t border-[#e8e8e8] px-5 py-3.5 flex items-center gap-3 overflow-x-auto">
+              {files.map((file, idx) => {
+                const fileIsImage = file.url.startsWith("data:image/") || /\.(jpg|jpeg|png|webp|gif)$/i.test(file.filename);
+                const isActive = idx === activeIndex;
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => setActiveIndex(idx)}
+                    className={`w-14 h-14 rounded-lg overflow-hidden shrink-0 border-2 transition-all flex items-center justify-center shadow-sm bg-gray-50 relative group ${
+                      isActive ? "border-blue-500 ring-2 ring-blue-100" : "border-gray-200 hover:border-gray-400"
+                    }`}
+                    title={file.filename}
+                  >
+                    {fileIsImage ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={file.url}
+                        alt={file.filename}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-full w-full p-1">
+                        <FileText size={16} className="text-red-500 shrink-0" />
+                        <span className="text-[8px] font-bold text-red-500 truncate max-w-full mt-0.5 uppercase shrink-0">PDF</span>
+                      </div>
+                    )}
+                    {/* Overlay badge with index */}
+                    <span className="absolute bottom-0.5 right-0.5 px-1 bg-black/60 text-white text-[8px] rounded font-medium">
+                      {idx + 1}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-          ) : (
-            <iframe
-              src={pdf}
-              className="w-full h-full"
-              title={filename}
-              style={{ border: "none" }}
-            />
           )}
         </div>
       </div>
@@ -130,7 +226,10 @@ export default function PurchaseOrdersPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [viewingPdf, setViewingPdf] = useState<{ pdf: string; filename: string } | null>(null);
+  const [viewingPdf, setViewingPdf] = useState<{
+    files: { url: string; filename: string }[];
+    activeIndex: number;
+  } | null>(null);
 
   const stats = useMemo(() => {
     const cm = new Date().getMonth(), cy = new Date().getFullYear();
@@ -180,8 +279,8 @@ export default function PurchaseOrdersPage() {
       {/* PDF Viewer Modal */}
       {viewingPdf && (
         <PdfViewerModal
-          pdf={viewingPdf.pdf}
-          filename={viewingPdf.filename}
+          files={viewingPdf.files}
+          initialActiveIndex={viewingPdf.activeIndex}
           onClose={() => setViewingPdf(null)}
         />
       )}
@@ -343,10 +442,14 @@ export default function PurchaseOrdersPage() {
 
                       {/* Bill / Receipt — its own column, only visible on lg+ */}
                       <td className="hidden lg:table-cell px-5 py-3.5 text-center">
-                        <div className="flex items-center justify-center gap-1.5">
+                        <div className="flex items-center justify-center gap-1.5 flex-wrap">
                           {p.billPdf ? (
                             <button
-                              onClick={() => setViewingPdf({ pdf: p.billPdf!, filename: p.billPdfName || "Bill.pdf" })}
+                              onClick={() => {
+                                const files = getPoAttachments(p);
+                                const idx = files.findIndex((f) => f.url === p.billPdf);
+                                setViewingPdf({ files, activeIndex: idx !== -1 ? idx : 0 });
+                              }}
                               className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-700 rounded-lg text-xs font-semibold transition-colors border border-red-100 shadow-sm"
                               title={p.billPdfName || "View Bill"}
                             >
@@ -354,17 +457,39 @@ export default function PurchaseOrdersPage() {
                               Bill
                             </button>
                           ) : null}
-                          {p.txnImage ? (
-                            <button
-                              onClick={() => setViewingPdf({ pdf: p.txnImage!, filename: p.txnImageName || "Receipt.png" })}
-                              className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-500 hover:text-blue-700 rounded-lg text-xs font-semibold transition-colors border border-blue-100 shadow-sm"
-                              title={p.txnImageName || "View Receipt"}
-                            >
-                              <Eye size={12} />
-                              Receipt
-                            </button>
-                          ) : null}
-                          {!p.billPdf && !p.txnImage && (
+                          {p.txnImages && p.txnImages.length > 0 ? (
+                            p.txnImages.map((img, idx) => (
+                              <button
+                                key={idx}
+                                onClick={() => {
+                                  const files = getPoAttachments(p);
+                                  const activeIdx = files.findIndex((f) => f.url === img);
+                                  setViewingPdf({ files, activeIndex: activeIdx !== -1 ? activeIdx : 0 });
+                                }}
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-500 hover:text-blue-700 rounded-lg text-xs font-semibold transition-colors border border-blue-100 shadow-sm"
+                                title={p.txnImageNames?.[idx] || `View Receipt ${idx + 1}`}
+                              >
+                                <Eye size={12} />
+                                {p.txnImages!.length > 1 ? `Receipt ${idx + 1}` : "Receipt"}
+                              </button>
+                            ))
+                          ) : (
+                            p.txnImage ? (
+                              <button
+                                onClick={() => {
+                                  const files = getPoAttachments(p);
+                                  const idx = files.findIndex((f) => f.url === p.txnImage);
+                                  setViewingPdf({ files, activeIndex: idx !== -1 ? idx : 0 });
+                                }}
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-500 hover:text-blue-700 rounded-lg text-xs font-semibold transition-colors border border-blue-100 shadow-sm"
+                                title={p.txnImageName || "View Receipt"}
+                              >
+                                <Eye size={12} />
+                                Receipt
+                              </button>
+                            ) : null
+                          )}
+                          {!p.billPdf && !p.txnImage && (!p.txnImages || p.txnImages.length === 0) && (
                             <span className="text-[#ddd] text-xs">—</span>
                           )}
                         </div>
@@ -486,7 +611,7 @@ export default function PurchaseOrdersPage() {
           }
           setDrawerOpen(false);
         }}
-        onViewPdf={(pdf, filename) => setViewingPdf({ pdf, filename })}
+        onViewPdf={(files, activeIndex) => setViewingPdf({ files, activeIndex })}
       />
     </div>
   );
@@ -525,7 +650,7 @@ function PurchaseFormDrawer({
   onClose: () => void;
   editingId: string | null;
   onSave: (po: PurchaseOrder) => void;
-  onViewPdf: (pdf: string, filename: string) => void;
+  onViewPdf: (files: { url: string; filename: string }[], activeIndex: number) => void;
 }) {
   const { purchases, manufacturers } = useData();
   const formRef = useRef<HTMLFormElement>(null);
@@ -558,10 +683,9 @@ function PurchaseFormDrawer({
   const [pdfSizeWarning, setPdfSizeWarning] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Transaction Receipt state
-  const [txnImage, setTxnImage] = useState<string | null>(null);
-  const [txnImageName, setTxnImageName] = useState("");
-  const [txnSizeWarning, setTxnSizeWarning] = useState(false);
+  // Transaction Receipt state (multiple)
+  const [txnImages, setTxnImages] = useState<string[]>([]);
+  const [txnImageNames, setTxnImageNames] = useState<string[]>([]);
   const txnFileInputRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState({ visible: false, message: "" });
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -571,6 +695,20 @@ function PurchaseFormDrawer({
     setToast({ visible: true, message: msg });
     toastTimer.current = setTimeout(() => setToast((t) => ({ ...t, visible: false })), 2000);
   }, []);
+
+  const getDrawerAttachments = () => {
+    const files: { url: string; filename: string }[] = [];
+    if (billPdf) {
+      files.push({ url: billPdf, filename: billPdfName || "Bill.pdf" });
+    }
+    txnImages.forEach((img, idx) => {
+      files.push({
+        url: img,
+        filename: txnImageNames[idx] || `Receipt ${idx + 1}`,
+      });
+    });
+    return files;
+  };
 
   useEffect(() => {
     if (isOpen && editingId) {
@@ -599,9 +737,8 @@ function PurchaseFormDrawer({
         setBillPdf(po.billPdf || null);
         setBillPdfName(po.billPdfName || "");
         setPdfSizeWarning(false);
-        setTxnImage(po.txnImage || null);
-        setTxnImageName(po.txnImageName || "");
-        setTxnSizeWarning(false);
+        setTxnImages(po.txnImages || (po.txnImage ? [po.txnImage] : []));
+        setTxnImageNames(po.txnImageNames || (po.txnImageName ? [po.txnImageName] : []));
       }
     } else if (isOpen) {
       setMeta({ ...defaultMeta, manufacturerId: manufacturers.length > 0 ? manufacturers[0].id : "" });
@@ -609,9 +746,8 @@ function PurchaseFormDrawer({
       setBillPdf(null);
       setBillPdfName("");
       setPdfSizeWarning(false);
-      setTxnImage(null);
-      setTxnImageName("");
-      setTxnSizeWarning(false);
+      setTxnImages([]);
+      setTxnImageNames([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, editingId]);
@@ -655,24 +791,29 @@ function PurchaseFormDrawer({
     reader.readAsDataURL(file);
   };
 
-  /* ─── Transaction Image helpers ─── */
-  const handleTxnImageSelect = (file: File) => {
-    if (!file) return;
-    const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
-    const isImg = file.type.startsWith("image/") || /\.(jpg|jpeg|png|webp)$/i.test(file.name);
-    if (!isPdf && !isImg) {
-      showToast("Please select an Image or PDF file");
-      return;
-    }
-    const sizeMb = file.size / (1024 * 1024);
-    setTxnSizeWarning(sizeMb > 3);
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setTxnImage(ev.target?.result as string);
-      setTxnImageName(file.name);
-      showToast(`✅ "${file.name}" uploaded`);
-    };
-    reader.readAsDataURL(file);
+  /* ─── Transaction Image helpers (multiple) ─── */
+  const handleTxnImagesSelect = (files: FileList) => {
+    if (!files || files.length === 0) return;
+    Array.from(files).forEach((file) => {
+      const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+      const isImg = file.type.startsWith("image/") || /\.(jpg|jpeg|png|webp)$/i.test(file.name);
+      if (!isPdf && !isImg) {
+        showToast(`"${file.name}" is not an Image or PDF`);
+        return;
+      }
+      const sizeMb = file.size / (1024 * 1024);
+      if (sizeMb > 3) {
+        showToast(`"${file.name}" is too large (>3MB)`);
+      }
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const dataUrl = ev.target?.result as string;
+        setTxnImages((prev) => [...prev, dataUrl]);
+        setTxnImageNames((prev) => [...prev, file.name]);
+        showToast(`✅ "${file.name}" uploaded`);
+      };
+      reader.readAsDataURL(file);
+    });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -706,8 +847,10 @@ function PurchaseFormDrawer({
       roundingAmount: meta.roundingAmount || 0,
       billPdf: billPdf || undefined,
       billPdfName: billPdfName || undefined,
-      txnImage: txnImage || undefined,
-      txnImageName: txnImageName || undefined,
+      txnImage: txnImages.length > 0 ? txnImages[0] : undefined,
+      txnImageName: txnImageNames.length > 0 ? txnImageNames[0] : undefined,
+      txnImages: txnImages.length > 0 ? txnImages : undefined,
+      txnImageNames: txnImageNames.length > 0 ? txnImageNames : undefined,
       paymentStatus: meta.paymentStatus,
       paymentDate: meta.paymentDate,
       paidAmount: meta.paymentStatus === "Paid" ? grandTotal : (meta.paymentStatus === "Partial" ? meta.paidAmount : 0),
@@ -1024,7 +1167,11 @@ function PurchaseFormDrawer({
                   <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       type="button"
-                      onClick={() => onViewPdf(billPdf!, billPdfName || "Bill.pdf")}
+                      onClick={() => {
+                        const files = getDrawerAttachments();
+                        const idx = files.findIndex((f) => f.url === billPdf);
+                        onViewPdf(files, idx !== -1 ? idx : 0);
+                      }}
                       className="w-8 h-8 flex items-center justify-center rounded-lg bg-white text-red-500 hover:bg-red-100 transition-colors border border-red-100"
                       title="Preview PDF"
                     >
@@ -1075,10 +1222,10 @@ function PurchaseFormDrawer({
           </div>
 
           {/* ─── Transaction Image/PDF Upload ─── */}
-          <div className="space-y-1.5">
+          <div className="space-y-2.5">
             <label className={labelCls}>
               <span className="flex items-center gap-1.5">
-                <Paperclip size={13} /> Transaction Receipt (Image / PDF)
+                <Paperclip size={13} /> Transaction Receipt(s) (Image / PDF)
               </span>
             </label>
 
@@ -1088,75 +1235,90 @@ function PurchaseFormDrawer({
               type="file"
               accept="image/*,application/pdf"
               className="hidden"
+              multiple
               onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) handleTxnImageSelect(f);
+                if (e.target.files) handleTxnImagesSelect(e.target.files);
                 e.target.value = "";
               }}
             />
 
-            {txnImage ? (
-              /* Receipt attached — preview card */
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-white rounded-xl border border-blue-100 flex items-center justify-center shrink-0 shadow-sm">
-                    <FileText size={20} className="text-blue-500" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-sm text-black truncate">{txnImageName}</div>
-                    <div className="text-[11px] text-[#888] mt-0.5">Receipt attached — will be saved with this order</div>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => onViewPdf(txnImage!, txnImageName || "Receipt.png")}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-white text-blue-500 hover:bg-blue-100 transition-colors border border-blue-100"
-                      title="Preview Receipt"
-                    >
-                      <Eye size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setTxnImage(null); setTxnImageName(""); setTxnSizeWarning(false); showToast("Receipt removed"); }}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-white text-[#888] hover:bg-red-50 hover:text-red-600 transition-colors border border-blue-100"
-                      title="Remove Receipt"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                </div>
-
-                {txnSizeWarning && (
-                  <div className="mt-3 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                    <AlertCircle size={13} className="text-amber-500 mt-0.5 shrink-0" />
-                    <p className="text-[11px] text-amber-700 leading-snug">
-                      This file is large (&gt;3MB). It will be saved but may slow down syncing. Consider compressing it.
-                    </p>
-                  </div>
-                )}
+            {txnImages.length > 0 && (
+              <div className="grid grid-cols-1 gap-2">
+                {txnImages.map((img, idx) => {
+                  const name = txnImageNames[idx] || `Receipt ${idx + 1}`;
+                  const isImg = img.startsWith("data:image/") || /\.(jpg|jpeg|png|webp|gif)$/i.test(name);
+                  return (
+                    <div key={idx} className="bg-blue-50/50 border border-blue-100 rounded-xl p-3 flex items-center justify-between gap-3 shadow-sm">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        {/* Thumbnail / file icon */}
+                        <div className="w-10 h-10 bg-white rounded-lg border border-blue-100 overflow-hidden flex items-center justify-center shrink-0 shadow-sm">
+                          {isImg ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={img}
+                              alt={name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <FileText size={18} className="text-blue-500" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs font-semibold text-black truncate">{name}</div>
+                          <div className="text-[10px] text-[#888] mt-0.5">{isImg ? "Image Receipt" : "PDF Receipt"}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const files = getDrawerAttachments();
+                            const activeIdx = files.findIndex((f) => f.url === img);
+                            onViewPdf(files, activeIdx !== -1 ? activeIdx : 0);
+                          }}
+                          className="w-7 h-7 flex items-center justify-center rounded-lg bg-white text-blue-500 hover:bg-blue-50 transition-colors border border-blue-100"
+                          title="Preview"
+                        >
+                          <Eye size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTxnImages((prev) => prev.filter((_, i) => i !== idx));
+                            setTxnImageNames((prev) => prev.filter((_, i) => i !== idx));
+                            showToast("Receipt removed");
+                          }}
+                          className="w-7 h-7 flex items-center justify-center rounded-lg bg-white text-[#888] hover:bg-red-50 hover:text-red-600 transition-colors border border-blue-100"
+                          title="Remove"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            ) : (
-              /* Upload drop zone */
-              <button
-                type="button"
-                onClick={() => txnFileInputRef.current?.click()}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  const f = e.dataTransfer.files?.[0];
-                  if (f) handleTxnImageSelect(f);
-                }}
-                className="w-full border-2 border-dashed border-[#ddd] hover:border-[#aaa] bg-[#fafafa] hover:bg-[#f5f5f5] rounded-xl px-5 py-6 flex flex-col items-center gap-2 transition-colors cursor-pointer group"
-              >
-                <div className="w-10 h-10 bg-[#f0f0f0] group-hover:bg-[#e8e8e8] rounded-xl flex items-center justify-center transition-colors">
-                  <Upload size={18} className="text-[#888]" />
-                </div>
-                <div className="text-center">
-                  <div className="text-sm font-semibold text-black">Upload Transaction Receipt</div>
-                  <div className="text-[11px] text-[#aaa] mt-0.5">Click to browse or drag &amp; drop screenshot/PDF</div>
-                </div>
-              </button>
             )}
+
+            {/* Upload drop zone */}
+            <button
+              type="button"
+              onClick={() => txnFileInputRef.current?.click()}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (e.dataTransfer.files) handleTxnImagesSelect(e.dataTransfer.files);
+              }}
+              className="w-full border-2 border-dashed border-[#ddd] hover:border-[#aaa] bg-[#fafafa] hover:bg-[#f5f5f5] rounded-xl px-5 py-5 flex flex-col items-center gap-2 transition-colors cursor-pointer group"
+            >
+              <div className="w-9 h-9 bg-[#f0f0f0] group-hover:bg-[#e8e8e8] rounded-xl flex items-center justify-center transition-colors">
+                <Upload size={16} className="text-[#888]" />
+              </div>
+              <div className="text-center">
+                <div className="text-xs font-semibold text-black">Upload Transaction Receipt(s)</div>
+                <div className="text-[10px] text-[#aaa] mt-0.5">Click to browse or drag screenshots/PDFs (multiple allowed)</div>
+              </div>
+            </button>
           </div>
 
           <button type="submit" className="w-full bg-black text-white font-bold py-3.5 rounded-xl mt-2 hover:bg-[#1a1a1a] transition-colors shadow-[0_2px_8px_rgba(0,0,0,0.15)]">

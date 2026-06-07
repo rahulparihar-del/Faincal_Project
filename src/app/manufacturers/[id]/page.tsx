@@ -8,7 +8,7 @@ import { Manufacturer, PurchaseOrder, PurchaseItem } from "@/lib/types";
 import { gsap } from "gsap";
 import {
   ArrowLeft, Edit2, Save, X, Phone, MapPin, Package,
-  CheckCircle2, Clock, Truck, FileText, ChevronDown, ChevronRight,
+  CheckCircle2, Clock, Truck, FileText, ChevronDown, ChevronLeft, ChevronRight,
   IndianRupee, ShoppingBag, AlertCircle, Upload, Eye,
 } from "lucide-react";
 
@@ -24,6 +24,27 @@ function getGrandTotal(p: PurchaseOrder): number {
   const sub = getSubtotal(p);
   const gst = p.gstAmount ?? (sub * (p.gstPercent ?? 0) / 100);
   return sub + gst + (p.transport ?? 0) + (p.localTransport ?? 0) + (p.roundingAmount ?? 0);
+}
+
+function getPoAttachments(p: PurchaseOrder): { url: string; filename: string }[] {
+  const attachments: { url: string; filename: string }[] = [];
+  if (p.billPdf) {
+    attachments.push({ url: p.billPdf, filename: p.billPdfName || "Bill.pdf" });
+  }
+  if (p.txnImages && p.txnImages.length > 0) {
+    p.txnImages.forEach((img, idx) => {
+      attachments.push({
+        url: img,
+        filename: p.txnImageNames?.[idx] || `Receipt ${idx + 1}`,
+      });
+    });
+  } else if (p.txnImage) {
+    attachments.push({
+      url: p.txnImage,
+      filename: p.txnImageName || "Receipt.png",
+    });
+  }
+  return attachments;
 }
 
 const CITIES = [
@@ -45,7 +66,10 @@ export default function ManufacturerDetailPage() {
   const [draft, setDraft] = useState<Partial<Manufacturer>>({});
   const [saved, setSaved] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [viewingPdf, setViewingPdf] = useState<{ pdf: string; filename: string } | null>(null);
+  const [viewingPdf, setViewingPdf] = useState<{
+    files: { url: string; filename: string }[];
+    activeIndex: number;
+  } | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
 
@@ -124,8 +148,8 @@ export default function ManufacturerDetailPage() {
       {/* PDF Viewer Modal */}
       {viewingPdf && (
         <PdfViewerModal
-          pdf={viewingPdf.pdf}
-          filename={viewingPdf.filename}
+          files={viewingPdf.files}
+          initialActiveIndex={viewingPdf.activeIndex}
           onClose={() => setViewingPdf(null)}
         />
       )}
@@ -417,7 +441,9 @@ export default function ManufacturerDetailPage() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              setViewingPdf({ pdf: p.billPdf!, filename: p.billPdfName || "Bill.pdf" });
+                              const files = getPoAttachments(p);
+                              const idx = files.findIndex((f) => f.url === p.billPdf);
+                              setViewingPdf({ files, activeIndex: idx !== -1 ? idx : 0 });
                             }}
                             className="w-7 h-7 flex items-center justify-center rounded-lg bg-red-50 text-red-400 hover:text-red-600 hover:bg-red-100 transition-colors"
                             title={p.billPdfName || "View Bill"}
@@ -425,17 +451,37 @@ export default function ManufacturerDetailPage() {
                             <FileText size={12} />
                           </button>
                         )}
-                        {p.txnImage && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setViewingPdf({ pdf: p.txnImage!, filename: p.txnImageName || "Receipt.png" });
-                            }}
-                            className="w-7 h-7 flex items-center justify-center rounded-lg bg-blue-50 text-blue-400 hover:text-blue-600 hover:bg-blue-100 transition-colors"
-                            title={p.txnImageName || "View Receipt"}
-                          >
-                            <Eye size={12} />
-                          </button>
+                        {p.txnImages && p.txnImages.length > 0 ? (
+                          p.txnImages.map((img, idx) => (
+                            <button
+                              key={idx}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const files = getPoAttachments(p);
+                                const activeIdx = files.findIndex((f) => f.url === img);
+                                setViewingPdf({ files, activeIndex: activeIdx !== -1 ? activeIdx : 0 });
+                              }}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg bg-blue-50 text-blue-400 hover:text-blue-600 hover:bg-blue-100 transition-colors"
+                              title={p.txnImageNames?.[idx] || `View Receipt ${idx + 1}`}
+                            >
+                              <Eye size={12} />
+                            </button>
+                          ))
+                        ) : (
+                          p.txnImage ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const files = getPoAttachments(p);
+                                const idx = files.findIndex((f) => f.url === p.txnImage);
+                                setViewingPdf({ files, activeIndex: idx !== -1 ? idx : 0 });
+                              }}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg bg-blue-50 text-blue-400 hover:text-blue-600 hover:bg-blue-100 transition-colors"
+                              title={p.txnImageName || "View Receipt"}
+                            >
+                              <Eye size={12} />
+                            </button>
+                          ) : null
                         )}
                       </div>
                     </div>
@@ -524,15 +570,22 @@ export default function ManufacturerDetailPage() {
 
 /* ─── PDF Viewer Modal ───────────────────────────── */
 function PdfViewerModal({
-  pdf,
-  filename,
+  files,
+  initialActiveIndex,
   onClose,
 }: {
-  pdf: string;
-  filename: string;
+  files: { url: string; filename: string }[];
+  initialActiveIndex: number;
   onClose: () => void;
 }) {
-  const isImage = pdf.startsWith("data:image/") || /\.(jpg|jpeg|png|webp|gif)$/i.test(filename);
+  const [activeIndex, setActiveIndex] = useState(initialActiveIndex);
+  
+  // Guard if files is empty or index out of bounds
+  const activeFile = files[activeIndex] || files[0];
+  if (!activeFile) return null;
+  
+  const { url, filename } = activeFile;
+  const isImage = url.startsWith("data:image/") || /\.(jpg|jpeg|png|webp|gif)$/i.test(filename);
 
   return (
     <div
@@ -543,22 +596,29 @@ function PdfViewerModal({
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
 
       {/* Modal */}
-      <div className="relative z-10 bg-white rounded-2xl shadow-2xl flex flex-col" style={{ width: "min(92vw, 900px)", height: "min(92vh, 800px)" }}>
+      <div className="relative z-10 bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200" style={{ width: "min(92vw, 900px)", height: "min(92vh, 800px)" }}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#e8e8e8] shrink-0">
-          <div className="flex items-center gap-3">
-            <div className={`w-9 h-9 ${isImage ? "bg-blue-50" : "bg-red-50"} rounded-xl flex items-center justify-center`}>
+          <div className="flex items-center gap-3 min-w-0">
+            <div className={`w-9 h-9 ${isImage ? "bg-blue-50" : "bg-red-50"} rounded-xl flex items-center justify-center shrink-0`}>
               <FileText size={18} className={isImage ? "text-blue-500" : "text-red-500"} />
             </div>
-            <div>
-              <div className="font-semibold text-sm text-black truncate max-w-[320px]">{filename}</div>
-              <div className="text-[11px] text-[#888]">{isImage ? "Transaction Receipt Image" : "Manufacturer Bill PDF"}</div>
+            <div className="min-w-0">
+              <div className="font-semibold text-sm text-black truncate max-w-[280px] sm:max-w-[400px]">{filename}</div>
+              <div className="text-[11px] text-[#888] flex items-center gap-1.5 mt-0.5">
+                <span>{isImage ? "Transaction Receipt Image" : "Manufacturer Bill PDF"}</span>
+                {files.length > 1 && (
+                  <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-bold text-[10px]">
+                    {activeIndex + 1} of {files.length}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {/* Download button */}
             <a
-              href={pdf}
+              href={url}
               download={filename}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-[#f5f5f5] hover:bg-[#eee] text-[#555] rounded-lg text-xs font-semibold transition-colors"
             >
@@ -573,24 +633,85 @@ function PdfViewerModal({
           </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-hidden rounded-b-2xl bg-[#fafafa]">
-          {isImage ? (
-            <div className="w-full h-full overflow-auto flex items-center justify-center p-6">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={pdf}
-                alt={filename}
-                className="max-w-full max-h-full object-contain rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.08)] bg-white"
+        {/* Content Area */}
+        <div className="flex-1 overflow-hidden bg-[#fafafa] flex flex-col min-h-0">
+          {/* Main Viewer container */}
+          <div className="flex-1 overflow-hidden relative flex items-center justify-center">
+            {isImage ? (
+              <div className="w-full h-full overflow-auto flex items-center justify-center p-6">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={url}
+                  alt={filename}
+                  className="max-w-full max-h-full object-contain rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.08)] bg-white"
+                />
+              </div>
+            ) : (
+              <iframe
+                src={url}
+                className="w-full h-full"
+                title={filename}
+                style={{ border: "none" }}
               />
+            )}
+
+            {/* Navigation Arrows overlay */}
+            {files.length > 1 && (
+              <>
+                <button
+                  onClick={() => setActiveIndex((prev) => (prev > 0 ? prev - 1 : files.length - 1))}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/95 hover:bg-white text-gray-700 hover:text-black flex items-center justify-center shadow-lg transition-all border border-gray-100 z-10 hover:scale-105"
+                  title="Previous"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+                <button
+                  onClick={() => setActiveIndex((prev) => (prev < files.length - 1 ? prev + 1 : 0))}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/95 hover:bg-white text-gray-700 hover:text-black flex items-center justify-center shadow-lg transition-all border border-gray-100 z-10 hover:scale-105"
+                  title="Next"
+                >
+                  <ChevronRight size={20} />
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Thumbnails strip */}
+          {files.length > 1 && (
+            <div className="shrink-0 bg-white border-t border-[#e8e8e8] px-5 py-3.5 flex items-center gap-3 overflow-x-auto">
+              {files.map((file, idx) => {
+                const fileIsImage = file.url.startsWith("data:image/") || /\.(jpg|jpeg|png|webp|gif)$/i.test(file.filename);
+                const isActive = idx === activeIndex;
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => setActiveIndex(idx)}
+                    className={`w-14 h-14 rounded-lg overflow-hidden shrink-0 border-2 transition-all flex items-center justify-center shadow-sm bg-gray-50 relative group ${
+                      isActive ? "border-blue-500 ring-2 ring-blue-100" : "border-gray-200 hover:border-gray-400"
+                    }`}
+                    title={file.filename}
+                  >
+                    {fileIsImage ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={file.url}
+                        alt={file.filename}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-full w-full p-1">
+                        <FileText size={16} className="text-red-500 shrink-0" />
+                        <span className="text-[8px] font-bold text-red-500 truncate max-w-full mt-0.5 uppercase shrink-0">PDF</span>
+                      </div>
+                    )}
+                    {/* Overlay badge with index */}
+                    <span className="absolute bottom-0.5 right-0.5 px-1 bg-black/60 text-white text-[8px] rounded font-medium">
+                      {idx + 1}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-          ) : (
-            <iframe
-              src={pdf}
-              className="w-full h-full"
-              title={filename}
-              style={{ border: "none" }}
-            />
           )}
         </div>
       </div>

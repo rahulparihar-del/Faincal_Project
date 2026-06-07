@@ -114,6 +114,10 @@ export interface PurchaseOrder {
   txnImage?: string;
   /** Original filename of the transaction receipt */
   txnImageName?: string;
+  /** Array of transaction receipt images or PDFs stored as base64 data URLs */
+  txnImages?: string[];
+  /** Original filenames of the transaction receipts */
+  txnImageNames?: string[];
   paymentStatus: PaymentStatus;
   paymentDate: string;
   shipmentStatus: ShipmentStatus;
