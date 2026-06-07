@@ -21,14 +21,14 @@ import { useGSAP } from "@gsap/react";
 
 const NAV_ITEMS = [
   { name: "Dashboard",     href: "/",             icon: LayoutDashboard },
+  { name: "Manufacturers", href: "/manufacturers", icon: Users },
+  { name: "Purchases",     href: "/purchases",     icon: FileText },
   { name: "E-commerce",    href: "/ecom",          icon: ShoppingCart },
   { name: "Meesho Orders", href: "/meesho",        icon: ScanLine },
   { name: "Wholesale",     href: "/wholesale",     icon: Truck },
-  { name: "Purchases",     href: "/purchases",     icon: FileText },
   { name: "Expenses",      href: "/expenses",      icon: Receipt },
   { name: "Bank",          href: "/bank",          icon: Landmark },
   { name: "P&L",           href: "/pl",            icon: BarChart3 },
-  { name: "Manufacturers", href: "/manufacturers", icon: Users },
 ];
 
 /* ─── Desktop Sidebar ──────────────────────────────────────────────────────── */
@@ -105,25 +105,29 @@ export function Sidebar({
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-3 px-3 overflow-x-hidden" aria-label="Primary">
           <div className="space-y-0.5">
-            {NAV_ITEMS.map((item) => {
+            {NAV_ITEMS.map((item, index) => {
               const isActive = pathname === item.href;
               return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                    isActive
-                      ? "bg-black text-white shadow-[0_2px_8px_rgba(0,0,0,0.12)] focus:ring-black"
-                      : "text-[#666] hover:bg-[#f5f5f5] hover:text-black focus:ring-gray-400"
-                  }`}
-                  aria-current={isActive ? "page" : undefined}
-                >
-                  <item.icon
-                    size={18}
-                    className={`shrink-0 transition-colors ${isActive ? "text-white" : "text-[#888] group-hover:text-black"}`}
-                  />
-                  <span className="nav-label whitespace-nowrap font-medium text-[0.8125rem]">{item.name}</span>
-                </Link>
+                <React.Fragment key={item.name}>
+                  {index === 3 && (
+                    <div className="my-2 border-t border-[#e8e8e8] mx-2" />
+                  )}
+                  <Link
+                    href={item.href}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                      isActive
+                        ? "bg-black text-white shadow-[0_2px_8px_rgba(0,0,0,0.12)] focus:ring-black"
+                        : "text-[#666] hover:bg-[#f5f5f5] hover:text-black focus:ring-gray-400"
+                    }`}
+                    aria-current={isActive ? "page" : undefined}
+                  >
+                    <item.icon
+                      size={18}
+                      className={`shrink-0 transition-colors ${isActive ? "text-white" : "text-[#888] group-hover:text-black"}`}
+                    />
+                    <span className="nav-label whitespace-nowrap font-medium text-[0.8125rem]">{item.name}</span>
+                  </Link>
+                </React.Fragment>
               );
             })}
           </div>
