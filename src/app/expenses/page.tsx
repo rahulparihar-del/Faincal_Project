@@ -208,7 +208,7 @@ export default function ExpensesPage() {
                   <tr
                     key={e.id}
                     id={`exp-row-${e.id}`}
-                    className="hover:bg-[#fafafa] transition-colors"
+                    className="hover:bg-[#fafafa] transition-colors relative"
                   >
                     <td className="px-5 py-3.5 text-[#888]">{e.date}</td>
                     <td className="px-5 py-3.5">
@@ -256,7 +256,7 @@ export default function ExpensesPage() {
                       </span>
                     </td>
                     <td className="px-5 py-3.5 text-right">
-                      <div className="flex items-center justify-end gap-1 relative">
+                      <div className="flex items-center justify-end gap-1">
                         <ConfirmDelete
                           isOpen={deletingId === e.id}
                           onConfirm={() => handleDelete(e.id)}

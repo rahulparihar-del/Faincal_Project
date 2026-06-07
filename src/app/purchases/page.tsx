@@ -227,7 +227,7 @@ export default function PurchaseOrdersPage() {
 
                 return (
                   <React.Fragment key={p.id}>
-                    <tr id={`po-row-${p.id}`} className="hover:bg-[#fafafa] transition-colors">
+                    <tr id={`po-row-${p.id}`} className="hover:bg-[#fafafa] transition-colors relative">
                       <td className="pl-4 pr-0 py-3.5">
                         {isMulti ? (
                           <button
@@ -348,7 +348,7 @@ export default function PurchaseOrdersPage() {
 
                       {/* Actions */}
                       <td className="px-5 py-3.5 text-right">
-                        <div className="flex items-center justify-end gap-1 relative">
+                        <div className="flex items-center justify-end gap-1">
                           <ConfirmDelete isOpen={deletingId === p.id} onConfirm={() => handleDelete(p.id)} onCancel={() => setDeletingId(null)} />
                           <button onClick={() => { setEditingId(p.id); setDrawerOpen(true); }} className="w-8 h-8 flex items-center justify-center rounded-lg text-[#888] hover:text-black hover:bg-[#f5f5f5] transition-colors">
                             <Edit2 size={14} />

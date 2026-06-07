@@ -310,7 +310,7 @@ export default function BankTransactionsPage() {
                       {isCredit ? "↑" : "↓"} ₹{t.amount.toLocaleString("en-IN")}
                     </td>
                     <td className="px-5 py-3.5 text-right">
-                      <div className="flex items-center justify-end gap-1 relative">
+                      <div className="flex items-center justify-end gap-1">
                         <ConfirmDelete
                           isOpen={deletingId === t.id}
                           onConfirm={() => handleDelete(t.id)}
