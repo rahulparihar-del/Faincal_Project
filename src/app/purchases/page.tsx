@@ -9,7 +9,8 @@ import { PurchaseOrder, PurchaseItem, OrderType, PaymentStatus, ShipmentStatus }
 import { gsap } from "gsap";
 import {
   Plus, Edit2, Trash2, Package, IndianRupee, FlaskConical, Boxes,
-  X, ChevronDown, ChevronRight, CheckCircle2, Truck,
+  X, ChevronDown, ChevronRight, CheckCircle2, Truck, FileText,
+  Upload, Eye, Paperclip, AlertCircle,
 } from "lucide-react";
 
 const GST_RATE = 5;
@@ -45,6 +46,69 @@ function Toast({ message, visible }: { message: string; visible: boolean }) {
   );
 }
 
+/* ─── PDF Viewer Modal ───────────────────────────── */
+function PdfViewerModal({
+  pdf,
+  filename,
+  onClose,
+}: {
+  pdf: string;
+  filename: string;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[10000] flex items-center justify-center"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+
+      {/* Modal */}
+      <div className="relative z-10 bg-white rounded-2xl shadow-2xl flex flex-col" style={{ width: "min(92vw, 900px)", height: "min(92vh, 800px)" }}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#e8e8e8] shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-red-50 rounded-xl flex items-center justify-center">
+              <FileText size={18} className="text-red-500" />
+            </div>
+            <div>
+              <div className="font-semibold text-sm text-black truncate max-w-[320px]">{filename}</div>
+              <div className="text-[11px] text-[#888]">Manufacturer Bill</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {/* Download button */}
+            <a
+              href={pdf}
+              download={filename}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#f5f5f5] hover:bg-[#eee] text-[#555] rounded-lg text-xs font-semibold transition-colors"
+            >
+              <Upload size={12} className="rotate-180" /> Download
+            </a>
+            <button
+              onClick={onClose}
+              className="w-8 h-8 flex items-center justify-center rounded-xl bg-[#f5f5f5] hover:bg-[#e8e8e8] text-[#666] transition-colors"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* PDF iframe */}
+        <div className="flex-1 overflow-hidden rounded-b-2xl">
+          <iframe
+            src={pdf}
+            className="w-full h-full"
+            title={filename}
+            style={{ border: "none" }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Page ──────────────────────────────────────────────────── */
 export default function PurchaseOrdersPage() {
   const { purchases, setPurchases, manufacturers } = useData();
@@ -52,6 +116,7 @@ export default function PurchaseOrdersPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [viewingPdf, setViewingPdf] = useState<{ pdf: string; filename: string } | null>(null);
 
   const stats = useMemo(() => {
     const cm = new Date().getMonth(), cy = new Date().getFullYear();
@@ -98,6 +163,15 @@ export default function PurchaseOrdersPage() {
 
   return (
     <div className="space-y-6">
+      {/* PDF Viewer Modal */}
+      {viewingPdf && (
+        <PdfViewerModal
+          pdf={viewingPdf.pdf}
+          filename={viewingPdf.filename}
+          onClose={() => setViewingPdf(null)}
+        />
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-black tracking-tight">Purchase Orders</h2>
@@ -131,6 +205,7 @@ export default function PurchaseOrdersPage() {
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-right">Total</th>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-center">Payment</th>
                 <th className="hidden lg:table-cell px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-center">Shipment</th>
+                <th className="hidden lg:table-cell px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-center">Bill</th>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
@@ -231,6 +306,16 @@ export default function PurchaseOrdersPage() {
                       <td className="px-5 py-3.5 text-right">
                         <div className="flex items-center justify-end gap-1 relative">
                           <ConfirmDelete isOpen={deletingId === p.id} onConfirm={() => handleDelete(p.id)} onCancel={() => setDeletingId(null)} />
+                          {/* View Bill PDF button */}
+                          {p.billPdf && (
+                            <button
+                              onClick={() => setViewingPdf({ pdf: p.billPdf!, filename: p.billPdfName || "Bill.pdf" })}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                              title={`View Bill: ${p.billPdfName || "Bill.pdf"}`}
+                            >
+                              <FileText size={14} />
+                            </button>
+                          )}
                           <button onClick={() => { setEditingId(p.id); setDrawerOpen(true); }} className="w-8 h-8 flex items-center justify-center rounded-lg text-[#888] hover:text-black hover:bg-[#f5f5f5] transition-colors">
                             <Edit2 size={14} />
                           </button>
@@ -384,8 +469,14 @@ function PurchaseFormDrawer({
 
   const [meta, setMeta] = useState<FormMeta>(defaultMeta);
   const [items, setItems] = useState<PurchaseItem[]>([{ ...EMPTY_ITEM }]);
+  const [showTransport, setShowTransport] = useState(false);
+  const [showRounding, setShowRounding] = useState(false);
 
-  // Toast state
+  // PDF state
+  const [billPdf, setBillPdf] = useState<string | null>(null);
+  const [billPdfName, setBillPdfName] = useState("");
+  const [pdfSizeWarning, setPdfSizeWarning] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState({ visible: false, message: "" });
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -417,10 +508,20 @@ function PurchaseFormDrawer({
           roundingAmount: po.roundingAmount ?? 0,
         });
         setItems(getItems(po).map((i) => ({ ...i })));
+        setShowTransport((po.transport ?? 0) > 0);
+        setShowRounding((po.roundingAmount ?? 0) !== 0);
+        setBillPdf(po.billPdf || null);
+        setBillPdfName(po.billPdfName || "");
+        setPdfSizeWarning(false);
       }
     } else if (isOpen) {
       setMeta({ ...defaultMeta, manufacturerId: manufacturers.length > 0 ? manufacturers[0].id : "" });
       setItems([{ ...EMPTY_ITEM }]);
+      setShowTransport(false);
+      setShowRounding(false);
+      setBillPdf(null);
+      setBillPdfName("");
+      setPdfSizeWarning(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, editingId]);
@@ -445,6 +546,23 @@ function PurchaseFormDrawer({
     const name = items[idx].productName || `Item ${idx + 1}`;
     setItems((prev) => prev.filter((_, i) => i !== idx));
     showToast(`"${name}" removed`);
+  };
+
+  /* ─── PDF helpers ─── */
+  const handlePdfSelect = (file: File) => {
+    if (!file || file.type !== "application/pdf") {
+      showToast("Please select a PDF file");
+      return;
+    }
+    const sizeMb = file.size / (1024 * 1024);
+    setPdfSizeWarning(sizeMb > 3);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setBillPdf(ev.target?.result as string);
+      setBillPdfName(file.name);
+      showToast(`✅ "${file.name}" uploaded`);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -473,6 +591,8 @@ function PurchaseFormDrawer({
       gstAmount: gstAmt,
       transport: meta.transport || 0,
       roundingAmount: meta.roundingAmount || 0,
+      billPdf: billPdf || undefined,
+      billPdfName: billPdfName || undefined,
       paymentStatus: meta.paymentStatus,
       paymentDate: meta.paymentDate,
       shipmentStatus: meta.shipmentStatus,
@@ -710,6 +830,91 @@ function PurchaseFormDrawer({
           <div>
             <label className={labelCls}>Notes</label>
             <textarea rows={2} className={`${inputCls} resize-none`} value={meta.notes} onChange={(e) => setMeta({ ...meta, notes: e.target.value })} />
+          </div>
+
+          {/* ─── Bill PDF Upload ─── */}
+          <div>
+            <label className={labelCls}>
+              <span className="flex items-center gap-1.5">
+                <Paperclip size={13} /> Manufacturer Bill (PDF)
+              </span>
+            </label>
+
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handlePdfSelect(f);
+                e.target.value = "";
+              }}
+            />
+
+            {billPdf ? (
+              /* PDF attached — preview card */
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white rounded-xl border border-red-100 flex items-center justify-center shrink-0 shadow-sm">
+                    <FileText size={20} className="text-red-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-sm text-black truncate">{billPdfName}</div>
+                    <div className="text-[11px] text-[#888] mt-0.5">PDF attached — will be saved with this order</div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => window.open(billPdf!, "_blank")}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-white text-red-500 hover:bg-red-100 transition-colors border border-red-100"
+                      title="Preview PDF"
+                    >
+                      <Eye size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setBillPdf(null); setBillPdfName(""); setPdfSizeWarning(false); showToast("Bill removed"); }}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-white text-[#888] hover:bg-red-50 hover:text-red-600 transition-colors border border-red-100"
+                      title="Remove PDF"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                </div>
+
+                {pdfSizeWarning && (
+                  <div className="mt-3 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    <AlertCircle size={13} className="text-amber-500 mt-0.5 shrink-0" />
+                    <p className="text-[11px] text-amber-700 leading-snug">
+                      This PDF is large (&gt;3MB). It will be saved but may slow down syncing. Consider compressing it.
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Upload drop zone */
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const f = e.dataTransfer.files?.[0];
+                  if (f) handlePdfSelect(f);
+                }}
+                className="w-full border-2 border-dashed border-[#ddd] hover:border-[#aaa] bg-[#fafafa] hover:bg-[#f5f5f5] rounded-xl px-5 py-6 flex flex-col items-center gap-2 transition-colors cursor-pointer group"
+              >
+                <div className="w-10 h-10 bg-[#f0f0f0] group-hover:bg-[#e8e8e8] rounded-xl flex items-center justify-center transition-colors">
+                  <Upload size={18} className="text-[#888]" />
+                </div>
+                <div className="text-center">
+                  <div className="text-sm font-semibold text-black">Upload Manufacturer Bill</div>
+                  <div className="text-[11px] text-[#aaa] mt-0.5">Click to browse or drag &amp; drop a PDF</div>
+                </div>
+              </button>
+            )}
           </div>
 
           <button type="submit" className="w-full bg-black text-white font-bold py-3.5 rounded-xl mt-2 hover:bg-[#1a1a1a] transition-colors shadow-[0_2px_8px_rgba(0,0,0,0.15)]">

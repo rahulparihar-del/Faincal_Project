@@ -104,6 +104,10 @@ export interface PurchaseOrder {
   transport: number;
   /** Rounding adjustment (can be negative or positive) */
   roundingAmount: number;
+  /** Manufacturer bill PDF stored as base64 data URL */
+  billPdf?: string;
+  /** Original filename of the uploaded PDF */
+  billPdfName?: string;
   paymentStatus: PaymentStatus;
   paymentDate: string;
   shipmentStatus: ShipmentStatus;
