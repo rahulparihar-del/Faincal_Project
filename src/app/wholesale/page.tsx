@@ -38,7 +38,7 @@ export default function WholesaleSalesPage() {
   });
 
   const stats = useMemo(() => {
-    let orders = wholesaleSales.length;
+    const orders = wholesaleSales.length;
     let collected = 0;
     let totalValue = 0;
     wholesaleSales.forEach((w) => {

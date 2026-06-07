@@ -37,6 +37,12 @@ create table if not exists public.transactions (
   created_at  timestamptz not null default now()
 );
 
+create table if not exists public.business_expenses (
+  id          text primary key,
+  data        jsonb not null,
+  created_at  timestamptz not null default now()
+);
+
 -- ---------- Row Level Security ----------
 -- NOTE: The app currently has NO authentication and uses the public anon key
 -- from the browser. The policies below allow the anon role full access so the
@@ -52,12 +58,13 @@ alter table public.wholesale_sales enable row level security;
 alter table public.manufacturers   enable row level security;
 alter table public.purchases       enable row level security;
 alter table public.transactions    enable row level security;
+alter table public.business_expenses enable row level security;
 
 do $$
 declare
   t text;
 begin
-  foreach t in array array['ecom_sales','wholesale_sales','manufacturers','purchases','transactions']
+  foreach t in array array['ecom_sales','wholesale_sales','manufacturers','purchases','transactions','business_expenses']
   loop
     execute format('drop policy if exists "anon_full_access" on public.%I;', t);
     execute format(

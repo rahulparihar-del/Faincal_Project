@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useMemo, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { useData } from "@/context/DataContext";
 import { Drawer } from "@/components/ui/Drawer";
 import { CardGroup, StatCard } from "@/components/ui/Card";
@@ -237,7 +238,15 @@ export default function PurchaseOrdersPage() {
                       </td>
 
                       <td className="px-5 py-3.5 text-[#888]">{p.date}</td>
-                      <td className="hidden lg:table-cell px-5 py-3.5 font-semibold text-black">{mfgName}</td>
+                      <td className="hidden lg:table-cell px-5 py-3.5">
+                        <Link
+                          href={`/manufacturers/${p.manufacturerId}`}
+                          className="font-semibold text-black hover:underline underline-offset-2 transition-colors"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {mfgName}
+                        </Link>
+                      </td>
 
                       <td className="px-5 py-3.5">
                         {isMulti ? (

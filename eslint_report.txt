@@ -1,0 +1,536 @@
+
+/Users/rahulparihar/Projects/Faincal_Project/src/app/ecom/page.tsx
+  9:49  warning  'Receipt' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/rahulparihar/Projects/Faincal_Project/src/app/expenses/page.tsx
+  370:9  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/rahulparihar/Projects/Faincal_Project/src/app/expenses/page.tsx:370:9
+  368 |         // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  369 |         const { id: _id, ...rest } = exp;
+> 370 |         setForm(rest);
+      |         ^^^^^^^ Avoid calling setState() directly within an effect
+  371 |         setApplyGst((exp.gstPercent ?? 0) > 0);
+  372 |         setGstPercent((exp.gstPercent ?? 0) > 0 ? (exp.gstPercent ?? GST_RATE) : GST_RATE);
+  373 |       }  react-hooks/set-state-in-effect
+
+/Users/rahulparihar/Projects/Faincal_Project/src/app/manufacturers/[id]/page.tsx
+  52:14  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/rahulparihar/Projects/Faincal_Project/src/app/manufacturers/[id]/page.tsx:52:14
+  50 |
+  51 |   useEffect(() => {
+> 52 |     if (mfg) setDraft(mfg);
+     |              ^^^^^^^^ Avoid calling setState() directly within an effect
+  53 |   }, [mfg?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  54 |
+  55 |   useEffect(() => {  react-hooks/set-state-in-effect
+
+/Users/rahulparihar/Projects/Faincal_Project/src/app/manufacturers/page.tsx
+   11:44  warning  'Users' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     @typescript-eslint/no-unused-vars
+  281:16  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/rahulparihar/Projects/Faincal_Project/src/app/manufacturers/page.tsx:281:16
+  279 |     if (isOpen && editingId) {
+  280 |       const mfg = manufacturers.find((m) => m.id === editingId);
+> 281 |       if (mfg) setFormData(mfg);
+      |                ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  282 |     } else if (isOpen) {
+  283 |       setFormData({ city: "Tiruppur" });
+  284 |     }  react-hooks/set-state-in-effect
+
+/Users/rahulparihar/Projects/Faincal_Project/src/app/meesho/page.tsx
+  98:3  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')
+
+/Users/rahulparihar/Projects/Faincal_Project/src/app/purchases/page.tsx
+  488:10  warning  'showTransport' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 @typescript-eslint/no-unused-vars
+  489:10  warning  'showRounding' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+  510:9   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/rahulparihar/Projects/Faincal_Project/src/app/purchases/page.tsx:510:9
+  508 |       if (po) {
+  509 |         const gstPct = po.gstPercent ?? 0;
+> 510 |         setMeta({
+      |         ^^^^^^^ Avoid calling setState() directly within an effect
+  511 |           date: po.date,
+  512 |           manufacturerId: po.manufacturerId,
+  513 |           orderType: po.orderType,  react-hooks/set-state-in-effect
+
+/Users/rahulparihar/Projects/Faincal_Project/src/app/wholesale/page.tsx
+  41:9  error  'orders' is never reassigned. Use 'const' instead  prefer-const
+
+/Users/rahulparihar/Projects/Faincal_Project/src/components/invoice/InvoiceSection.tsx
+   27:7   warning  'emptyDraft' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    @typescript-eslint/no-unused-vars
+  275:68  error    Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+/Users/rahulparihar/Projects/Faincal_Project/src/components/invoice/InvoiceSection.tsx:275:68
+  273 |             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+  274 |               <div className="col-span-2">
+> 275 |                 <label className={labelCls}>Vendor / Manufacturer <ReviewTag k="vendorName" /></label>
+      |                                                                    ^^^^^^^^^ This component is created during render
+  276 |                 <input className={fieldCls("vendorName")} value={draft.vendorName} onChange={(e) => set("vendorName", e.target.value)} />
+  277 |               </div>
+  278 |               <div className="col-span-2">
+
+/Users/rahulparihar/Projects/Faincal_Project/src/components/invoice/InvoiceSection.tsx:183:21
+  181 |   const fieldCls = (k: keyof Draft) =>
+  182 |     lowConf(k) ? `${inputCls} !border-amber-400 !bg-amber-50/60 ring-1 ring-amber-300` : inputCls;
+> 183 |   const ReviewTag = ({ k }: { k: keyof Draft }) =>
+      |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 184 |     lowConf(k) ? (
+      | ^^^^^^^^^^^^^^^^^^
+> 185 |       <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-amber-600 normal-case">
+      | ^^^^^^^^^^^^^^^^^^
+> 186 |         <AlertTriangle size={10} /> review {Math.round((confidence[k] ?? 0) * 100)}%
+      | ^^^^^^^^^^^^^^^^^^
+> 187 |       </span>
+      | ^^^^^^^^^^^^^^^^^^
+> 188 |     ) : null;
+      | ^^^^^^^^^^^^^ The component is created during render here
+  189 |
+  190 |   return (
+  191 |     <div className="bg-white border border-[#e8e8e8] rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04)]">  react-hooks/static-components
+  279:57  error    Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+/Users/rahulparihar/Projects/Faincal_Project/src/components/invoice/InvoiceSection.tsx:279:57
+  277 |               </div>
+  278 |               <div className="col-span-2">
+> 279 |                 <label className={labelCls}>GST Number <ReviewTag k="gstNumber" /></label>
+      |                                                         ^^^^^^^^^ This component is created during render
+  280 |                 <input className={fieldCls("gstNumber")} value={draft.gstNumber} onChange={(e) => set("gstNumber", e.target.value)} />
+  281 |               </div>
+  282 |               <div>
+
+/Users/rahulparihar/Projects/Faincal_Project/src/components/invoice/InvoiceSection.tsx:183:21
+  181 |   const fieldCls = (k: keyof Draft) =>
+  182 |     lowConf(k) ? `${inputCls} !border-amber-400 !bg-amber-50/60 ring-1 ring-amber-300` : inputCls;
+> 183 |   const ReviewTag = ({ k }: { k: keyof Draft }) =>
+      |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 184 |     lowConf(k) ? (
+      | ^^^^^^^^^^^^^^^^^^
+> 185 |       <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-amber-600 normal-case">
+      | ^^^^^^^^^^^^^^^^^^
+> 186 |         <AlertTriangle size={10} /> review {Math.round((confidence[k] ?? 0) * 100)}%
+      | ^^^^^^^^^^^^^^^^^^
+> 187 |       </span>
+      | ^^^^^^^^^^^^^^^^^^
+> 188 |     ) : null;
+      | ^^^^^^^^^^^^^ The component is created during render here
+  189 |
+  190 |   return (
+  191 |     <div className="bg-white border border-[#e8e8e8] rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04)]">                                                                                                  react-hooks/static-components
+  283:57  error    Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+/Users/rahulparihar/Projects/Faincal_Project/src/components/invoice/InvoiceSection.tsx:283:57
+  281 |               </div>
+  282 |               <div>
+> 283 |                 <label className={labelCls}>Invoice No <ReviewTag k="invoiceNumber" /></label>
+      |                                                         ^^^^^^^^^ This component is created during render
+  284 |                 <input className={fieldCls("invoiceNumber")} value={draft.invoiceNumber} onChange={(e) => set("invoiceNumber", e.target.value)} />
+  285 |               </div>
+  286 |               <div>
+
+/Users/rahulparihar/Projects/Faincal_Project/src/components/invoice/InvoiceSection.tsx:183:21
+  181 |   const fieldCls = (k: keyof Draft) =>
+  182 |     lowConf(k) ? `${inputCls} !border-amber-400 !bg-amber-50/60 ring-1 ring-amber-300` : inputCls;
+> 183 |   const ReviewTag = ({ k }: { k: keyof Draft }) =>
+      |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 184 |     lowConf(k) ? (
+      | ^^^^^^^^^^^^^^^^^^
+> 185 |       <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-amber-600 normal-case">
+      | ^^^^^^^^^^^^^^^^^^
+> 186 |         <AlertTriangle size={10} /> review {Math.round((confidence[k] ?? 0) * 100)}%
+      | ^^^^^^^^^^^^^^^^^^
+> 187 |       </span>
+      | ^^^^^^^^^^^^^^^^^^
+> 188 |     ) : null;
+      | ^^^^^^^^^^^^^ The component is created during render here
+  189 |
+  190 |   return (
+  191 |     <div className="bg-white border border-[#e8e8e8] rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04)]">                                                                                                         react-hooks/static-components
+  287:59  error    Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+/Users/rahulparihar/Projects/Faincal_Project/src/components/invoice/InvoiceSection.tsx:287:59
+  285 |               </div>
+  286 |               <div>
+> 287 |                 <label className={labelCls}>Invoice Date <ReviewTag k="invoiceDate" /></label>
+      |                                                           ^^^^^^^^^ This component is created during render
+  288 |                 <input type="date" className={fieldCls("invoiceDate")} value={draft.invoiceDate} onChange={(e) => set("invoiceDate", e.target.value)} />
+  289 |               </div>
+  290 |               <div>
+
+/Users/rahulparihar/Projects/Faincal_Project/src/components/invoice/InvoiceSection.tsx:183:21
+  181 |   const fieldCls = (k: keyof Draft) =>
+  182 |     lowConf(k) ? `${inputCls} !border-amber-400 !bg-amber-50/60 ring-1 ring-amber-300` : inputCls;
+> 183 |   const ReviewTag = ({ k }: { k: keyof Draft }) =>
+      |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 184 |     lowConf(k) ? (
+      | ^^^^^^^^^^^^^^^^^^
+> 185 |       <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-amber-600 normal-case">
+      | ^^^^^^^^^^^^^^^^^^
+> 186 |         <AlertTriangle size={10} /> review {Math.round((confidence[k] ?? 0) * 100)}%
+      | ^^^^^^^^^^^^^^^^^^
+> 187 |       </span>
+      | ^^^^^^^^^^^^^^^^^^
+> 188 |     ) : null;
+      | ^^^^^^^^^^^^^ The component is created during render here
+  189 |
+  190 |   return (
+  191 |     <div className="bg-white border border-[#e8e8e8] rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04)]">                                                                                                 react-hooks/static-components
+  291:51  error    Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+/Users/rahulparihar/Projects/Faincal_Project/src/components/invoice/InvoiceSection.tsx:291:51
+  289 |               </div>
+  290 |               <div>
+> 291 |                 <label className={labelCls}>City <ReviewTag k="city" /></label>
+      |                                                   ^^^^^^^^^ This component is created during render
+  292 |                 <input className={fieldCls("city")} value={draft.city} onChange={(e) => set("city", e.target.value)} />
+  293 |               </div>
+  294 |               <div>
+
+/Users/rahulparihar/Projects/Faincal_Project/src/components/invoice/InvoiceSection.tsx:183:21
+  181 |   const fieldCls = (k: keyof Draft) =>
+  182 |     lowConf(k) ? `${inputCls} !border-amber-400 !bg-amber-50/60 ring-1 ring-amber-300` : inputCls;
+> 183 |   const ReviewTag = ({ k }: { k: keyof Draft }) =>
+      |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 184 |     lowConf(k) ? (
+      | ^^^^^^^^^^^^^^^^^^
+> 185 |       <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-amber-600 normal-case">
+      | ^^^^^^^^^^^^^^^^^^
+> 186 |         <AlertTriangle size={10} /> review {Math.round((confidence[k] ?? 0) * 100)}%
+      | ^^^^^^^^^^^^^^^^^^
+> 187 |       </span>
+      | ^^^^^^^^^^^^^^^^^^
+> 188 |     ) : null;
+      | ^^^^^^^^^^^^^ The component is created during render here
+  189 |
+  190 |   return (
+  191 |     <div className="bg-white border border-[#e8e8e8] rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04)]">                                                                                                                                                         react-hooks/static-components
+  295:52  error    Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+/Users/rahulparihar/Projects/Faincal_Project/src/components/invoice/InvoiceSection.tsx:295:52
+  293 |               </div>
+  294 |               <div>
+> 295 |                 <label className={labelCls}>State <ReviewTag k="state" /></label>
+      |                                                    ^^^^^^^^^ This component is created during render
+  296 |                 <input className={fieldCls("state")} value={draft.state} onChange={(e) => set("state", e.target.value)} />
+  297 |               </div>
+  298 |               <div>
+
+/Users/rahulparihar/Projects/Faincal_Project/src/components/invoice/InvoiceSection.tsx:183:21
+  181 |   const fieldCls = (k: keyof Draft) =>
+  182 |     lowConf(k) ? `${inputCls} !border-amber-400 !bg-amber-50/60 ring-1 ring-amber-300` : inputCls;
+> 183 |   const ReviewTag = ({ k }: { k: keyof Draft }) =>
+      |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 184 |     lowConf(k) ? (
+      | ^^^^^^^^^^^^^^^^^^
+> 185 |       <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-amber-600 normal-case">
+      | ^^^^^^^^^^^^^^^^^^
+> 186 |         <AlertTriangle size={10} /> review {Math.round((confidence[k] ?? 0) * 100)}%
+      | ^^^^^^^^^^^^^^^^^^
+> 187 |       </span>
+      | ^^^^^^^^^^^^^^^^^^
+> 188 |     ) : null;
+      | ^^^^^^^^^^^^^ The component is created during render here
+  189 |
+  190 |   return (
+  191 |     <div className="bg-white border border-[#e8e8e8] rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04)]">                                                                                                                                                   react-hooks/static-components
+  299:59  error    Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+/Users/rahulparihar/Projects/Faincal_Project/src/components/invoice/InvoiceSection.tsx:299:59
+  297 |               </div>
+  298 |               <div>
+> 299 |                 <label className={labelCls}>Subtotal (₹) <ReviewTag k="subtotal" /></label>
+      |                                                           ^^^^^^^^^ This component is created during render
+  300 |                 <input type="number" step="0.01" className={fieldCls("subtotal")} value={draft.subtotal} onChange={(e) => set("subtotal", e.target.value)} />
+  301 |               </div>
+  302 |               <div>
+
+/Users/rahulparihar/Projects/Faincal_Project/src/components/invoice/InvoiceSection.tsx:183:21
+  181 |   const fieldCls = (k: keyof Draft) =>
+  182 |     lowConf(k) ? `${inputCls} !border-amber-400 !bg-amber-50/60 ring-1 ring-amber-300` : inputCls;
+> 183 |   const ReviewTag = ({ k }: { k: keyof Draft }) =>
+      |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 184 |     lowConf(k) ? (
+      | ^^^^^^^^^^^^^^^^^^
+> 185 |       <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-amber-600 normal-case">
+      | ^^^^^^^^^^^^^^^^^^
+> 186 |         <AlertTriangle size={10} /> review {Math.round((confidence[k] ?? 0) * 100)}%
+      | ^^^^^^^^^^^^^^^^^^
+> 187 |       </span>
+      | ^^^^^^^^^^^^^^^^^^
+> 188 |     ) : null;
+      | ^^^^^^^^^^^^^ The component is created during render here
+  189 |
+  190 |   return (
+  191 |     <div className="bg-white border border-[#e8e8e8] rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04)]">                                                                                               react-hooks/static-components
+  303:61  error    Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+/Users/rahulparihar/Projects/Faincal_Project/src/components/invoice/InvoiceSection.tsx:303:61
+  301 |               </div>
+  302 |               <div>
+> 303 |                 <label className={labelCls}>GST Amount (₹) <ReviewTag k="gstAmount" /></label>
+      |                                                             ^^^^^^^^^ This component is created during render
+  304 |                 <input type="number" step="0.01" className={fieldCls("gstAmount")} value={draft.gstAmount} onChange={(e) => set("gstAmount", e.target.value)} />
+  305 |               </div>
+  306 |               <div>
+
+/Users/rahulparihar/Projects/Faincal_Project/src/components/invoice/InvoiceSection.tsx:183:21
+  181 |   const fieldCls = (k: keyof Draft) =>
+  182 |     lowConf(k) ? `${inputCls} !border-amber-400 !bg-amber-50/60 ring-1 ring-amber-300` : inputCls;
+> 183 |   const ReviewTag = ({ k }: { k: keyof Draft }) =>
+      |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 184 |     lowConf(k) ? (
+      | ^^^^^^^^^^^^^^^^^^
+> 185 |       <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-amber-600 normal-case">
+      | ^^^^^^^^^^^^^^^^^^
+> 186 |         <AlertTriangle size={10} /> review {Math.round((confidence[k] ?? 0) * 100)}%
+      | ^^^^^^^^^^^^^^^^^^
+> 187 |       </span>
+      | ^^^^^^^^^^^^^^^^^^
+> 188 |     ) : null;
+      | ^^^^^^^^^^^^^ The component is created during render here
+  189 |
+  190 |   return (
+  191 |     <div className="bg-white border border-[#e8e8e8] rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04)]">                                                                                       react-hooks/static-components
+  307:56  error    Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+/Users/rahulparihar/Projects/Faincal_Project/src/components/invoice/InvoiceSection.tsx:307:56
+  305 |               </div>
+  306 |               <div>
+> 307 |                 <label className={labelCls}>Total (₹) <ReviewTag k="totalAmount" /></label>
+      |                                                        ^^^^^^^^^ This component is created during render
+  308 |                 <input type="number" step="0.01" className={fieldCls("totalAmount")} value={draft.totalAmount} onChange={(e) => set("totalAmount", e.target.value)} />
+  309 |               </div>
+  310 |               <div>
+
+/Users/rahulparihar/Projects/Faincal_Project/src/components/invoice/InvoiceSection.tsx:183:21
+  181 |   const fieldCls = (k: keyof Draft) =>
+  182 |     lowConf(k) ? `${inputCls} !border-amber-400 !bg-amber-50/60 ring-1 ring-amber-300` : inputCls;
+> 183 |   const ReviewTag = ({ k }: { k: keyof Draft }) =>
+      |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 184 |     lowConf(k) ? (
+      | ^^^^^^^^^^^^^^^^^^
+> 185 |       <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-amber-600 normal-case">
+      | ^^^^^^^^^^^^^^^^^^
+> 186 |         <AlertTriangle size={10} /> review {Math.round((confidence[k] ?? 0) * 100)}%
+      | ^^^^^^^^^^^^^^^^^^
+> 187 |       </span>
+      | ^^^^^^^^^^^^^^^^^^
+> 188 |     ) : null;
+      | ^^^^^^^^^^^^^ The component is created during render here
+  189 |
+  190 |   return (
+  191 |     <div className="bg-white border border-[#e8e8e8] rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04)]">                                                                                         react-hooks/static-components
+  311:55  error    Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+/Users/rahulparihar/Projects/Faincal_Project/src/components/invoice/InvoiceSection.tsx:311:55
+  309 |               </div>
+  310 |               <div>
+> 311 |                 <label className={labelCls}>GST Type <ReviewTag k="gstType" /></label>
+      |                                                       ^^^^^^^^^ This component is created during render
+  312 |                 <select className={fieldCls("gstType")} value={draft.gstType} onChange={(e) => set("gstType", e.target.value)}>
+  313 |                   <option value="">—</option>
+  314 |                   <option value="CGST/SGST">CGST/SGST</option>
+
+/Users/rahulparihar/Projects/Faincal_Project/src/components/invoice/InvoiceSection.tsx:183:21
+  181 |   const fieldCls = (k: keyof Draft) =>
+  182 |     lowConf(k) ? `${inputCls} !border-amber-400 !bg-amber-50/60 ring-1 ring-amber-300` : inputCls;
+> 183 |   const ReviewTag = ({ k }: { k: keyof Draft }) =>
+      |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 184 |     lowConf(k) ? (
+      | ^^^^^^^^^^^^^^^^^^
+> 185 |       <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-amber-600 normal-case">
+      | ^^^^^^^^^^^^^^^^^^
+> 186 |         <AlertTriangle size={10} /> review {Math.round((confidence[k] ?? 0) * 100)}%
+      | ^^^^^^^^^^^^^^^^^^
+> 187 |       </span>
+      | ^^^^^^^^^^^^^^^^^^
+> 188 |     ) : null;
+      | ^^^^^^^^^^^^^ The component is created during render here
+  189 |
+  190 |   return (
+  191 |     <div className="bg-white border border-[#e8e8e8] rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04)]">                                                                  react-hooks/static-components
+
+/Users/rahulparihar/Projects/Faincal_Project/src/components/layout/Sidebar.tsx
+  36:3  warning  'isMobileOpen' is defined but never used   @typescript-eslint/no-unused-vars
+  37:3  warning  'setMobileOpen' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/rahulparihar/Projects/Faincal_Project/src/components/layout/TopBar.tsx
+    4:10  warning  'Menu' is defined but never used           @typescript-eslint/no-unused-vars
+  114:26  warning  'setMobileOpen' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/rahulparihar/Projects/Faincal_Project/src/components/ui/AnimatedCounter.tsx
+  11:3  warning  'isCurrency' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              @typescript-eslint/no-unused-vars
+  25:5  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/rahulparihar/Projects/Faincal_Project/src/components/ui/AnimatedCounter.tsx:25:5
+  23 |
+  24 |   useEffect(() => {
+> 25 |     setMounted(true);
+     |     ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  26 |   }, []);
+  27 |
+  28 |   const formatNumber = (val: number) => {  react-hooks/set-state-in-effect
+
+/Users/rahulparihar/Projects/Faincal_Project/src/components/ui/Drawer.tsx
+  24:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/rahulparihar/Projects/Faincal_Project/src/components/ui/Drawer.tsx:24:5
+  22 |   // Portal target is only available on the client
+  23 |   useEffect(() => {
+> 24 |     setMounted(true);
+     |     ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  25 |   }, []);
+  26 |
+  27 |   // Handle body scroll lock  react-hooks/set-state-in-effect
+
+/Users/rahulparihar/Projects/Faincal_Project/src/context/AuthContext.tsx
+  27:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/rahulparihar/Projects/Faincal_Project/src/context/AuthContext.tsx:27:7
+  25 |   useEffect(() => {
+  26 |     if (!isSupabaseConfigured || !supabase) {
+> 27 |       setReady(true);
+     |       ^^^^^^^^ Avoid calling setState() directly within an effect
+  28 |       return;
+  29 |     }
+  30 |     let active = true;  react-hooks/set-state-in-effect
+
+/Users/rahulparihar/Projects/Faincal_Project/src/context/ThemeContext.tsx
+  41:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/rahulparihar/Projects/Faincal_Project/src/context/ThemeContext.tsx:41:5
+  39 |     }
+  40 |     const initial = stored ?? DEFAULT_THEME;
+> 41 |     setThemeState(initial);
+     |     ^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  42 |     applyThemeClass(initial);
+  43 |   }, []);
+  44 |  react-hooks/set-state-in-effect
+
+/Users/rahulparihar/Projects/Faincal_Project/src/lib/hooks/useLocalStorage.ts
+  9:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/rahulparihar/Projects/Faincal_Project/src/lib/hooks/useLocalStorage.ts:9:5
+   7 |
+   8 |   useEffect(() => {
+>  9 |     setIsClient(true);
+     |     ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  10 |     try {
+  11 |       const item = window.localStorage.getItem(key);
+  12 |       if (item) {  react-hooks/set-state-in-effect
+
+/Users/rahulparihar/Projects/Faincal_Project/src/lib/hooks/useSupabaseStatus.ts
+  22:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/rahulparihar/Projects/Faincal_Project/src/lib/hooks/useSupabaseStatus.ts:22:7
+  20 |   useEffect(() => {
+  21 |     if (!isSupabaseConfigured || !supabase) {
+> 22 |       setStatus("local");
+     |       ^^^^^^^^^ Avoid calling setState() directly within an effect
+  23 |       return;
+  24 |     }
+  25 |  react-hooks/set-state-in-effect
+
+/Users/rahulparihar/Projects/Faincal_Project/src/lib/hooks/useSupabaseUsage.ts
+  25:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/rahulparihar/Projects/Faincal_Project/src/lib/hooks/useSupabaseUsage.ts:25:7
+  23 |   useEffect(() => {
+  24 |     if (!isSupabaseConfigured || !supabase) {
+> 25 |       setState("unavailable");
+     |       ^^^^^^^^ Avoid calling setState() directly within an effect
+  26 |       return;
+  27 |     }
+  28 |     let active = true;  react-hooks/set-state-in-effect
+
+✖ 33 problems (22 errors, 11 warnings)
+  1 error and 1 warning potentially fixable with the `--fix` option.
+
