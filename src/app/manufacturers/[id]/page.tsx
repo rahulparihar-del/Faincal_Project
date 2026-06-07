@@ -23,7 +23,7 @@ function getSubtotal(p: PurchaseOrder): number {
 function getGrandTotal(p: PurchaseOrder): number {
   const sub = getSubtotal(p);
   const gst = p.gstAmount ?? (sub * (p.gstPercent ?? 0) / 100);
-  return sub + gst + (p.transport ?? 0) + (p.roundingAmount ?? 0);
+  return sub + gst + (p.transport ?? 0) + (p.localTransport ?? 0) + (p.roundingAmount ?? 0);
 }
 
 const CITIES = [
@@ -325,8 +325,9 @@ export default function ManufacturerDetailPage() {
               const gstPct = p.gstPercent ?? 0;
               const gstAmt = p.gstAmount ?? Math.round(subtotal * gstPct / 100 * 100) / 100;
               const transport = p.transport ?? 0;
+              const localTransport = p.localTransport ?? 0;
               const rounding = p.roundingAmount ?? 0;
-              const grandTotal = subtotal + gstAmt + transport + rounding;
+              const grandTotal = subtotal + gstAmt + transport + localTransport + rounding;
               const isMulti = items.length > 1;
               const isExpanded = expandedId === p.id;
 
@@ -373,7 +374,19 @@ export default function ManufacturerDetailPage() {
                       {/* Total */}
                       <div className="text-right shrink-0">
                         <div className="font-bold text-black text-sm">₹{grandTotal.toLocaleString("en-IN")}</div>
-                        {gstPct > 0 && <div className="text-[10px] text-[#aaa]">+{gstPct}% GST</div>}
+                        <div className="text-[10px] text-[#aaa] mt-0.5">
+                          {gstPct > 0 && <span>+{gstPct}% GST</span>}
+                          {(transport > 0 || localTransport > 0) && (
+                            <span>
+                              {gstPct > 0 ? " · " : ""}
+                              {transport > 0 && localTransport > 0
+                                ? "+2 Transports"
+                                : transport > 0
+                                ? "+Supplier Trans"
+                                : "+Local Trans"}
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       {/* Status badges */}
@@ -449,8 +462,14 @@ export default function ManufacturerDetailPage() {
                           )}
                           {transport > 0 && (
                             <tr className="text-[#999]">
-                              <td colSpan={4} className="py-1.5 text-right text-[11px] font-semibold uppercase tracking-wider">Transport</td>
+                              <td colSpan={4} className="py-1.5 text-right text-[11px] font-semibold uppercase tracking-wider">Supplier Transport</td>
                               <td className="py-1.5 text-right text-sm font-semibold">₹{transport.toLocaleString("en-IN")}</td>
+                            </tr>
+                          )}
+                          {localTransport > 0 && (
+                            <tr className="text-[#999]">
+                              <td colSpan={4} className="py-1.5 text-right text-[11px] font-semibold uppercase tracking-wider">Local Transport</td>
+                              <td className="py-1.5 text-right text-sm font-semibold">₹{localTransport.toLocaleString("en-IN")}</td>
                             </tr>
                           )}
                           {rounding !== 0 && (

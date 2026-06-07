@@ -219,8 +219,9 @@ export default function PurchaseOrdersPage() {
                 const gstPct = p.gstPercent ?? 0;
                 const gstAmt = p.gstAmount ?? Math.round(subtotal * gstPct / 100 * 100) / 100;
                 const transport = p.transport ?? 0;
+                const localTransport = p.localTransport ?? 0;
                 const rounding = p.roundingAmount ?? 0;
-                const grandTotal = subtotal + gstAmt + transport + rounding;
+                const grandTotal = subtotal + gstAmt + transport + localTransport + rounding;
                 const isMulti = items.length > 1;
                 const isExpanded = expandedId === p.id;
 
@@ -283,7 +284,16 @@ export default function PurchaseOrdersPage() {
                         <div className="font-bold text-black">₹{grandTotal.toLocaleString("en-IN")}</div>
                         <div className="text-[11px] text-[#aaa] mt-0.5">
                           {gstPct > 0 && <span>+{gstPct}% GST</span>}
-                          {transport > 0 && <span>{gstPct > 0 ? " · " : ""}+Transport</span>}
+                          {(transport > 0 || localTransport > 0) && (
+                            <span>
+                              {gstPct > 0 ? " · " : ""}
+                              {transport > 0 && localTransport > 0
+                                ? "+2 Transports"
+                                : transport > 0
+                                ? "+Supplier Trans"
+                                : "+Local Trans"}
+                            </span>
+                          )}
                         </div>
                       </td>
 
@@ -387,8 +397,14 @@ export default function PurchaseOrdersPage() {
                                 )}
                                 {transport > 0 && (
                                   <tr className="text-[#888]">
-                                    <td colSpan={4} className="py-1.5 text-right text-[11px] font-semibold uppercase tracking-wider">Transport</td>
+                                    <td colSpan={4} className="py-1.5 text-right text-[11px] font-semibold uppercase tracking-wider">Supplier Transport</td>
                                     <td className="py-1.5 text-right font-semibold">₹{transport.toLocaleString("en-IN")}</td>
+                                  </tr>
+                                )}
+                                {localTransport > 0 && (
+                                  <tr className="text-[#888]">
+                                    <td colSpan={4} className="py-1.5 text-right text-[11px] font-semibold uppercase tracking-wider">Local Transport</td>
+                                    <td className="py-1.5 text-right font-semibold">₹{localTransport.toLocaleString("en-IN")}</td>
                                   </tr>
                                 )}
                                 {rounding !== 0 && (
@@ -474,6 +490,7 @@ type FormMeta = {
   applyGst: boolean;
   gstPercent: number;
   transport: number;
+  localTransport: number;
   roundingAmount: number;
 };
 
@@ -504,13 +521,12 @@ function PurchaseFormDrawer({
     applyGst: true,
     gstPercent: GST_RATE,
     transport: 0,
+    localTransport: 0,
     roundingAmount: 0,
   };
 
   const [meta, setMeta] = useState<FormMeta>(defaultMeta);
   const [items, setItems] = useState<PurchaseItem[]>([{ ...EMPTY_ITEM }]);
-  const [showTransport, setShowTransport] = useState(false);
-  const [showRounding, setShowRounding] = useState(false);
 
   // PDF state
   const [billPdf, setBillPdf] = useState<string | null>(null);
@@ -546,11 +562,10 @@ function PurchaseFormDrawer({
           applyGst: gstPct > 0,
           gstPercent: gstPct > 0 ? gstPct : GST_RATE,
           transport: po.transport ?? 0,
+          localTransport: po.localTransport ?? 0,
           roundingAmount: po.roundingAmount ?? 0,
         });
         setItems(getItems(po).map((i) => ({ ...i })));
-        setShowTransport((po.transport ?? 0) > 0);
-        setShowRounding((po.roundingAmount ?? 0) !== 0);
         setBillPdf(po.billPdf || null);
         setBillPdfName(po.billPdfName || "");
         setPdfSizeWarning(false);
@@ -558,8 +573,6 @@ function PurchaseFormDrawer({
     } else if (isOpen) {
       setMeta({ ...defaultMeta, manufacturerId: manufacturers.length > 0 ? manufacturers[0].id : "" });
       setItems([{ ...EMPTY_ITEM }]);
-      setShowTransport(false);
-      setShowRounding(false);
       setBillPdf(null);
       setBillPdfName("");
       setPdfSizeWarning(false);
@@ -571,7 +584,7 @@ function PurchaseFormDrawer({
   const itemsSubtotal = items.reduce((s, i) => s + i.qty * i.rate, 0);
   const gstAmount = meta.applyGst ? Math.round(itemsSubtotal * meta.gstPercent / 100 * 100) / 100 : 0;
   // GST is calculated ONLY on items, transport is added AFTER
-  const grandTotal = itemsSubtotal + gstAmount + (meta.transport || 0) + (meta.roundingAmount || 0);
+  const grandTotal = itemsSubtotal + gstAmount + (meta.transport || 0) + (meta.localTransport || 0) + (meta.roundingAmount || 0);
 
   /* ── Item helpers ── */
   const updateItem = (idx: number, field: keyof PurchaseItem, value: string | number) =>
@@ -619,7 +632,7 @@ function PurchaseFormDrawer({
     const gstAmt = Math.round(sub * gstPct / 100 * 100) / 100;
     const firstItem = validItems[0];
 
-    const grandTotal = sub + gstAmt + (meta.transport || 0) + (meta.roundingAmount || 0);
+    const grandTotal = sub + gstAmt + (meta.transport || 0) + (meta.localTransport || 0) + (meta.roundingAmount || 0);
 
     const po: PurchaseOrder = {
       id: editingId || Date.now().toString(),
@@ -633,6 +646,7 @@ function PurchaseFormDrawer({
       gstPercent: gstPct,
       gstAmount: gstAmt,
       transport: meta.transport || 0,
+      localTransport: meta.localTransport || 0,
       roundingAmount: meta.roundingAmount || 0,
       billPdf: billPdf || undefined,
       billPdfName: billPdfName || undefined,
@@ -770,17 +784,34 @@ function PurchaseFormDrawer({
             )}
           </div>
 
-          {/* ─── Transport ─── */}
-          <div>
-            <label className={labelCls}>
-              <span className="flex items-center gap-1.5"><Truck size={13} /> Transport Charges (₹)</span>
-            </label>
-            <input type="number" min="0" step="0.01" placeholder="0 — added after GST"
-              className={inputCls}
-              value={meta.transport || ""}
-              onChange={(e) => setMeta({ ...meta, transport: Number(e.target.value) })}
-            />
-            <p className="text-[11px] text-[#aaa] mt-1 ml-1">Transport is added after GST — not taxable</p>
+          {/* ─── Transport Charges ─── */}
+          <div className="space-y-4">
+            <h4 className="text-[11px] font-bold text-[#aaa] uppercase tracking-wider">Transport Costs</h4>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={labelCls}>
+                  <span className="flex items-center gap-1.5"><Truck size={13} /> Supplier Transport (₹)</span>
+                </label>
+                <input type="number" min="0" step="0.01" placeholder="Factory to office"
+                  className={inputCls}
+                  value={meta.transport || ""}
+                  onChange={(e) => setMeta({ ...meta, transport: Number(e.target.value) })}
+                />
+              </div>
+              
+              <div>
+                <label className={labelCls}>
+                  <span className="flex items-center gap-1.5"><Truck size={13} /> Local Transport (₹)</span>
+                </label>
+                <input type="number" min="0" step="0.01" placeholder="Office to my location"
+                  className={inputCls}
+                  value={meta.localTransport || ""}
+                  onChange={(e) => setMeta({ ...meta, localTransport: Number(e.target.value) })}
+                />
+              </div>
+            </div>
+            <p className="text-[11px] text-[#aaa] ml-1">Both charges are added after GST — not taxable</p>
           </div>
 
           {/* ─── Rounding ─── */}
@@ -811,11 +842,18 @@ function PurchaseFormDrawer({
                 <span className="font-semibold text-amber-300">+ ₹{gstAmount.toLocaleString("en-IN")}</span>
               </div>
             )}
-            {/* Transport */}
+            {/* Transport (Supplier) */}
             {(meta.transport || 0) > 0 && (
               <div className="px-5 py-3 border-b border-white/10 flex justify-between items-center">
-                <span className="text-[11px] font-medium uppercase tracking-wider opacity-50">Transport</span>
+                <span className="text-[11px] font-medium uppercase tracking-wider opacity-50">Supplier Transport</span>
                 <span className="font-semibold opacity-80">+ ₹{(meta.transport || 0).toLocaleString("en-IN")}</span>
+              </div>
+            )}
+            {/* Transport (Local) */}
+            {(meta.localTransport || 0) > 0 && (
+              <div className="px-5 py-3 border-b border-white/10 flex justify-between items-center">
+                <span className="text-[11px] font-medium uppercase tracking-wider opacity-50">Local Transport</span>
+                <span className="font-semibold opacity-80">+ ₹{(meta.localTransport || 0).toLocaleString("en-IN")}</span>
               </div>
             )}
             {/* Rounding */}

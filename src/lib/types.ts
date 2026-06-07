@@ -102,6 +102,8 @@ export interface PurchaseOrder {
   gstAmount: number;
   /** Transport / freight charges added AFTER GST (not taxable) */
   transport: number;
+  /** Local transport / delivery charges (not taxable) */
+  localTransport?: number;
   /** Rounding adjustment (can be negative or positive) */
   roundingAmount: number;
   /** Manufacturer bill PDF stored as base64 data URL */
