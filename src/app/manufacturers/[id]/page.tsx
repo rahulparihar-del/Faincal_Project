@@ -9,7 +9,7 @@ import { gsap } from "gsap";
 import {
   ArrowLeft, Edit2, Save, X, Phone, MapPin, Package,
   CheckCircle2, Clock, Truck, FileText, ChevronDown, ChevronRight,
-  IndianRupee, ShoppingBag, AlertCircle, Upload,
+  IndianRupee, ShoppingBag, AlertCircle, Upload, Eye,
 } from "lucide-react";
 
 /* ─── helpers ─────────────────────────────────────────────── */
@@ -411,19 +411,33 @@ export default function ManufacturerDetailPage() {
                         </span>
                       </div>
 
-                      {/* Bill PDF icon */}
-                      {p.billPdf && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setViewingPdf({ pdf: p.billPdf!, filename: p.billPdfName || "Bill.pdf" });
-                          }}
-                          className="w-7 h-7 flex items-center justify-center rounded-lg bg-red-50 text-red-400 hover:text-red-600 hover:bg-red-100 transition-colors shrink-0"
-                          title={p.billPdfName || "View Bill"}
-                        >
-                          <FileText size={13} />
-                        </button>
-                      )}
+                      {/* Bill / Receipt icons */}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {p.billPdf && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setViewingPdf({ pdf: p.billPdf!, filename: p.billPdfName || "Bill.pdf" });
+                            }}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg bg-red-50 text-red-400 hover:text-red-600 hover:bg-red-100 transition-colors"
+                            title={p.billPdfName || "View Bill"}
+                          >
+                            <FileText size={12} />
+                          </button>
+                        )}
+                        {p.txnImage && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setViewingPdf({ pdf: p.txnImage!, filename: p.txnImageName || "Receipt.png" });
+                            }}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg bg-blue-50 text-blue-400 hover:text-blue-600 hover:bg-blue-100 transition-colors"
+                            title={p.txnImageName || "View Receipt"}
+                          >
+                            <Eye size={12} />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -518,6 +532,8 @@ function PdfViewerModal({
   filename: string;
   onClose: () => void;
 }) {
+  const isImage = pdf.startsWith("data:image/") || /\.(jpg|jpeg|png|webp|gif)$/i.test(filename);
+
   return (
     <div
       className="fixed inset-0 z-[10000] flex items-center justify-center"
@@ -531,12 +547,12 @@ function PdfViewerModal({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#e8e8e8] shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-red-50 rounded-xl flex items-center justify-center">
-              <FileText size={18} className="text-red-500" />
+            <div className={`w-9 h-9 ${isImage ? "bg-blue-50" : "bg-red-50"} rounded-xl flex items-center justify-center`}>
+              <FileText size={18} className={isImage ? "text-blue-500" : "text-red-500"} />
             </div>
             <div>
               <div className="font-semibold text-sm text-black truncate max-w-[320px]">{filename}</div>
-              <div className="text-[11px] text-[#888]">Manufacturer Bill</div>
+              <div className="text-[11px] text-[#888]">{isImage ? "Transaction Receipt Image" : "Manufacturer Bill PDF"}</div>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -557,14 +573,25 @@ function PdfViewerModal({
           </div>
         </div>
 
-        {/* PDF iframe */}
-        <div className="flex-1 overflow-hidden rounded-b-2xl">
-          <iframe
-            src={pdf}
-            className="w-full h-full"
-            title={filename}
-            style={{ border: "none" }}
-          />
+        {/* Content */}
+        <div className="flex-1 overflow-hidden rounded-b-2xl bg-[#fafafa]">
+          {isImage ? (
+            <div className="w-full h-full overflow-auto flex items-center justify-center p-6">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={pdf}
+                alt={filename}
+                className="max-w-full max-h-full object-contain rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.08)] bg-white"
+              />
+            </div>
+          ) : (
+            <iframe
+              src={pdf}
+              className="w-full h-full"
+              title={filename}
+              style={{ border: "none" }}
+            />
+          )}
         </div>
       </div>
     </div>

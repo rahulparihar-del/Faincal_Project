@@ -57,6 +57,8 @@ function PdfViewerModal({
   filename: string;
   onClose: () => void;
 }) {
+  const isImage = pdf.startsWith("data:image/") || /\.(jpg|jpeg|png|webp|gif)$/i.test(filename);
+
   return (
     <div
       className="fixed inset-0 z-[10000] flex items-center justify-center"
@@ -70,12 +72,12 @@ function PdfViewerModal({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#e8e8e8] shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-red-50 rounded-xl flex items-center justify-center">
-              <FileText size={18} className="text-red-500" />
+            <div className={`w-9 h-9 ${isImage ? "bg-blue-50" : "bg-red-50"} rounded-xl flex items-center justify-center`}>
+              <FileText size={18} className={isImage ? "text-blue-500" : "text-red-500"} />
             </div>
             <div>
               <div className="font-semibold text-sm text-black truncate max-w-[320px]">{filename}</div>
-              <div className="text-[11px] text-[#888]">Manufacturer Bill</div>
+              <div className="text-[11px] text-[#888]">{isImage ? "Transaction Receipt Image" : "Manufacturer Bill PDF"}</div>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -96,14 +98,25 @@ function PdfViewerModal({
           </div>
         </div>
 
-        {/* PDF iframe */}
-        <div className="flex-1 overflow-hidden rounded-b-2xl">
-          <iframe
-            src={pdf}
-            className="w-full h-full"
-            title={filename}
-            style={{ border: "none" }}
-          />
+        {/* Content */}
+        <div className="flex-1 overflow-hidden rounded-b-2xl bg-[#fafafa]">
+          {isImage ? (
+            <div className="w-full h-full overflow-auto flex items-center justify-center p-6">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={pdf}
+                alt={filename}
+                className="max-w-full max-h-full object-contain rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.08)] bg-white"
+              />
+            </div>
+          ) : (
+            <iframe
+              src={pdf}
+              className="w-full h-full"
+              title={filename}
+              style={{ border: "none" }}
+            />
+          )}
         </div>
       </div>
     </div>
@@ -205,7 +218,7 @@ export default function PurchaseOrdersPage() {
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-right">Total</th>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-center">Payment</th>
                 <th className="hidden lg:table-cell px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-center">Shipment</th>
-                <th className="hidden lg:table-cell px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-center">Bill</th>
+                <th className="hidden lg:table-cell px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-center">Bill/Receipt</th>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
@@ -328,20 +341,33 @@ export default function PurchaseOrdersPage() {
                         </button>
                       </td>
 
-                      {/* Bill PDF — its own column, only visible on lg+ */}
+                      {/* Bill / Receipt — its own column, only visible on lg+ */}
                       <td className="hidden lg:table-cell px-5 py-3.5 text-center">
-                        {p.billPdf ? (
-                          <button
-                            onClick={() => setViewingPdf({ pdf: p.billPdf!, filename: p.billPdfName || "Bill.pdf" })}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-700 rounded-lg text-xs font-semibold transition-colors border border-red-100"
-                            title={p.billPdfName || "View Bill"}
-                          >
-                            <FileText size={13} />
-                            View
-                          </button>
-                        ) : (
-                          <span className="text-[#ddd] text-xs">—</span>
-                        )}
+                        <div className="flex items-center justify-center gap-1.5">
+                          {p.billPdf ? (
+                            <button
+                              onClick={() => setViewingPdf({ pdf: p.billPdf!, filename: p.billPdfName || "Bill.pdf" })}
+                              className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-700 rounded-lg text-xs font-semibold transition-colors border border-red-100 shadow-sm"
+                              title={p.billPdfName || "View Bill"}
+                            >
+                              <FileText size={12} />
+                              Bill
+                            </button>
+                          ) : null}
+                          {p.txnImage ? (
+                            <button
+                              onClick={() => setViewingPdf({ pdf: p.txnImage!, filename: p.txnImageName || "Receipt.png" })}
+                              className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-500 hover:text-blue-700 rounded-lg text-xs font-semibold transition-colors border border-blue-100 shadow-sm"
+                              title={p.txnImageName || "View Receipt"}
+                            >
+                              <Eye size={12} />
+                              Receipt
+                            </button>
+                          ) : null}
+                          {!p.billPdf && !p.txnImage && (
+                            <span className="text-[#ddd] text-xs">—</span>
+                          )}
+                        </div>
                       </td>
 
                       {/* Actions */}
@@ -531,6 +557,12 @@ function PurchaseFormDrawer({
   const [billPdfName, setBillPdfName] = useState("");
   const [pdfSizeWarning, setPdfSizeWarning] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Transaction Receipt state
+  const [txnImage, setTxnImage] = useState<string | null>(null);
+  const [txnImageName, setTxnImageName] = useState("");
+  const [txnSizeWarning, setTxnSizeWarning] = useState(false);
+  const txnFileInputRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState({ visible: false, message: "" });
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -567,6 +599,9 @@ function PurchaseFormDrawer({
         setBillPdf(po.billPdf || null);
         setBillPdfName(po.billPdfName || "");
         setPdfSizeWarning(false);
+        setTxnImage(po.txnImage || null);
+        setTxnImageName(po.txnImageName || "");
+        setTxnSizeWarning(false);
       }
     } else if (isOpen) {
       setMeta({ ...defaultMeta, manufacturerId: manufacturers.length > 0 ? manufacturers[0].id : "" });
@@ -574,6 +609,9 @@ function PurchaseFormDrawer({
       setBillPdf(null);
       setBillPdfName("");
       setPdfSizeWarning(false);
+      setTxnImage(null);
+      setTxnImageName("");
+      setTxnSizeWarning(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, editingId]);
@@ -617,6 +655,26 @@ function PurchaseFormDrawer({
     reader.readAsDataURL(file);
   };
 
+  /* ─── Transaction Image helpers ─── */
+  const handleTxnImageSelect = (file: File) => {
+    if (!file) return;
+    const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+    const isImg = file.type.startsWith("image/") || /\.(jpg|jpeg|png|webp)$/i.test(file.name);
+    if (!isPdf && !isImg) {
+      showToast("Please select an Image or PDF file");
+      return;
+    }
+    const sizeMb = file.size / (1024 * 1024);
+    setTxnSizeWarning(sizeMb > 3);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setTxnImage(ev.target?.result as string);
+      setTxnImageName(file.name);
+      showToast(`✅ "${file.name}" uploaded`);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const validItems = items.filter((it) => it.productName.trim() !== "" && it.qty > 0);
@@ -648,6 +706,8 @@ function PurchaseFormDrawer({
       roundingAmount: meta.roundingAmount || 0,
       billPdf: billPdf || undefined,
       billPdfName: billPdfName || undefined,
+      txnImage: txnImage || undefined,
+      txnImageName: txnImageName || undefined,
       paymentStatus: meta.paymentStatus,
       paymentDate: meta.paymentDate,
       paidAmount: meta.paymentStatus === "Paid" ? grandTotal : (meta.paymentStatus === "Partial" ? meta.paidAmount : 0),
@@ -1009,6 +1069,91 @@ function PurchaseFormDrawer({
                 <div className="text-center">
                   <div className="text-sm font-semibold text-black">Upload Manufacturer Bill</div>
                   <div className="text-[11px] text-[#aaa] mt-0.5">Click to browse or drag &amp; drop a PDF</div>
+                </div>
+              </button>
+            )}
+          </div>
+
+          {/* ─── Transaction Image/PDF Upload ─── */}
+          <div className="space-y-1.5">
+            <label className={labelCls}>
+              <span className="flex items-center gap-1.5">
+                <Paperclip size={13} /> Transaction Receipt (Image / PDF)
+              </span>
+            </label>
+
+            {/* Hidden file input */}
+            <input
+              ref={txnFileInputRef}
+              type="file"
+              accept="image/*,application/pdf"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleTxnImageSelect(f);
+                e.target.value = "";
+              }}
+            />
+
+            {txnImage ? (
+              /* Receipt attached — preview card */
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white rounded-xl border border-blue-100 flex items-center justify-center shrink-0 shadow-sm">
+                    <FileText size={20} className="text-blue-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-sm text-black truncate">{txnImageName}</div>
+                    <div className="text-[11px] text-[#888] mt-0.5">Receipt attached — will be saved with this order</div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => onViewPdf(txnImage!, txnImageName || "Receipt.png")}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-white text-blue-500 hover:bg-blue-100 transition-colors border border-blue-100"
+                      title="Preview Receipt"
+                    >
+                      <Eye size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setTxnImage(null); setTxnImageName(""); setTxnSizeWarning(false); showToast("Receipt removed"); }}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-white text-[#888] hover:bg-red-50 hover:text-red-600 transition-colors border border-blue-100"
+                      title="Remove Receipt"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                </div>
+
+                {txnSizeWarning && (
+                  <div className="mt-3 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    <AlertCircle size={13} className="text-amber-500 mt-0.5 shrink-0" />
+                    <p className="text-[11px] text-amber-700 leading-snug">
+                      This file is large (&gt;3MB). It will be saved but may slow down syncing. Consider compressing it.
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Upload drop zone */
+              <button
+                type="button"
+                onClick={() => txnFileInputRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const f = e.dataTransfer.files?.[0];
+                  if (f) handleTxnImageSelect(f);
+                }}
+                className="w-full border-2 border-dashed border-[#ddd] hover:border-[#aaa] bg-[#fafafa] hover:bg-[#f5f5f5] rounded-xl px-5 py-6 flex flex-col items-center gap-2 transition-colors cursor-pointer group"
+              >
+                <div className="w-10 h-10 bg-[#f0f0f0] group-hover:bg-[#e8e8e8] rounded-xl flex items-center justify-center transition-colors">
+                  <Upload size={18} className="text-[#888]" />
+                </div>
+                <div className="text-center">
+                  <div className="text-sm font-semibold text-black">Upload Transaction Receipt</div>
+                  <div className="text-[11px] text-[#aaa] mt-0.5">Click to browse or drag &amp; drop screenshot/PDF</div>
                 </div>
               </button>
             )}

@@ -110,6 +110,10 @@ export interface PurchaseOrder {
   billPdf?: string;
   /** Original filename of the uploaded PDF */
   billPdfName?: string;
+  /** Transaction receipt image or PDF stored as base64 data URL */
+  txnImage?: string;
+  /** Original filename of the transaction receipt */
+  txnImageName?: string;
   paymentStatus: PaymentStatus;
   paymentDate: string;
   shipmentStatus: ShipmentStatus;
