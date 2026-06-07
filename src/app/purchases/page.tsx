@@ -442,7 +442,7 @@ export default function PurchaseOrdersPage() {
 
                       {/* Bill / Receipt — its own column, only visible on lg+ */}
                       <td className="hidden lg:table-cell px-5 py-3.5 text-center">
-                        <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                        <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
                           {p.billPdf ? (
                             <button
                               onClick={() => {
