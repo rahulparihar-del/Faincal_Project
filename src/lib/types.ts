@@ -98,8 +98,12 @@ export interface PurchaseOrder {
   rate: number;
   /** GST percentage applied (e.g. 5 for 5%). 0 = no GST */
   gstPercent: number;
-  /** Pre-computed GST amount = subtotal * gstPercent / 100 */
+  /** Pre-computed GST amount = itemsSubtotal * gstPercent / 100 (NOT on transport) */
   gstAmount: number;
+  /** Transport / freight charges added AFTER GST (not taxable) */
+  transport: number;
+  /** Rounding adjustment (can be negative or positive) */
+  roundingAmount: number;
   paymentStatus: PaymentStatus;
   paymentDate: string;
   shipmentStatus: ShipmentStatus;
