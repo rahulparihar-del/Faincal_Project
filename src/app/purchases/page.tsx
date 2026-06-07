@@ -128,7 +128,8 @@ export default function PurchaseOrdersPage() {
       if (d.getMonth() === cm && d.getFullYear() === cy) thisMonth += val;
       if (p.orderType === "Sample") sampleCosts += val;
       if (p.orderType === "Bulk") bulkCosts += val;
-      if (p.paymentStatus !== "Paid") pending += val;
+      if (p.paymentStatus === "Pending") pending += val;
+      else if (p.paymentStatus === "Partial") pending += (val - (p.paidAmount ?? 0));
     });
     return { thisMonth, sampleCosts, bulkCosts, pending };
   }, [purchases]);
@@ -287,13 +288,20 @@ export default function PurchaseOrdersPage() {
                       </td>
 
                       <td className="px-5 py-3.5 text-center">
-                        <span className="px-2.5 py-1 rounded-lg text-xs font-bold" style={{
-                          background: p.paymentStatus === "Paid" ? "var(--color-profit-bg)" : p.paymentStatus === "Partial" ? "#f0f0f0" : "var(--color-loss-bg)",
-                          color: p.paymentStatus === "Paid" ? "var(--color-profit)" : p.paymentStatus === "Partial" ? "#555" : "var(--color-loss)",
-                          border: p.paymentStatus === "Paid" ? "1px solid var(--color-profit-border)" : p.paymentStatus === "Partial" ? "1px solid #e0e0e0" : "1px solid var(--color-loss-border)",
-                        }}>
-                          {p.paymentStatus}
-                        </span>
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="px-2.5 py-1 rounded-lg text-xs font-bold" style={{
+                            background: p.paymentStatus === "Paid" ? "var(--color-profit-bg)" : p.paymentStatus === "Partial" ? "#f5f5f5" : "var(--color-loss-bg)",
+                            color: p.paymentStatus === "Paid" ? "var(--color-profit)" : p.paymentStatus === "Partial" ? "#555" : "var(--color-loss)",
+                            border: p.paymentStatus === "Paid" ? "1px solid var(--color-profit-border)" : p.paymentStatus === "Partial" ? "1px solid #e0e0e0" : "1px solid var(--color-loss-border)",
+                          }}>
+                            {p.paymentStatus}
+                          </span>
+                          {p.paymentStatus === "Partial" && (
+                            <span className="text-[10px] text-[#888] font-medium">
+                              ₹{(p.paidAmount ?? 0).toLocaleString("en-IN")} paid
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       <td className="hidden lg:table-cell px-5 py-3.5 text-center">
@@ -393,6 +401,18 @@ export default function PurchaseOrdersPage() {
                                   <td colSpan={4} className="py-2 text-right text-[12px] font-bold text-black uppercase tracking-wider">Total</td>
                                   <td className="py-2 text-right font-bold text-black text-base">₹{grandTotal.toLocaleString("en-IN")}</td>
                                 </tr>
+                                {p.paymentStatus !== "Paid" && (
+                                  <>
+                                    <tr className="text-[#888]">
+                                      <td colSpan={4} className="py-1.5 text-right text-[11px] font-semibold uppercase tracking-wider text-right">Paid Amount</td>
+                                      <td className="py-1.5 text-right font-semibold text-green-600">₹{(p.paymentStatus === "Partial" ? (p.paidAmount ?? 0) : 0).toLocaleString("en-IN")}</td>
+                                    </tr>
+                                    <tr className="text-[#888]">
+                                      <td colSpan={4} className="py-1.5 text-right text-[11px] font-semibold uppercase tracking-wider text-right">Balance Pending</td>
+                                      <td className="py-1.5 text-right font-semibold text-red-500">₹{(grandTotal - (p.paymentStatus === "Partial" ? (p.paidAmount ?? 0) : 0)).toLocaleString("en-IN")}</td>
+                                    </tr>
+                                  </>
+                                )}
                               </tbody>
                             </table>
                           </div>
@@ -445,6 +465,7 @@ type FormMeta = {
   orderType: OrderType;
   paymentStatus: PaymentStatus;
   paymentDate: string;
+  paidAmount: number;
   shipmentStatus: ShipmentStatus;
   expectedDelivery: string;
   actualReceiptDate: string;
@@ -474,6 +495,7 @@ function PurchaseFormDrawer({
     orderType: "Sample",
     paymentStatus: "Pending",
     paymentDate: "",
+    paidAmount: 0,
     shipmentStatus: "Ordered",
     expectedDelivery: "",
     actualReceiptDate: "",
@@ -515,6 +537,7 @@ function PurchaseFormDrawer({
           orderType: po.orderType,
           paymentStatus: po.paymentStatus,
           paymentDate: po.paymentDate,
+          paidAmount: po.paidAmount ?? 0,
           shipmentStatus: po.shipmentStatus,
           expectedDelivery: po.expectedDelivery,
           actualReceiptDate: po.actualReceiptDate,
@@ -596,6 +619,8 @@ function PurchaseFormDrawer({
     const gstAmt = Math.round(sub * gstPct / 100 * 100) / 100;
     const firstItem = validItems[0];
 
+    const grandTotal = sub + gstAmt + (meta.transport || 0) + (meta.roundingAmount || 0);
+
     const po: PurchaseOrder = {
       id: editingId || Date.now().toString(),
       date: meta.date,
@@ -613,6 +638,7 @@ function PurchaseFormDrawer({
       billPdfName: billPdfName || undefined,
       paymentStatus: meta.paymentStatus,
       paymentDate: meta.paymentDate,
+      paidAmount: meta.paymentStatus === "Paid" ? grandTotal : (meta.paymentStatus === "Partial" ? meta.paidAmount : 0),
       shipmentStatus: meta.shipmentStatus,
       expectedDelivery: meta.expectedDelivery,
       actualReceiptDate: meta.actualReceiptDate,
@@ -823,6 +849,23 @@ function PurchaseFormDrawer({
               <input type="date" className={inputCls} value={meta.paymentDate} onChange={(e) => setMeta({ ...meta, paymentDate: e.target.value })} />
             </div>
           </div>
+
+          {/* Partial payment amount input */}
+          {meta.paymentStatus === "Partial" && (
+            <div>
+              <label className={labelCls}>Amount Paid (₹) *</label>
+              <input
+                type="number"
+                min="0"
+                max={grandTotal}
+                step="0.01"
+                className={inputCls}
+                value={meta.paidAmount || ""}
+                onChange={(e) => setMeta({ ...meta, paidAmount: Math.min(grandTotal, Number(e.target.value) || 0) })}
+                placeholder="Enter paid amount"
+              />
+            </div>
+          )}
 
           {/* Shipment */}
           <div className="grid grid-cols-2 gap-4">

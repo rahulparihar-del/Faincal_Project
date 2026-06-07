@@ -115,6 +115,7 @@ export interface PurchaseOrder {
   actualReceiptDate: string;
   notes: string;
   gst?: string;
+  paidAmount?: number;
 }
 
 export interface Transaction {

@@ -69,8 +69,9 @@ export default function ManufacturerDetailPage() {
     mfgPurchases.forEach((p) => {
       const val = getGrandTotal(p);
       totalSpend += val;
-      if (p.paymentStatus === "Paid") paid += val;
-      else pending += val;
+      const pPaid = p.paymentStatus === "Paid" ? val : (p.paymentStatus === "Partial" ? (p.paidAmount ?? 0) : 0);
+      paid += pPaid;
+      pending += (val - pPaid);
     });
     return { totalSpend, pending, paid, orders: mfgPurchases.length };
   }, [mfgPurchases]);
@@ -376,17 +377,23 @@ export default function ManufacturerDetailPage() {
                       </div>
 
                       {/* Status badges */}
-                      <div className="flex flex-col items-end gap-1 shrink-0 w-20">
+                      <div className="flex flex-col items-end gap-0.5 shrink-0 w-24">
                         <span
                           className="px-2 py-0.5 rounded-md text-[10px] font-bold"
                           style={{
                             background: p.paymentStatus === "Paid" ? "var(--color-profit-bg)" : p.paymentStatus === "Partial" ? "#f0f0f0" : "var(--color-loss-bg)",
                             color: p.paymentStatus === "Paid" ? "var(--color-profit)" : p.paymentStatus === "Partial" ? "#555" : "var(--color-loss)",
+                            border: p.paymentStatus === "Paid" ? "1px solid var(--color-profit-border)" : p.paymentStatus === "Partial" ? "1px solid #e0e0e0" : "1px solid var(--color-loss-border)",
                           }}
                         >
                           {p.paymentStatus}
                         </span>
-                        <span className="text-[10px] text-[#bbb] flex items-center gap-1">
+                        {p.paymentStatus === "Partial" && (
+                          <span className="text-[9px] text-[#888] font-medium">
+                            ₹{(p.paidAmount ?? 0).toLocaleString("en-IN")} paid
+                          </span>
+                        )}
+                        <span className="text-[10px] text-[#bbb] flex items-center gap-1 mt-0.5">
                           <Truck size={9} />{p.shipmentStatus}
                         </span>
                       </div>
@@ -456,6 +463,18 @@ export default function ManufacturerDetailPage() {
                             <td colSpan={4} className="py-2 text-right text-[12px] font-bold text-black uppercase tracking-wider">Total</td>
                             <td className="py-2 text-right text-base font-bold text-black">₹{grandTotal.toLocaleString("en-IN")}</td>
                           </tr>
+                          {p.paymentStatus !== "Paid" && (
+                            <>
+                              <tr className="text-[#999]">
+                                <td colSpan={4} className="py-1.5 text-right text-[11px] font-semibold uppercase tracking-wider text-right">Paid Amount</td>
+                                <td className="py-1.5 text-right text-sm font-semibold text-green-600">₹{(p.paymentStatus === "Partial" ? (p.paidAmount ?? 0) : 0).toLocaleString("en-IN")}</td>
+                              </tr>
+                              <tr className="text-[#999]">
+                                <td colSpan={4} className="py-1.5 text-right text-[11px] font-semibold uppercase tracking-wider text-right">Balance Pending</td>
+                                <td className="py-1.5 text-right text-sm font-semibold text-red-500">₹{(grandTotal - (p.paymentStatus === "Partial" ? (p.paidAmount ?? 0) : 0)).toLocaleString("en-IN")}</td>
+                              </tr>
+                            </>
+                          )}
                         </tbody>
                       </table>
                     </div>
