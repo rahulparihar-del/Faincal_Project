@@ -426,6 +426,7 @@ export default function PurchaseOrdersPage() {
           }
           setDrawerOpen(false);
         }}
+        onViewPdf={(pdf, filename) => setViewingPdf({ pdf, filename })}
       />
     </div>
   );
@@ -456,12 +457,13 @@ type FormMeta = {
 };
 
 function PurchaseFormDrawer({
-  isOpen, onClose, editingId, onSave,
+  isOpen, onClose, editingId, onSave, onViewPdf,
 }: {
   isOpen: boolean;
   onClose: () => void;
   editingId: string | null;
   onSave: (po: PurchaseOrder) => void;
+  onViewPdf: (pdf: string, filename: string) => void;
 }) {
   const { purchases, manufacturers } = useData();
   const formRef = useRef<HTMLFormElement>(null);
@@ -883,7 +885,7 @@ function PurchaseFormDrawer({
                   <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       type="button"
-                      onClick={() => window.open(billPdf!, "_blank")}
+                      onClick={() => onViewPdf(billPdf!, billPdfName || "Bill.pdf")}
                       className="w-8 h-8 flex items-center justify-center rounded-lg bg-white text-red-500 hover:bg-red-100 transition-colors border border-red-100"
                       title="Preview PDF"
                     >

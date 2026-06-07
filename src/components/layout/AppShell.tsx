@@ -4,9 +4,31 @@ import React, { useState } from "react";
 import { Sidebar, MobileTabBar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { PageTransition } from "../ui/PageTransition";
+import { useData } from "@/context/DataContext";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [isMobileOpen, setMobileOpen] = useState(false);
+  const { isReady } = useData();
+
+  if (!isReady) {
+    return (
+      <div className="fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-gray-50 dark:bg-neutral-950 transition-opacity duration-300">
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative w-16 h-16 flex items-center justify-center">
+            <div className="absolute inset-0 rounded-full bg-black/5 dark:bg-white/5 animate-ping" />
+            <div className="w-12 h-12 rounded-full border-4 border-gray-200 dark:border-neutral-800 border-t-black dark:border-t-white animate-spin" />
+            <div className="absolute w-6 h-6 bg-black dark:bg-white text-white dark:text-black flex items-center justify-center font-bold rounded-lg text-xs shadow-md">
+              B
+            </div>
+          </div>
+          <div className="flex flex-col items-center gap-1">
+            <span className="text-sm font-bold text-black dark:text-white tracking-tight">Loading BizTrack</span>
+            <span className="text-[11px] font-medium text-[#888] animate-pulse">Syncing database...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-gray-50">
