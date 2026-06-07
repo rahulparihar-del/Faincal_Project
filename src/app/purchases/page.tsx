@@ -9,7 +9,7 @@ import { ConfirmDelete } from "@/components/ui/ConfirmDelete";
 import { PurchaseOrder, PurchaseItem, OrderType, PaymentStatus, ShipmentStatus } from "@/lib/types";
 import { gsap } from "gsap";
 import {
-  Plus, Edit2, Trash2, Package, IndianRupee, FlaskConical, Boxes,
+  Plus, Edit2, Trash2, Package, IndianRupee, Boxes,
   X, ChevronDown, ChevronRight, CheckCircle2, Truck, FileText,
   Upload, Eye, Paperclip, AlertCircle,
 } from "lucide-react";
@@ -121,17 +121,16 @@ export default function PurchaseOrdersPage() {
 
   const stats = useMemo(() => {
     const cm = new Date().getMonth(), cy = new Date().getFullYear();
-    let thisMonth = 0, sampleCosts = 0, bulkCosts = 0, pending = 0;
+    let thisMonth = 0, bulkCosts = 0, pending = 0;
     purchases.forEach((p) => {
       const val = getGrandTotal(p);
       const d = new Date(p.date);
       if (d.getMonth() === cm && d.getFullYear() === cy) thisMonth += val;
-      if (p.orderType === "Sample") sampleCosts += val;
       if (p.orderType === "Bulk") bulkCosts += val;
       if (p.paymentStatus === "Pending") pending += val;
       else if (p.paymentStatus === "Partial") pending += (val - (p.paidAmount ?? 0));
     });
-    return { thisMonth, sampleCosts, bulkCosts, pending };
+    return { thisMonth, bulkCosts, pending };
   }, [purchases]);
 
   const advanceShipment = (p: PurchaseOrder, elId: string) => {
@@ -189,7 +188,6 @@ export default function PurchaseOrdersPage() {
 
       <CardGroup>
         <StatCard title="This Month" value={`₹${stats.thisMonth.toLocaleString("en-IN")}`} icon={Package} />
-        <StatCard title="Sample Costs" value={`₹${stats.sampleCosts.toLocaleString("en-IN")}`} icon={FlaskConical} />
         <StatCard title="Bulk Costs" value={`₹${stats.bulkCosts.toLocaleString("en-IN")}`} icon={Boxes} />
         <StatCard title="Pending Payments" value={`₹${stats.pending.toLocaleString("en-IN")}`} icon={IndianRupee} variant="loss" />
       </CardGroup>
