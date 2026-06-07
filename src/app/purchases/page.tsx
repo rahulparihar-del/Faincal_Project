@@ -9,15 +9,24 @@ import { PurchaseOrder, PurchaseItem, OrderType, PaymentStatus, ShipmentStatus }
 import { gsap } from "gsap";
 import { Plus, Edit2, Trash2, Package, IndianRupee, FlaskConical, Boxes, X, ChevronDown, ChevronRight } from "lucide-react";
 
+const GST_RATE = 5; // fixed 5%
+
 /** Returns the effective items array from a purchase order (handles legacy single-item) */
 function getItems(p: PurchaseOrder): PurchaseItem[] {
   if (p.items && p.items.length > 0) return p.items;
   return [{ productName: p.productName, qty: p.qty, rate: p.rate }];
 }
 
-/** Returns the grand total value of a purchase order */
-function getTotal(p: PurchaseOrder): number {
+/** Subtotal before GST */
+function getSubtotal(p: PurchaseOrder): number {
   return getItems(p).reduce((sum, item) => sum + item.qty * item.rate, 0);
+}
+
+/** Grand total including GST */
+function getTotal(p: PurchaseOrder): number {
+  const sub = getSubtotal(p);
+  const gstAmt = p.gstAmount ?? sub * (p.gstPercent ?? 0) / 100;
+  return sub + gstAmt;
 }
 
 export default function PurchaseOrdersPage() {
@@ -109,7 +118,7 @@ export default function PurchaseOrdersPage() {
                 <th className="hidden lg:table-cell px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider">Manufacturer</th>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider">Items</th>
                 <th className="hidden lg:table-cell px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider">Type</th>
-                <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-right">Total</th>
+                <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-right">Total (incl. GST)</th>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-center">Payment</th>
                 <th className="hidden lg:table-cell px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-center">Shipment</th>
                 <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-right">Actions</th>
@@ -119,9 +128,13 @@ export default function PurchaseOrdersPage() {
               {purchases.map((p) => {
                 const mfgName = manufacturers.find((m) => m.id === p.manufacturerId)?.name || "Unknown";
                 const items = getItems(p);
-                const total = getTotal(p);
+                const subtotal = getSubtotal(p);
+                const gstPct = p.gstPercent ?? 0;
+                const gstAmt = p.gstAmount ?? subtotal * gstPct / 100;
+                const total = subtotal + gstAmt;
                 const isMulti = items.length > 1;
                 const isExpanded = expandedId === p.id;
+                const hasGst = gstPct > 0;
 
                 return (
                   <React.Fragment key={p.id}>
@@ -135,7 +148,7 @@ export default function PurchaseOrdersPage() {
                           <button
                             onClick={() => setExpandedId(isExpanded ? null : p.id)}
                             className="w-6 h-6 flex items-center justify-center rounded text-[#888] hover:text-black hover:bg-[#f0f0f0] transition-colors"
-                            title={isExpanded ? "Collapse items" : "Expand items"}
+                            title={isExpanded ? "Collapse" : "Expand"}
                           >
                             {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                           </button>
@@ -147,16 +160,11 @@ export default function PurchaseOrdersPage() {
                       <td className="px-5 py-3.5 text-[#888]">{p.date}</td>
                       <td className="hidden lg:table-cell px-5 py-3.5 font-semibold text-black">{mfgName}</td>
 
-                      {/* Items summary cell */}
+                      {/* Items summary */}
                       <td className="px-5 py-3.5">
                         {isMulti ? (
                           <div>
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="font-medium">{items.length} products</span>
-                              <span className="lg:hidden px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#f0f0f0] text-[#555]">
-                                {items.map(i => i.productName).join(", ").slice(0, 30)}{items.map(i => i.productName).join(", ").length > 30 ? "…" : ""}
-                              </span>
-                            </div>
+                            <div className="font-medium text-black">{items.length} products</div>
                             <div className="text-xs text-[#888] mt-0.5">
                               {items.map(i => i.productName).join(" · ").slice(0, 50)}
                               {items.map(i => i.productName).join(" · ").length > 50 ? "…" : ""}
@@ -167,13 +175,7 @@ export default function PurchaseOrdersPage() {
                           <div>
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="font-medium">{items[0].productName}</span>
-                              <span
-                                className={`lg:hidden px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                                  p.orderType === "Sample"
-                                    ? "bg-amber-50 text-amber-700 border border-amber-200"
-                                    : "bg-black text-white"
-                                }`}
-                              >
+                              <span className={`lg:hidden px-1.5 py-0.5 rounded text-[10px] font-bold ${p.orderType === "Sample" ? "bg-amber-50 text-amber-700 border border-amber-200" : "bg-black text-white"}`}>
                                 {p.orderType === "Sample" ? "★ Sample" : "Bulk"}
                               </span>
                             </div>
@@ -184,16 +186,20 @@ export default function PurchaseOrdersPage() {
                       </td>
 
                       <td className="hidden lg:table-cell px-5 py-3.5">
-                        <span
-                          className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
-                            p.orderType === "Sample" ? "bg-[#f0f0f0] text-[#555]" : "bg-black text-white"
-                          }`}
-                        >
+                        <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${p.orderType === "Sample" ? "bg-[#f0f0f0] text-[#555]" : "bg-black text-white"}`}>
                           {p.orderType === "Sample" ? "★ Sample" : "Bulk"}
                         </span>
                       </td>
 
-                      <td className="px-5 py-3.5 text-right font-bold">₹{total.toLocaleString("en-IN")}</td>
+                      {/* Total with GST breakdown on hover */}
+                      <td className="px-5 py-3.5 text-right">
+                        <div className="font-bold text-black">₹{total.toLocaleString("en-IN")}</div>
+                        {hasGst && (
+                          <div className="text-[11px] text-[#888] mt-0.5">
+                            ₹{subtotal.toLocaleString("en-IN")} + {gstPct}% GST
+                          </div>
+                        )}
+                      </td>
 
                       <td className="px-5 py-3.5 text-center">
                         <span
@@ -272,6 +278,19 @@ export default function PurchaseOrdersPage() {
                                     <td className="py-2 text-right font-semibold">₹{(item.qty * item.rate).toLocaleString("en-IN")}</td>
                                   </tr>
                                 ))}
+                                {/* Subtotal */}
+                                <tr className="border-t border-[#e8e8e8]">
+                                  <td colSpan={4} className="py-1.5 text-right text-[11px] font-semibold text-[#aaa] uppercase tracking-wider">Subtotal</td>
+                                  <td className="py-1.5 text-right text-[#555] font-semibold">₹{subtotal.toLocaleString("en-IN")}</td>
+                                </tr>
+                                {/* GST row */}
+                                {hasGst && (
+                                  <tr>
+                                    <td colSpan={4} className="py-1.5 text-right text-[11px] font-semibold text-[#aaa] uppercase tracking-wider">GST ({gstPct}%)</td>
+                                    <td className="py-1.5 text-right text-[#555] font-semibold">₹{gstAmt.toLocaleString("en-IN")}</td>
+                                  </tr>
+                                )}
+                                {/* Grand Total */}
                                 <tr className="border-t border-[#e0e0e0]">
                                   <td colSpan={4} className="py-2 text-right text-[12px] font-semibold text-[#888] uppercase tracking-wider">Grand Total</td>
                                   <td className="py-2 text-right font-bold text-black">₹{total.toLocaleString("en-IN")}</td>
@@ -315,7 +334,7 @@ export default function PurchaseOrdersPage() {
 }
 
 /* ─────────────────────────────────────────────────────────────
-   Purchase Form Drawer — supports multiple items per order
+   Purchase Form Drawer — supports multiple items + 5% GST
 ───────────────────────────────────────────────────────────── */
 
 const EMPTY_ITEM: PurchaseItem = { productName: "", qty: 1, rate: 0 };
@@ -331,6 +350,8 @@ type FormMeta = {
   actualReceiptDate: string;
   notes: string;
   gst: string;
+  applyGst: boolean;
+  gstPercent: number;
 };
 
 function PurchaseFormDrawer({
@@ -358,6 +379,8 @@ function PurchaseFormDrawer({
     actualReceiptDate: "",
     notes: "",
     gst: "",
+    applyGst: true,
+    gstPercent: GST_RATE,
   };
 
   const [meta, setMeta] = useState<FormMeta>(defaultMeta);
@@ -367,6 +390,7 @@ function PurchaseFormDrawer({
     if (isOpen && editingId) {
       const po = purchases.find((p) => p.id === editingId);
       if (po) {
+        const gstPct = po.gstPercent ?? 0;
         setMeta({
           date: po.date,
           manufacturerId: po.manufacturerId,
@@ -378,6 +402,8 @@ function PurchaseFormDrawer({
           actualReceiptDate: po.actualReceiptDate,
           notes: po.notes,
           gst: po.gst || "",
+          applyGst: gstPct > 0,
+          gstPercent: gstPct > 0 ? gstPct : GST_RATE,
         });
         setItems(getItems(po).map((i) => ({ ...i })));
       }
@@ -391,15 +417,15 @@ function PurchaseFormDrawer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, editingId]);
 
-  const grandTotal = items.reduce((s, i) => s + i.qty * i.rate, 0);
+  const subtotal = items.reduce((s, i) => s + i.qty * i.rate, 0);
+  const gstAmount = meta.applyGst ? Math.round(subtotal * meta.gstPercent / 100 * 100) / 100 : 0;
+  const grandTotal = subtotal + gstAmount;
 
   /* Item helpers */
   const updateItem = (idx: number, field: keyof PurchaseItem, value: string | number) => {
     setItems((prev) => prev.map((it, i) => i === idx ? { ...it, [field]: value } : it));
   };
-
   const addItem = () => setItems((prev) => [...prev, { ...EMPTY_ITEM }]);
-
   const removeItem = (idx: number) => {
     if (items.length === 1) return;
     setItems((prev) => prev.filter((_, i) => i !== idx));
@@ -407,8 +433,6 @@ function PurchaseFormDrawer({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Validate: at least one item with productName filled
     const validItems = items.filter((it) => it.productName.trim() !== "" && it.qty > 0);
     if (!meta.manufacturerId || validItems.length === 0) {
       if (formRef.current)
@@ -417,16 +441,21 @@ function PurchaseFormDrawer({
     }
 
     const firstItem = validItems[0];
+    const gstPct = meta.applyGst ? meta.gstPercent : 0;
+    const sub = validItems.reduce((s, i) => s + i.qty * i.rate, 0);
+    const gstAmt = Math.round(sub * gstPct / 100 * 100) / 100;
+
     const po: PurchaseOrder = {
       id: editingId || Date.now().toString(),
       date: meta.date,
       manufacturerId: meta.manufacturerId,
       orderType: meta.orderType,
       items: validItems,
-      // Keep legacy fields pointing to first item (for any old code that reads them)
       productName: firstItem.productName,
       qty: firstItem.qty,
       rate: firstItem.rate,
+      gstPercent: gstPct,
+      gstAmount: gstAmt,
       paymentStatus: meta.paymentStatus,
       paymentDate: meta.paymentDate,
       shipmentStatus: meta.shipmentStatus,
@@ -438,8 +467,7 @@ function PurchaseFormDrawer({
     onSave(po);
   };
 
-  const inputCls =
-    "w-full bg-[#f5f5f5] border border-[#e8e8e8] rounded-xl px-4 py-2.5 text-sm font-medium text-black placeholder:text-[#aaa] focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-[#ccc] transition-colors";
+  const inputCls = "w-full bg-[#f5f5f5] border border-[#e8e8e8] rounded-xl px-4 py-2.5 text-sm font-medium text-black placeholder:text-[#aaa] focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-[#ccc] transition-colors";
   const labelCls = "block text-[13px] font-semibold text-[#555] mb-1.5";
 
   return (
@@ -492,11 +520,7 @@ function PurchaseFormDrawer({
 
             <div className="flex flex-col gap-3">
               {items.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="bg-[#f9f9f9] border border-[#e8e8e8] rounded-xl p-4 relative"
-                >
-                  {/* Remove button — only show if more than 1 item */}
+                <div key={idx} className="bg-[#f9f9f9] border border-[#e8e8e8] rounded-xl p-4 relative">
                   {items.length > 1 && (
                     <button
                       type="button"
@@ -508,32 +532,22 @@ function PurchaseFormDrawer({
                     </button>
                   )}
 
-                  <div className="text-[11px] font-bold text-[#999] uppercase tracking-wider mb-3">
-                    Item {idx + 1}
-                  </div>
+                  <div className="text-[11px] font-bold text-[#999] uppercase tracking-wider mb-3">Item {idx + 1}</div>
 
-                  {/* Product Name */}
                   <div className="mb-3">
                     <label className={labelCls}>Product Name *</label>
                     <input
-                      type="text"
-                      required
-                      placeholder="e.g. Musline Fabric"
+                      type="text" required placeholder="e.g. Musline Fabric"
                       className={inputCls}
                       value={item.productName}
                       onChange={(e) => updateItem(idx, "productName", e.target.value)}
                     />
                   </div>
 
-                  {/* Qty + Rate side by side */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className={labelCls}>Qty *</label>
-                      <input
-                        type="number"
-                        required
-                        min="1"
-                        placeholder="0"
+                      <input type="number" required min="1" placeholder="0"
                         className={inputCls}
                         value={item.qty || ""}
                         onChange={(e) => updateItem(idx, "qty", Number(e.target.value))}
@@ -541,12 +555,7 @@ function PurchaseFormDrawer({
                     </div>
                     <div>
                       <label className={labelCls}>Rate/Unit (₹) *</label>
-                      <input
-                        type="number"
-                        required
-                        min="0"
-                        step="0.01"
-                        placeholder="0.00"
+                      <input type="number" required min="0" step="0.01" placeholder="0.00"
                         className={inputCls}
                         value={item.rate || ""}
                         onChange={(e) => updateItem(idx, "rate", Number(e.target.value))}
@@ -564,10 +573,59 @@ function PurchaseFormDrawer({
             </div>
           </div>
 
-          {/* Grand Total */}
-          <div className="bg-black text-white p-5 rounded-2xl flex justify-between items-center">
-            <span className="text-[12px] font-medium uppercase tracking-wider opacity-60">Grand Total ({items.length} item{items.length > 1 ? "s" : ""})</span>
-            <span className="text-2xl font-bold">₹{grandTotal.toLocaleString("en-IN")}</span>
+          {/* ─── GST Toggle ─── */}
+          <div className="bg-[#f9f9f9] border border-[#e8e8e8] rounded-xl px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[13px] font-semibold text-black">Apply GST</div>
+                <div className="text-[11px] text-[#888] mt-0.5">Government tax on purchase</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMeta({ ...meta, applyGst: !meta.applyGst })}
+                className={`relative w-12 h-6 rounded-full transition-colors duration-200 focus:outline-none ${meta.applyGst ? "bg-black" : "bg-[#ddd]"}`}
+                role="switch"
+                aria-checked={meta.applyGst}
+              >
+                <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${meta.applyGst ? "translate-x-7" : "translate-x-1"}`} />
+              </button>
+            </div>
+
+            {meta.applyGst && (
+              <div className="mt-3 flex items-center gap-3">
+                <label className="text-[12px] font-semibold text-[#555] whitespace-nowrap">GST Rate</label>
+                <div className="flex gap-2">
+                  {[5, 12, 18, 28].map((rate) => (
+                    <button
+                      key={rate}
+                      type="button"
+                      onClick={() => setMeta({ ...meta, gstPercent: rate })}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${meta.gstPercent === rate ? "bg-black text-white" : "bg-[#eee] text-[#555] hover:bg-[#e0e0e0]"}`}
+                    >
+                      {rate}%
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ─── Bill Summary ─── */}
+          <div className="bg-black text-white rounded-2xl overflow-hidden">
+            <div className="px-5 py-3 border-b border-white/10 flex justify-between items-center">
+              <span className="text-[11px] font-medium uppercase tracking-wider opacity-50">Subtotal ({items.length} item{items.length > 1 ? "s" : ""})</span>
+              <span className="font-semibold opacity-70">₹{subtotal.toLocaleString("en-IN")}</span>
+            </div>
+            {meta.applyGst && (
+              <div className="px-5 py-3 border-b border-white/10 flex justify-between items-center">
+                <span className="text-[11px] font-medium uppercase tracking-wider opacity-50">GST ({meta.gstPercent}%)</span>
+                <span className="font-semibold text-amber-300">+ ₹{gstAmount.toLocaleString("en-IN")}</span>
+              </div>
+            )}
+            <div className="px-5 py-4 flex justify-between items-center">
+              <span className="text-[12px] font-medium uppercase tracking-wider opacity-60">Grand Total</span>
+              <span className="text-2xl font-bold">₹{grandTotal.toLocaleString("en-IN")}</span>
+            </div>
           </div>
 
           {/* Payment */}
@@ -604,12 +662,6 @@ function PurchaseFormDrawer({
               <label className={labelCls}>Actual Receipt</label>
               <input type="date" className={inputCls} value={meta.actualReceiptDate} onChange={(e) => setMeta({ ...meta, actualReceiptDate: e.target.value })} />
             </div>
-          </div>
-
-          {/* GST */}
-          <div>
-            <label className={labelCls}>GST (Optional)</label>
-            <input type="text" className={inputCls} value={meta.gst} onChange={(e) => setMeta({ ...meta, gst: e.target.value })} />
           </div>
 
           {/* Notes */}

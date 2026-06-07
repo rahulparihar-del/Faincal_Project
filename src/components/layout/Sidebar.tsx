@@ -14,6 +14,7 @@ import {
   Menu,
   Calendar,
   ScanLine,
+  Receipt,
 } from "lucide-react";
 import { gsap } from "gsap";
 import { useGSAP } from "@gsap/react";
@@ -24,6 +25,7 @@ const NAV_ITEMS = [
   { name: "Meesho Orders", href: "/meesho",        icon: ScanLine },
   { name: "Wholesale",     href: "/wholesale",     icon: Truck },
   { name: "Purchases",     href: "/purchases",     icon: FileText },
+  { name: "Expenses",      href: "/expenses",      icon: Receipt },
   { name: "Bank",          href: "/bank",          icon: Landmark },
   { name: "P&L",           href: "/pl",            icon: BarChart3 },
   { name: "Manufacturers", href: "/manufacturers", icon: Users },

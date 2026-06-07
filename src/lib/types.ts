@@ -7,6 +7,35 @@ export type TransactionType = "Credit" | "Debit";
 export type AccountType = "IDFC Current" | "IDFC Savings";
 export type Category = "Business Income" | "Manufacturer Payment" | "Ad Spend" | "Platform Payout" | "Wholesale Collection" | "Personal" | "Household" | "Transfer" | "Other";
 
+export type ExpenseCategory =
+  | "Equipment & Electronics"
+  | "Packaging & Supplies"
+  | "Office & Furniture"
+  | "Marketing & Advertising"
+  | "Shipping & Logistics"
+  | "Software & Subscriptions"
+  | "Utilities & Internet"
+  | "Repairs & Maintenance"
+  | "Other Business Expense";
+
+export interface BusinessExpense {
+  id: string;
+  date: string;
+  category: ExpenseCategory;
+  itemName: string;
+  quantity: number;
+  unitCost: number;
+  vendor: string;
+  paymentMode: PaymentMode;
+  notes: string;
+  /** GST percentage applied (e.g. 5 for 5%). 0 = no GST */
+  gstPercent: number;
+  /** Pre-computed GST amount */
+  gstAmount: number;
+  /** For packaging: which platform is this for (optional) */
+  platform?: string;
+}
+
 export interface EcomSale {
   id: string;
   date: string;
@@ -67,6 +96,10 @@ export interface PurchaseOrder {
   productName: string;
   qty: number;
   rate: number;
+  /** GST percentage applied (e.g. 5 for 5%). 0 = no GST */
+  gstPercent: number;
+  /** Pre-computed GST amount = subtotal * gstPercent / 100 */
+  gstAmount: number;
   paymentStatus: PaymentStatus;
   paymentDate: string;
   shipmentStatus: ShipmentStatus;
