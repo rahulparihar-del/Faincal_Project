@@ -353,7 +353,7 @@ export default function PurchaseOrdersPage() {
                     {/* Expanded breakdown */}
                     {isMulti && isExpanded && (
                       <tr>
-                        <td colSpan={9} className="px-0 py-0 bg-[#fafafa] border-b border-[#e8e8e8]">
+                        <td colSpan={10} className="px-0 py-0 bg-[#fafafa] border-b border-[#e8e8e8]">
                           <div className="px-16 py-3">
                             <table className="w-full text-sm">
                               <thead>
