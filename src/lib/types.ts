@@ -77,3 +77,23 @@ export interface Transaction {
   description: string;
   utr: string;
 }
+
+export interface MeeshoOrder {
+  id: string;
+  date: string;            // YYYY-MM-DD (packing date)
+  scannedAt: string;       // ISO timestamp
+  orderNo: string;         // Meesho order number from barcode
+  customerName: string;
+  customerAddress: string;
+  customerCity: string;
+  customerPincode: string;
+  sku: string;
+  productName: string;
+  size: string;
+  color: string;
+  qty: number;
+  sellingPrice: number;
+  courier: string;
+  status: "Packed" | "Shipped" | "RTO";
+  notes: string;
+}

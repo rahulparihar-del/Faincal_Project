@@ -13,6 +13,7 @@ import {
   BarChart3,
   Menu,
   Calendar,
+  ScanLine,
 } from "lucide-react";
 import { gsap } from "gsap";
 import { useGSAP } from "@gsap/react";
@@ -20,6 +21,7 @@ import { useGSAP } from "@gsap/react";
 const NAV_ITEMS = [
   { name: "Dashboard",     href: "/",             icon: LayoutDashboard },
   { name: "E-commerce",    href: "/ecom",          icon: ShoppingCart },
+  { name: "Meesho Orders", href: "/meesho",        icon: ScanLine },
   { name: "Wholesale",     href: "/wholesale",     icon: Truck },
   { name: "Purchases",     href: "/purchases",     icon: FileText },
   { name: "Bank",          href: "/bank",          icon: Landmark },
@@ -146,6 +148,7 @@ export function Sidebar({
 // Only visible on mobile (< lg). Native-app feel — pill indicator + labels.
 export function MobileTabBar() {
   const pathname = usePathname();
+  // Show: Dashboard, E-commerce, Meesho Orders, Wholesale, Purchases
   const PRIMARY = NAV_ITEMS.slice(0, 5);
 
   return (

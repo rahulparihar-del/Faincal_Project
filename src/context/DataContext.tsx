@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, ReactNode } from "react";
 import { useSupabaseTable } from "@/lib/hooks/useSupabaseTable";
-import { EcomSale, WholesaleSale, Manufacturer, PurchaseOrder, Transaction } from "@/lib/types";
+import { EcomSale, WholesaleSale, Manufacturer, PurchaseOrder, Transaction, MeeshoOrder } from "@/lib/types";
 
 interface DataContextType {
   ecomSales: EcomSale[];
@@ -15,6 +15,8 @@ interface DataContextType {
   setPurchases: (val: PurchaseOrder[] | ((prev: PurchaseOrder[]) => PurchaseOrder[])) => void;
   transactions: Transaction[];
   setTransactions: (val: Transaction[] | ((prev: Transaction[]) => Transaction[])) => void;
+  meeshoOrders: MeeshoOrder[];
+  setMeeshoOrders: (val: MeeshoOrder[] | ((prev: MeeshoOrder[]) => MeeshoOrder[])) => void;
   isReady: boolean;
 }
 
@@ -26,8 +28,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [manufacturers, setManufacturers, mReady] = useSupabaseTable<Manufacturer>("manufacturers", "biztrack_manufacturers", []);
   const [purchases, setPurchases, pReady] = useSupabaseTable<PurchaseOrder>("purchases", "biztrack_purchases", []);
   const [transactions, setTransactions, tReady] = useSupabaseTable<Transaction>("transactions", "biztrack_transactions", []);
+  const [meeshoOrders, setMeeshoOrders, meReady] = useSupabaseTable<MeeshoOrder>("meesho_orders", "biztrack_meesho", []);
 
-  const isReady = eReady && wReady && mReady && pReady && tReady;
+  const isReady = eReady && wReady && mReady && pReady && tReady && meReady;
 
   return (
     <DataContext.Provider
@@ -37,6 +40,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         manufacturers, setManufacturers,
         purchases, setPurchases,
         transactions, setTransactions,
+        meeshoOrders, setMeeshoOrders,
         isReady
       }}
     >
