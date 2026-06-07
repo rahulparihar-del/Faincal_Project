@@ -242,7 +242,14 @@ export default function ExpensesPage() {
                         <span className="text-[#ccc]">—</span>
                       )}
                     </td>
-                    <td className="px-5 py-3.5 text-right font-bold text-black">₹{amount.toLocaleString("en-IN")}</td>
+                    <td className="px-5 py-3.5 text-right">
+                      <div className="font-bold text-black">₹{(amount + (e.gstAmount ?? 0)).toLocaleString("en-IN")}</div>
+                      {(e.gstPercent ?? 0) > 0 && (
+                        <div className="text-[11px] text-[#888] mt-0.5">
+                          ₹{amount.toLocaleString("en-IN")} + {e.gstPercent}% GST
+                        </div>
+                      )}
+                    </td>
                     <td className="hidden lg:table-cell px-5 py-3.5 text-center">
                       <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-[#f5f5f5] text-[#555]">
                         {e.paymentMode}
@@ -294,7 +301,7 @@ export default function ExpensesPage() {
               {filterCat === "All" ? "Total Spend" : filterCat} ({filtered.length} items)
             </span>
             <span className="text-lg font-bold">
-              ₹{filtered.reduce((s, e) => s + e.quantity * e.unitCost, 0).toLocaleString("en-IN")}
+              ₹{filtered.reduce((s, e) => s + e.quantity * e.unitCost + (e.gstAmount ?? 0), 0).toLocaleString("en-IN")}
             </span>
           </div>
         </div>
@@ -321,6 +328,8 @@ export default function ExpensesPage() {
    Expense Form Drawer
 ───────────────────────────────────────────────────────────── */
 
+const GST_RATE = 5;
+
 const DEFAULT_FORM: Omit<BusinessExpense, "id"> = {
   date: new Date().toISOString().split("T")[0],
   category: "Equipment & Electronics",
@@ -330,6 +339,8 @@ const DEFAULT_FORM: Omit<BusinessExpense, "id"> = {
   vendor: "",
   paymentMode: "UPI",
   notes: "",
+  gstPercent: GST_RATE,
+  gstAmount: 0,
   platform: "N/A",
 };
 
@@ -347,6 +358,8 @@ function ExpenseFormDrawer({
   const { businessExpenses } = useData();
   const formRef = useRef<HTMLFormElement>(null);
   const [form, setForm] = useState<Omit<BusinessExpense, "id">>({ ...DEFAULT_FORM });
+  const [applyGst, setApplyGst] = useState(true);
+  const [gstPercent, setGstPercent] = useState(GST_RATE);
 
   useEffect(() => {
     if (isOpen && editingId) {
@@ -355,13 +368,19 @@ function ExpenseFormDrawer({
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { id: _id, ...rest } = exp;
         setForm(rest);
+        setApplyGst((exp.gstPercent ?? 0) > 0);
+        setGstPercent((exp.gstPercent ?? 0) > 0 ? (exp.gstPercent ?? GST_RATE) : GST_RATE);
       }
     } else if (isOpen) {
       setForm({ ...DEFAULT_FORM, date: new Date().toISOString().split("T")[0] });
+      setApplyGst(true);
+      setGstPercent(GST_RATE);
     }
   }, [isOpen, editingId, businessExpenses]);
 
   const totalAmount = form.quantity * form.unitCost;
+  const gstAmt = applyGst ? Math.round(totalAmount * gstPercent / 100 * 100) / 100 : 0;
+  const grandTotal = totalAmount + gstAmt;
   const showPlatform = form.category === "Packaging & Supplies" || form.category === "Marketing & Advertising" || form.category === "Shipping & Logistics";
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -371,7 +390,10 @@ function ExpenseFormDrawer({
         gsap.fromTo(formRef.current, { x: -8 }, { x: 0, ease: "elastic.out(1, 0.3)", duration: 0.5, clearProps: "x" });
       return;
     }
-    onSave({ id: editingId || Date.now().toString(), ...form });
+    const gstPct = applyGst ? gstPercent : 0;
+    const sub = form.quantity * form.unitCost;
+    const computedGst = Math.round(sub * gstPct / 100 * 100) / 100;
+    onSave({ id: editingId || Date.now().toString(), ...form, gstPercent: gstPct, gstAmount: computedGst });
   };
 
   const inputCls = "w-full bg-[#f5f5f5] border border-[#e8e8e8] rounded-xl px-4 py-2.5 text-sm font-medium text-black placeholder:text-[#aaa] focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-[#ccc] transition-colors";
@@ -459,16 +481,58 @@ function ExpenseFormDrawer({
 
         {/* Total */}
         <div
-          className="p-4 rounded-2xl flex justify-between items-center border"
-          style={{ background: activeMeta.bg, borderColor: activeMeta.color + "40" }}
+          className="rounded-xl overflow-hidden border"
+          style={{ borderColor: activeMeta.color + "40" }}
         >
-          <div>
-            <div className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: activeMeta.color + "99" }}>Total Amount</div>
-            <div className="text-xs text-[#888] mt-0.5">{form.quantity} × ₹{form.unitCost.toLocaleString("en-IN")}</div>
+          {/* Subtotal row */}
+          <div className="px-4 py-3 flex justify-between items-center" style={{ background: activeMeta.bg }}>
+            <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: activeMeta.color + "99" }}>Subtotal</span>
+            <span className="font-semibold" style={{ color: activeMeta.color }}>₹{totalAmount.toLocaleString("en-IN")}</span>
           </div>
-          <span className="text-2xl font-bold" style={{ color: activeMeta.color }}>
-            ₹{totalAmount.toLocaleString("en-IN")}
-          </span>
+
+          {/* GST Toggle */}
+          <div className="px-4 py-3 bg-[#f9f9f9] border-t" style={{ borderColor: activeMeta.color + "25" }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[13px] font-semibold text-black">Apply GST</div>
+                <div className="text-[11px] text-[#888]">Tax on this expense</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setApplyGst((v) => !v)}
+                className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${applyGst ? "bg-black" : "bg-[#ddd]"}`}
+                role="switch" aria-checked={applyGst}
+              >
+                <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${applyGst ? "translate-x-7" : "translate-x-1"}`} />
+              </button>
+            </div>
+            {applyGst && (
+              <div className="mt-3 flex items-center gap-2">
+                <span className="text-[12px] font-semibold text-[#555]">Rate:</span>
+                <div className="flex gap-2">
+                  {[5, 12, 18, 28].map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setGstPercent(r)}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${gstPercent === r ? "bg-black text-white" : "bg-[#eee] text-[#555] hover:bg-[#e0e0e0]"}`}
+                    >
+                      {r}%
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Grand Total */}
+          <div className="px-4 py-3 bg-black text-white flex justify-between items-center">
+            <div>
+              <div className="text-[11px] font-medium uppercase tracking-wider opacity-50">Grand Total</div>
+              {applyGst && <div className="text-[10px] opacity-40 mt-0.5">{form.quantity} × ₹{form.unitCost.toLocaleString("en-IN")} + {gstPercent}% GST</div>}
+            </div>
+            <span className="text-2xl font-bold">₹{grandTotal.toLocaleString("en-IN")}</span>
+          </div>
         </div>
 
         {/* Vendor */}
