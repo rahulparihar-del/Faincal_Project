@@ -303,19 +303,26 @@ export default function PurchaseOrdersPage() {
                         </button>
                       </td>
 
+                      {/* Bill PDF — its own column, only visible on lg+ */}
+                      <td className="hidden lg:table-cell px-5 py-3.5 text-center">
+                        {p.billPdf ? (
+                          <button
+                            onClick={() => setViewingPdf({ pdf: p.billPdf!, filename: p.billPdfName || "Bill.pdf" })}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-700 rounded-lg text-xs font-semibold transition-colors border border-red-100"
+                            title={p.billPdfName || "View Bill"}
+                          >
+                            <FileText size={13} />
+                            View
+                          </button>
+                        ) : (
+                          <span className="text-[#ddd] text-xs">—</span>
+                        )}
+                      </td>
+
+                      {/* Actions */}
                       <td className="px-5 py-3.5 text-right">
                         <div className="flex items-center justify-end gap-1 relative">
                           <ConfirmDelete isOpen={deletingId === p.id} onConfirm={() => handleDelete(p.id)} onCancel={() => setDeletingId(null)} />
-                          {/* View Bill PDF button */}
-                          {p.billPdf && (
-                            <button
-                              onClick={() => setViewingPdf({ pdf: p.billPdf!, filename: p.billPdfName || "Bill.pdf" })}
-                              className="w-8 h-8 flex items-center justify-center rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                              title={`View Bill: ${p.billPdfName || "Bill.pdf"}`}
-                            >
-                              <FileText size={14} />
-                            </button>
-                          )}
                           <button onClick={() => { setEditingId(p.id); setDrawerOpen(true); }} className="w-8 h-8 flex items-center justify-center rounded-lg text-[#888] hover:text-black hover:bg-[#f5f5f5] transition-colors">
                             <Edit2 size={14} />
                           </button>
