@@ -18,29 +18,17 @@ import {
   Loader2,
   Save,
   RotateCcw,
-  Tag,
-  Sparkles,
   TrendingDown,
+  Sparkles,
 } from "lucide-react";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const todayDate = () => new Date().toISOString().split("T")[0];
 const formatDate = (d: string) =>
-  new Date(d + "T00:00:00").toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  new Date(d + "T00:00:00").toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 const fmtTime = (iso: string) =>
-  new Date(iso).toLocaleTimeString("en-IN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  });
-const parseMoney = (s: string): number => {
-  const m = s.replace(/[^\d.]/g, "");
-  return parseFloat(m) || 0;
-};
+  new Date(iso).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+const parseMoney = (s: string): number => parseFloat(s.replace(/[^\d.]/g, "")) || 0;
 
 const STATUS_CONFIG = {
   Packed: { label: "Packed", bg: "rgba(59,130,246,0.1)", color: "#3b82f6", border: "rgba(59,130,246,0.25)" },
@@ -48,105 +36,135 @@ const STATUS_CONFIG = {
   RTO: { label: "RTO", bg: "rgba(239,68,68,0.1)", color: "#ef4444", border: "rgba(239,68,68,0.25)" },
 } as const;
 
-// ─── PDF Text Extraction ───────────────────────────────────────────────────────
-function pageItemsToLines(items: Array<{ str: string; transform: number[] }>): string {
+// ─── PDF Position-Aware Helpers ────────────────────────────────────────────────
+interface PosItem { str: string; x: number; y: number; }
+
+function extractPosItems(rawItems: Array<{ str: string; transform: number[] }>): PosItem[] {
+  return rawItems
+    .filter((it) => it.str?.trim())
+    .map((it) => ({
+      str: it.str.trim(),
+      x: Math.round(it.transform[4]),
+      y: Math.round(it.transform[5]),
+    }));
+}
+
+/** Group items by y-coordinate (same line), sort left→right within line, top→bottom across lines */
+function posItemsToText(items: PosItem[]): string {
   const rows = new Map<number, { x: number; str: string }[]>();
   for (const it of items) {
-    if (!it.str?.trim()) continue;
-    const y = Math.round(it.transform[5]);
-    if (!rows.has(y)) rows.set(y, []);
-    rows.get(y)!.push({ x: it.transform[4], str: it.str });
+    // Group items within 3pt of each other on y (handles slight y variation in same line)
+    let key = it.y;
+    for (const existingY of rows.keys()) {
+      if (Math.abs(existingY - it.y) <= 3) { key = existingY; break; }
+    }
+    if (!rows.has(key)) rows.set(key, []);
+    rows.get(key)!.push({ x: it.x, str: it.str });
   }
   return Array.from(rows.entries())
-    .sort((a, b) => b[0] - a[0])
-    .map(([, parts]) =>
-      parts
-        .sort((a, b) => a.x - b.x)
-        .map((p) => p.str)
-        .join(" ")
-    )
+    .sort((a, b) => b[0] - a[0])                               // top of page first
+    .map(([, parts]) => parts.sort((a, b) => a.x - b.x).map((p) => p.str).join(" "))
     .join("\n");
+}
+
+// ─── Page Classification ───────────────────────────────────────────────────────
+function classifyPage(text: string): "shipping" | "invoice" | "unknown" {
+  if (/TAX\s+INVOICE/i.test(text) || (/GSTIN/i.test(text) && /purchase\s+order/i.test(text))) return "invoice";
+  if (/customer\s+address/i.test(text) || /product\s+details/i.test(text) || /prepaid.*do\s+not\s+collect/i.test(text)) return "shipping";
+  return "unknown";
 }
 
 // ─── Shipping Label Parser ─────────────────────────────────────────────────────
 interface ShippingData {
-  orderNo: string;
-  customerName: string;
-  customerAddress: string;
-  customerCity: string;
-  customerPincode: string;
-  sku: string;
-  size: string;
-  color: string;
-  qty: number;
-  paymentType: "Prepaid" | "COD";
-  courier: string;
-  codAmount: number;
+  orderNo: string; customerName: string; customerAddress: string;
+  customerCity: string; customerPincode: string; sku: string;
+  size: string; color: string; qty: number;
+  paymentType: "Prepaid" | "COD"; courier: string; codAmount: number;
 }
 
-function parseShippingLabel(text: string): ShippingData {
-  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
-
+function parseShippingLabel(rawItems: Array<{ str: string; transform: number[] }>): ShippingData {
+  const items = extractPosItems(rawItems);
   const data: ShippingData = {
-    orderNo: "",
-    customerName: "",
-    customerAddress: "",
-    customerCity: "",
-    customerPincode: "",
-    sku: "",
-    size: "",
-    color: "",
-    qty: 1,
-    paymentType: "Prepaid",
-    courier: "",
-    codAmount: 0,
+    orderNo: "", customerName: "", customerAddress: "", customerCity: "",
+    customerPincode: "", sku: "", size: "", color: "", qty: 1,
+    paymentType: "Prepaid", courier: "", codAmount: 0,
   };
 
-  // Payment type
-  if (/prepaid/i.test(text)) data.paymentType = "Prepaid";
-  else if (/cash on delivery|COD/i.test(text)) {
+  if (items.length === 0) return data;
+
+  const xs = items.map((i) => i.x);
+  const ys = items.map((i) => i.y);
+  const xMin = Math.min(...xs), xMax = Math.max(...xs);
+  const yMin = Math.min(...ys), yMax = Math.max(...ys);
+
+  // ── Column split at ~47% from left (customer | courier+payment) ──
+  const splitX = xMin + (xMax - xMin) * 0.47;
+
+  // ── Product Details section = bottom 22% of the page ──
+  const productSectionY = yMin + (yMax - yMin) * 0.22;
+
+  const leftItems  = items.filter((i) => i.x <= splitX      && i.y > productSectionY);
+  const rightItems = items.filter((i) => i.x >  splitX      && i.y > productSectionY);
+  const bottomItems = items.filter((i) => i.y <= productSectionY);
+
+  const leftText   = posItemsToText(leftItems);
+  const rightText  = posItemsToText(rightItems);
+  const bottomText = posItemsToText(bottomItems);
+  const fullText   = posItemsToText(items);
+
+  // ── Payment type (right column) ──
+  if (/prepaid/i.test(rightText) || /prepaid/i.test(fullText)) {
+    data.paymentType = "Prepaid";
+  } else if (/cash\s+on\s+delivery|(?<!\w)COD(?!\w)/i.test(fullText)) {
     data.paymentType = "COD";
-    const codMatch = text.match(/(?:cash on delivery|COD)[:\s]+Rs\.?\s*([\d.]+)/i);
-    if (codMatch) data.codAmount = parseFloat(codMatch[1]);
+    const codAmt = fullText.match(/(?:Cash\s+on\s+Delivery|COD)[^₹\d]{0,25}(?:Rs\.?\s*)?([\d]+(?:\.\d+)?)/i);
+    if (codAmt) data.codAmount = parseFloat(codAmt[1]) || 0;
   }
 
-  // Courier
-  const couriers = ["Xpress Bees", "XpressBees", "Delhivery", "Shadowfax", "Ecom Express", "BlueDart", "DTDC", "Shiprocket", "Valmo"];
-  for (const c of couriers) {
-    if (new RegExp(c, "i").test(text)) {
-      data.courier = c === "XpressBees" ? "Xpress Bees" : c;
-      break;
-    }
+  // ── Courier (right column first, then full text) ──
+  const courierList = [
+    { pat: /xpress\s*bees/i,   name: "Xpress Bees" },
+    { pat: /delhivery/i,        name: "Delhivery" },
+    { pat: /shadowfax/i,        name: "Shadowfax" },
+    { pat: /ecom\s*express/i,   name: "Ecom Express" },
+    { pat: /bluedart/i,         name: "BlueDart" },
+    { pat: /dtdc/i,             name: "DTDC" },
+    { pat: /valmo/i,            name: "Valmo" },
+    { pat: /shiprocket/i,       name: "Shiprocket" },
+    { pat: /dotzot/i,           name: "Dotzot" },
+    { pat: /ekart/i,            name: "Ekart" },
+  ];
+  for (const c of courierList) {
+    if (c.pat.test(rightText) || c.pat.test(fullText)) { data.courier = c.name; break; }
   }
 
-  // Customer Name (line after "Customer Address")
-  const custAddrIdx = lines.findIndex((l) => /customer\s*address/i.test(l));
-  if (custAddrIdx >= 0 && custAddrIdx + 1 < lines.length) {
-    const candidate = lines[custAddrIdx + 1];
-    if (!/prepaid|xpress|delivery|pickup|cod/i.test(candidate)) {
-      data.customerName = candidate.replace(/\*/g, "").trim();
-    }
-  }
+  // ── Customer name + address (left column only) ──
+  // Now that we split columns, leftText only has customer-side content
+  const leftLines = leftText.split("\n").map((l) => l.trim()).filter(Boolean);
+  const custAddrIdx = leftLines.findIndex((l) => /customer\s*address/i.test(l));
 
-  // Address block (lines between customer name and "If undelivered")
   if (custAddrIdx >= 0) {
-    const endIdx = lines.findIndex((l, i) => i > custAddrIdx + 1 && /if undelivered|return to|prepaid|xpress|pickup/i.test(l));
-    const stop = endIdx > 0 ? endIdx : custAddrIdx + 7;
     const addrLines: string[] = [];
-    for (let i = custAddrIdx + 2; i < Math.min(stop, lines.length); i++) {
-      const l = lines[i];
-      if (l && !data.customerName.includes(l)) addrLines.push(l);
+    let nameFound = false;
+
+    for (let i = custAddrIdx + 1; i < leftLines.length; i++) {
+      const line = leftLines[i];
+      if (/if\s+undelivered|return\s+to/i.test(line)) break;
+
+      if (!nameFound && line.length >= 2 && line.length <= 70) {
+        data.customerName = line;
+        nameFound = true;
+      } else if (nameFound) {
+        addrLines.push(line);
+      }
     }
 
-    // Extract pincode from last address line
-    for (const line of [...addrLines].reverse()) {
-      const pm = line.match(/\b(\d{6})\b/);
+    // Extract city + pincode from address lines
+    for (const al of [...addrLines].reverse()) {
+      const pm = al.match(/\b(\d{6})\b/);
       if (pm) {
         data.customerPincode = pm[1];
-        // City = text before the pincode in that line
-        const beforePin = line.split(pm[1])[0].replace(/[,\s]+$/, "").trim();
-        // Often "District, State, Pincode" format
-        const parts = beforePin.split(",").map((p) => p.trim()).filter(Boolean);
+        const parts = al.replace(pm[1], "").split(",").map((p) => p.trim()).filter(Boolean);
         data.customerCity = parts[parts.length - 1] || "";
         break;
       }
@@ -156,50 +174,50 @@ function parseShippingLabel(text: string): ShippingData {
 
   // Pincode fallback
   if (!data.customerPincode) {
-    const pm = text.match(/\b(\d{6})\b/);
+    const pm = leftText.match(/\b(\d{6})\b/);
     if (pm) data.customerPincode = pm[1];
   }
 
-  // Product Details — SKU, Size, Qty, Color, Order No.
-  // Pattern: after "Product Details" header line, there's a header row then data row
-  const prodIdx = lines.findIndex((l) => /product\s*details/i.test(l));
-  if (prodIdx >= 0) {
-    // Find the data row: usually contains SKU-like string
-    for (let i = prodIdx + 1; i < Math.min(prodIdx + 8, lines.length); i++) {
-      const l = lines[i];
-      // Skip header row
-      if (/\bsku\b.*\bsize\b/i.test(l) || /\bsku\b.*\bqty\b/i.test(l)) continue;
+  // ── Product table (bottom section) ──
+  const bottomLines = bottomText.split("\n").map((l) => l.trim()).filter(Boolean);
 
-      // Try to parse: SKU  Size  Qty  Color  OrderNo
-      // "KDK-YELLOW-BOY   3-4 Years   1   NA   294893329110980480_1"
-      const skuMatch = l.match(/\b([A-Z0-9]{2,}-[A-Z0-9\-]{2,})\b/);
-      if (skuMatch) {
-        data.sku = skuMatch[1];
-        // Size: e.g. "3-4 Years", "M", "XL", "Free Size"
-        const sizeMatch = l.match(/(\d+[-–]\d+\s*(?:Years?|Yrs?|Months?|M|Y)\b|Free\s*Size|XS|S\b|M\b|L\b|XL\b|XXL\b|XXXL\b)/i);
-        if (sizeMatch) data.size = sizeMatch[1].trim();
+  for (const line of bottomLines) {
+    if (/product\s*details|^sku\b/i.test(line)) continue;
 
-        // Qty: first standalone digit
-        const afterSku = l.slice(l.indexOf(skuMatch[1]) + skuMatch[1].length);
-        const qtyMatch = afterSku.match(/\b(\d+)\b/);
-        if (qtyMatch) data.qty = parseInt(qtyMatch[1], 10) || 1;
+    // SKU: ALLCAPS-ALLCAPS[-ALLCAPS...]
+    const skuMatch = line.match(/\b([A-Z]{2,}(?:-[A-Z0-9]+){1,})\b/);
+    if (!skuMatch) continue;
 
-        // Color: "NA" or a word before order number
-        const colorMatch = afterSku.match(/\b(NA|[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b(?=\s+\d{10,})/);
-        if (colorMatch) data.color = colorMatch[1];
+    data.sku = skuMatch[1];
 
-        // Order No: long numeric string at end
-        const orderMatch = l.match(/\b(\d{10,}(?:_\d+)?)\b/);
-        if (orderMatch) data.orderNo = orderMatch[1];
-        break;
-      }
-    }
+    // Size: year/age range or garment size code
+    const sizeMatch = line.match(
+      /\b(\d{1,2}\s*[-–]\s*\d{1,2}\s*(?:years?|yrs?|months?|mos?|m|y)\b|free\s*size|XS\b|S\b|M\b|L\b|XL\b|XXL\b|XXXL\b)/i
+    );
+    if (sizeMatch) data.size = sizeMatch[1].trim();
+
+    // After SKU: remainder of line
+    const afterSku = line.slice(line.indexOf(skuMatch[1]) + skuMatch[1].length).trim();
+
+    // Qty: first 1-2 digit number in remainder (not part of date/pin/order)
+    const qtyMatch = afterSku.match(/\b(\d{1,2})\b(?!\s*[-\d])/);
+    if (qtyMatch) data.qty = Math.min(parseInt(qtyMatch[1], 10) || 1, 99);
+
+    // Color: word before order number
+    const colorMatch = afterSku.match(/\b(NA|[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b(?=\s+\d{10,})/);
+    if (colorMatch) data.color = colorMatch[1];
+
+    // Order No: long number at end (with optional _N suffix)
+    const orderMatches = [...line.matchAll(/\b(\d{10,}(?:_\d+)?)\b/g)];
+    if (orderMatches.length > 0) data.orderNo = orderMatches[orderMatches.length - 1][1];
+
+    break;
   }
 
-  // Order No fallback: large numeric barcode number in the page
+  // Order No fallback: largest number in full page
   if (!data.orderNo) {
-    const matches = [...text.matchAll(/\b(\d{13,20})\b/g)];
-    if (matches.length) data.orderNo = matches[matches.length - 1][1];
+    const allNums = [...fullText.matchAll(/\b(\d{13,20}(?:_\d+)?)\b/g)];
+    if (allNums.length > 0) data.orderNo = allNums[allNums.length - 1][1];
   }
 
   return data;
@@ -207,126 +225,104 @@ function parseShippingLabel(text: string): ShippingData {
 
 // ─── Invoice Parser ────────────────────────────────────────────────────────────
 interface InvoiceData {
-  orderNo: string;
-  invoiceNo: string;
-  productName: string;
-  grossAmount: number;
-  discount: number;
-  tax: number;
-  total: number;
+  orderNo: string; invoiceNo: string; productName: string;
+  grossAmount: number; discount: number; tax: number; total: number;
 }
 
 function parseInvoice(text: string): InvoiceData {
   const data: InvoiceData = {
-    orderNo: "",
-    invoiceNo: "",
-    productName: "",
-    grossAmount: 0,
-    discount: 0,
-    tax: 0,
-    total: 0,
+    orderNo: "", invoiceNo: "", productName: "",
+    grossAmount: 0, discount: 0, tax: 0, total: 0,
   };
 
-  // Purchase Order No
-  const poMatch = text.match(/purchase\s+order\s+no\.?\s*\n?\s*([A-Z0-9]{8,})/i);
-  if (poMatch) data.orderNo = poMatch[1].trim();
-
-  // Invoice No
-  const invMatch = text.match(/invoice\s+no\.?\s*\n?\s*([a-zA-Z0-9]+)/i);
-  if (invMatch) data.invoiceNo = invMatch[1].trim();
-
-  // Product Name: text in the Description column before HSN number
-  // Usually the first multi-word text after the table header
   const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
-  const tableHeaderIdx = lines.findIndex((l) => /description\s+hsn/i.test(l) || /description.*qty.*gross/i.test(l));
 
+  // ── Purchase Order No (long numeric, 13+ digits) ──
+  const poLineIdx = lines.findIndex((l) => /purchase\s*order\s*no/i.test(l));
+  if (poLineIdx >= 0) {
+    for (let i = poLineIdx; i <= Math.min(poLineIdx + 2, lines.length - 1); i++) {
+      const m = lines[i].match(/\b(\d{13,})\b/);
+      if (m) { data.orderNo = m[1]; break; }
+    }
+  }
+  if (!data.orderNo) {
+    const m = text.match(/\b(\d{15,20})\b/);
+    if (m) data.orderNo = m[1];
+  }
+
+  // ── Invoice No: alphanumeric code (letters + digits, 6-15 chars) ──
+  // Must NOT be: pure English word, pure digits, date, or long number
+  const invLineIdx = lines.findIndex((l) => /invoice\s*no/i.test(l));
+  if (invLineIdx >= 0) {
+    for (let i = invLineIdx; i <= Math.min(invLineIdx + 2, lines.length - 1); i++) {
+      const codes = [...lines[i].matchAll(/\b([a-zA-Z][a-zA-Z0-9]{4,14})\b/g)].map((m) => m[1]);
+      for (const code of codes) {
+        const hasLetter = /[a-zA-Z]/.test(code);
+        const hasDigit  = /[0-9]/.test(code);
+        const isKeyword = /invoice|order|date|total|bill|tax|hsn|qty|amount|discount|value|taxes|sold|gstin|igst|original|recipient/i.test(code);
+        if (hasLetter && hasDigit && !isKeyword) {
+          data.invoiceNo = code; break;
+        }
+      }
+      if (data.invoiceNo) break;
+    }
+  }
+
+  // ── Product Name (description column) ──
+  const tableHeaderIdx = lines.findIndex((l) =>
+    /description\s+hsn/i.test(l) || /description.*qty.*gross/i.test(l)
+  );
   if (tableHeaderIdx >= 0) {
     const descLines: string[] = [];
-    for (let i = tableHeaderIdx + 1; i < Math.min(tableHeaderIdx + 8, lines.length); i++) {
-      const l = lines[i];
-      // Stop at "Other Charges" or "Total" row
-      if (/other charges|^total\b/i.test(l)) break;
-      // Stop if line looks like it contains Rs. amounts (it's a data row, not description continuation)
-      if (/Rs\.\s*\d/.test(l) && descLines.length > 0) {
-        // This line might have the amounts — extract them
-        const amounts = [...l.matchAll(/Rs\.?\s*([\d,]+\.?\d*)/g)].map((m) => parseMoney(m[1]));
-        if (amounts.length >= 1) data.grossAmount = amounts[0];
-        if (amounts.length >= 2) data.discount = amounts[1];
-        if (amounts.length >= 4) data.total = amounts[amounts.length - 1];
+    for (let i = tableHeaderIdx + 1; i < Math.min(tableHeaderIdx + 12, lines.length); i++) {
+      const line = lines[i];
+      if (/^\s*(?:other\s+charges|total)\b/i.test(line)) break;
+
+      // Line with HSN code (6 digits starting with 6) → parse amounts
+      const hsnMatch = line.match(/\b6\d{5}\b/);
+      if (hsnMatch) {
+        const rsAmts = [...line.matchAll(/Rs\.?\s*([\d,]+(?:\.\d+)?)/g)].map((m) => parseMoney(m[1]));
+        if (rsAmts.length >= 1) data.grossAmount = rsAmts[0];
+        if (rsAmts.length >= 2) data.discount    = rsAmts[1];
+        if (rsAmts.length >= 4) data.total        = rsAmts[rsAmts.length - 1];
+        // HSN code is inline with description — take desc before HSN
+        const beforeHsn = line.slice(0, line.indexOf(hsnMatch[0])).trim();
+        if (beforeHsn) descLines.push(beforeHsn);
         break;
       }
-      // If the line starts with a number (HSN code like 611130), parse amounts from it
-      if (/^\d{6}/.test(l)) {
-        const amounts = [...l.matchAll(/Rs\.?\s*([\d,]+\.?\d*)/g)].map((m) => parseMoney(m[0]));
-        if (amounts.length >= 1) data.grossAmount = amounts[0];
-        if (amounts.length >= 2) data.discount = amounts[1];
-        if (amounts.length >= 4) data.total = amounts[amounts.length - 1];
-        break;
-      }
-      descLines.push(l);
+      descLines.push(line);
     }
     data.productName = descLines.join(" ").replace(/\s+/g, " ").trim();
   }
 
-  // Amounts — comprehensive pattern search if table parsing didn't find them
-  if (data.grossAmount === 0) {
-    // "Gross Amount" column value
-    const grossMatch = text.match(/Rs\.?\s*([\d,]+\.?\d*)\s*(?:Rs\.?\s*[\d,]+\.?\d*\s*){1,5}Rs\.?\s*([\d,]+\.?\d*)\s*$/m);
-    if (grossMatch) {
-      data.grossAmount = parseMoney(grossMatch[1]);
-      data.total = parseMoney(grossMatch[2]);
+  // ── Totals from "Total" line at the bottom ──
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (/^\s*total\b/i.test(lines[i])) {
+      const rsAmts = [...lines[i].matchAll(/Rs\.?\s*([\d,]+(?:\.\d+)?)/g)].map((m) => parseMoney(m[1]));
+      if (rsAmts.length > 0) {
+        data.total = rsAmts[rsAmts.length - 1];
+        if (rsAmts.length >= 2 && data.tax === 0) data.tax = rsAmts[0];
+        break;
+      }
     }
   }
 
-  // Total line at bottom: "Total ... Rs.256.00"
-  const totalLine = text.match(/^total\b.*Rs\.?\s*([\d,]+\.?\d*)\s*$/im);
-  if (totalLine) data.total = parseMoney(totalLine[1]);
-
-  // Tax: IGST amount
-  const igstMatch = text.match(/IGST\s*@?\s*[\d.]+%?\s*Rs\.?\s*([\d,]+\.?\d*)/i);
-  if (igstMatch) data.tax = parseMoney(igstMatch[1]);
-
-  // Discount
-  if (data.discount === 0) {
-    const discMatch = text.match(/discount\s+.*?Rs\.?\s*([\d,]+\.?\d*)/i);
-    if (discMatch) data.discount = parseMoney(discMatch[1]);
+  // ── Tax (IGST) ──
+  if (data.tax === 0) {
+    const igst = text.match(/IGST\s*@?[\d.]+%?\s*Rs\.?\s*([\d,]+(?:\.\d+)?)/i);
+    if (igst) data.tax = parseMoney(igst[1]);
   }
 
   return data;
 }
 
-// ─── Page classifier ───────────────────────────────────────────────────────────
-function classifyPage(text: string): "shipping" | "invoice" | "unknown" {
-  const hasProductDetails = /product\s*details/i.test(text);
-  const hasCustomerAddress = /customer\s*address/i.test(text);
-  const hasTaxInvoice = /tax\s*invoice/i.test(text);
-  const hasPurchaseOrder = /purchase\s*order\s*no/i.test(text);
-
-  if (hasTaxInvoice || hasPurchaseOrder) return "invoice";
-  if (hasProductDetails || hasCustomerAddress) return "shipping";
-  return "unknown";
-}
-
-// ─── Main extractor ────────────────────────────────────────────────────────────
+// ─── Main Extractor ────────────────────────────────────────────────────────────
 export interface ExtractedOrder {
-  orderNo: string;
-  invoiceNo: string;
-  customerName: string;
-  customerAddress: string;
-  customerCity: string;
-  customerPincode: string;
-  sku: string;
-  productName: string;
-  size: string;
-  color: string;
-  qty: number;
-  grossAmount: number;
-  discount: number;
-  tax: number;
-  sellingPrice: number;
-  paymentType: "Prepaid" | "COD";
-  courier: string;
-  pageNos: number[];
+  orderNo: string; invoiceNo: string;
+  customerName: string; customerAddress: string; customerCity: string; customerPincode: string;
+  sku: string; productName: string; size: string; color: string; qty: number;
+  grossAmount: number; discount: number; tax: number; sellingPrice: number;
+  paymentType: "Prepaid" | "COD"; courier: string; pageNos: number[];
 }
 
 async function extractFromPdf(
@@ -341,46 +337,40 @@ async function extractFromPdf(
   const pdf = await pdfjs.getDocument({ data: buffer }).promise;
   const total = pdf.numPages;
 
-  // Extract text from each page
-  const pages: { text: string; type: "shipping" | "invoice" | "unknown"; pageNo: number }[] = [];
+  const pages: { rawItems: Array<{str:string;transform:number[]}>; text: string; type: "shipping" | "invoice" | "unknown"; pageNo: number }[] = [];
 
   for (let i = 1; i <= total; i++) {
-    onProgress(`Reading page ${i} of ${total}…`, 5 + Math.round((i / total) * 60));
+    onProgress(`Reading page ${i} / ${total}…`, 5 + Math.round((i / total) * 60));
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
-    const text = pageItemsToLines(content.items as Array<{ str: string; transform: number[] }>);
-    const type = classifyPage(text);
-    pages.push({ text, type, pageNo: i });
+    const rawItems = content.items as Array<{ str: string; transform: number[] }>;
+    const text = posItemsToText(extractPosItems(rawItems));
+    pages.push({ rawItems, text, type: classifyPage(text), pageNo: i });
   }
 
-  onProgress("Matching orders…", 70);
+  onProgress("Parsing pages…", 70);
 
-  // Parse each page
   const shippingPages: (ShippingData & { pageNo: number })[] = [];
-  const invoicePages: (InvoiceData & { pageNo: number })[] = [];
+  const invoicePages:  (InvoiceData  & { pageNo: number })[] = [];
 
-  for (const { text, type, pageNo } of pages) {
-    if (type === "shipping") {
-      shippingPages.push({ ...parseShippingLabel(text), pageNo });
-    } else if (type === "invoice") {
-      invoicePages.push({ ...parseInvoice(text), pageNo });
-    }
+  for (const { rawItems, text, type, pageNo } of pages) {
+    if (type === "shipping") shippingPages.push({ ...parseShippingLabel(rawItems), pageNo });
+    else if (type === "invoice") invoicePages.push({ ...parseInvoice(text), pageNo });
   }
 
-  // Match shipping + invoice by order number (strip trailing _N suffix)
-  const normalize = (s: string) => s.replace(/_\d+$/, "").trim();
+  onProgress("Matching orders…", 85);
+
+  // Normalise order number: strip trailing _N suffix
+  const norm = (s: string) => s.replace(/_\d+$/, "").trim();
 
   const orders: ExtractedOrder[] = [];
   const usedInvoices = new Set<number>();
 
   for (const ship of shippingPages) {
-    const shipOrderNo = normalize(ship.orderNo);
-
-    // Find matching invoice
+    const shipNo = norm(ship.orderNo);
     const inv = invoicePages.find(
-      (inv) => !usedInvoices.has(inv.pageNo) && normalize(inv.orderNo) === shipOrderNo
+      (iv) => !usedInvoices.has(iv.pageNo) && (norm(iv.orderNo) === shipNo || shipNo === "")
     );
-
     if (inv) usedInvoices.add(inv.pageNo);
 
     orders.push({
@@ -405,27 +395,15 @@ async function extractFromPdf(
     });
   }
 
-  // Add unmatched invoices (shipping page might have been unknown)
+  // Add unmatched invoice-only pages
   for (const inv of invoicePages) {
     if (!usedInvoices.has(inv.pageNo)) {
       orders.push({
-        orderNo: inv.orderNo,
-        invoiceNo: inv.invoiceNo,
-        customerName: "",
-        customerAddress: "",
-        customerCity: "",
-        customerPincode: "",
-        sku: "",
-        productName: inv.productName,
-        size: "",
-        color: "",
-        qty: 1,
-        grossAmount: inv.grossAmount,
-        discount: inv.discount,
-        tax: inv.tax,
-        sellingPrice: inv.total,
-        paymentType: "Prepaid",
-        courier: "",
+        orderNo: inv.orderNo, invoiceNo: inv.invoiceNo,
+        customerName: "", customerAddress: "", customerCity: "", customerPincode: "",
+        sku: "", productName: inv.productName, size: "", color: "", qty: 1,
+        grossAmount: inv.grossAmount, discount: inv.discount, tax: inv.tax,
+        sellingPrice: inv.total, paymentType: "Prepaid", courier: "",
         pageNos: [inv.pageNo],
       });
     }
@@ -436,195 +414,110 @@ async function extractFromPdf(
 }
 
 // ─── Review Table ──────────────────────────────────────────────────────────────
-function ReviewTable({
-  orders,
-  onUpdate,
-  onRemove,
-  onSave,
-  onReset,
-}: {
+function ReviewTable({ orders, onUpdate, onRemove, onSave, onReset }: {
   orders: ExtractedOrder[];
   onUpdate: (idx: number, field: keyof ExtractedOrder, value: string | number) => void;
   onRemove: (idx: number) => void;
   onSave: () => void;
   onReset: () => void;
 }) {
-  const cellInput =
-    "w-full bg-transparent border-0 border-b border-transparent focus:border-[#ccc] focus:outline-none text-xs text-black py-0.5 font-medium placeholder-[#bbb] min-w-0";
+  const cell = "w-full bg-transparent border-0 border-b border-transparent hover:border-[#ddd] focus:border-[#999] focus:outline-none text-xs text-black py-0.5 font-medium placeholder-[#ccc] min-w-0 transition-colors";
 
-  const totalRevenue = orders.reduce((s, o) => s + o.sellingPrice, 0);
+  const totalRevenue  = orders.reduce((s, o) => s + o.sellingPrice, 0);
   const totalDiscount = orders.reduce((s, o) => s + o.discount, 0);
 
   return (
     <div className="space-y-4">
-      {/* Summary bar */}
+      {/* Summary */}
       <div className="bg-gradient-to-r from-[#f0fdf4] to-[#eff6ff] border border-[#bbf7d0] rounded-2xl px-5 py-3 flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-2">
           <Sparkles size={14} className="text-green-600" />
-          <span className="text-sm font-bold text-green-700">
-            {orders.length} orders extracted
-          </span>
+          <span className="text-sm font-bold text-green-700">{orders.length} orders extracted</span>
         </div>
-        <div className="text-xs text-[#555]">
-          Revenue: <strong>₹{totalRevenue.toLocaleString("en-IN")}</strong>
-        </div>
-        <div className="text-xs text-[#555]">
-          Discount: <strong>₹{totalDiscount.toLocaleString("en-IN")}</strong>
-        </div>
+        <span className="text-xs text-[#555]">Revenue: <strong>₹{totalRevenue.toLocaleString("en-IN")}</strong></span>
+        <span className="text-xs text-[#555]">Discount: <strong>₹{totalDiscount.toLocaleString("en-IN")}</strong></span>
         <div className="ml-auto flex gap-2">
-          <button
-            onClick={onReset}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-[#666] border border-[#e8e8e8] bg-white hover:bg-[#f5f5f5] transition-colors"
-          >
+          <button onClick={onReset} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-[#666] border border-[#e8e8e8] bg-white hover:bg-[#f5f5f5] transition-colors">
             <RotateCcw size={12} /> Reset
           </button>
-          <button
-            onClick={onSave}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-black hover:bg-[#1a1a1a] transition-colors"
-          >
+          <button onClick={onSave} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-black hover:bg-[#1a1a1a] transition-colors">
             <Save size={12} /> Save All Orders
           </button>
         </div>
       </div>
 
-      {/* Table (horizontal scroll) */}
       <div className="bg-white border border-[#e8e8e8] rounded-2xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs whitespace-nowrap">
             <thead className="bg-[#fafafa] border-b border-[#e8e8e8]">
               <tr>
-                {[
-                  "#",
-                  "Customer",
-                  "Order No.",
-                  "SKU",
-                  "Product Name",
-                  "Size",
-                  "Qty",
-                  "Gross (₹)",
-                  "Disc (₹)",
-                  "Total (₹)",
-                  "Payment",
-                  "Courier",
-                  "",
-                ].map((h) => (
-                  <th
-                    key={h}
-                    className="px-3 py-3 text-[10px] font-semibold text-[#888] uppercase tracking-wider"
-                  >
-                    {h}
-                  </th>
+                {["#","Customer","Order No.","SKU","Product Name","Size","Qty","Gross ₹","Disc ₹","Total ₹","Payment","Courier",""].map((h) => (
+                  <th key={h} className="px-3 py-3 text-[10px] font-semibold text-[#888] uppercase tracking-wider">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-[#f5f5f5]">
               {orders.map((o, idx) => (
                 <tr key={idx} className="hover:bg-[#fafafa] transition-colors group">
-                  <td className="px-3 py-2 text-[#aaa] font-bold">{idx + 1}</td>
-                  <td className="px-3 py-2 min-w-[130px]">
-                    <input
-                      className={cellInput}
-                      value={o.customerName}
-                      onChange={(e) => onUpdate(idx, "customerName", e.target.value)}
-                      placeholder="Customer name"
-                    />
-                    {o.customerCity && (
-                      <div className="text-[10px] text-[#aaa] mt-0.5">{o.customerCity} {o.customerPincode}</div>
+                  <td className="px-3 py-2.5 text-[#bbb] font-bold text-[10px]">{idx + 1}</td>
+
+                  <td className="px-3 py-2.5 min-w-[140px]">
+                    <input className={cell} value={o.customerName} onChange={(e) => onUpdate(idx, "customerName", e.target.value)} placeholder="Customer name" />
+                    {(o.customerCity || o.customerPincode) && (
+                      <div className="text-[10px] text-[#bbb] mt-0.5 truncate">{[o.customerCity, o.customerPincode].filter(Boolean).join(" ")}</div>
                     )}
                   </td>
-                  <td className="px-3 py-2 min-w-[140px]">
-                    <div className="font-mono text-[10px] text-[#666] truncate max-w-[140px]" title={o.orderNo}>
-                      {o.orderNo || "—"}
-                    </div>
+
+                  <td className="px-3 py-2.5 min-w-[130px]">
+                    <div className="font-mono text-[10px] text-[#666] truncate max-w-[130px]" title={o.orderNo}>{o.orderNo || "—"}</div>
                     {o.invoiceNo && <div className="text-[10px] text-[#bbb]">Inv: {o.invoiceNo}</div>}
                   </td>
-                  <td className="px-3 py-2 min-w-[110px]">
-                    <input
-                      className={`${cellInput} font-mono`}
-                      value={o.sku}
-                      onChange={(e) => onUpdate(idx, "sku", e.target.value)}
-                      placeholder="SKU"
-                    />
+
+                  <td className="px-3 py-2.5 min-w-[100px]">
+                    <input className={`${cell} font-mono`} value={o.sku} onChange={(e) => onUpdate(idx, "sku", e.target.value)} placeholder="SKU" />
                   </td>
-                  <td className="px-3 py-2 min-w-[160px]">
-                    <input
-                      className={cellInput}
-                      value={o.productName}
-                      onChange={(e) => onUpdate(idx, "productName", e.target.value)}
-                      placeholder="Product name"
-                    />
+
+                  <td className="px-3 py-2.5 min-w-[180px]">
+                    <input className={cell} value={o.productName} onChange={(e) => onUpdate(idx, "productName", e.target.value)} placeholder="Product name" />
                   </td>
-                  <td className="px-3 py-2 min-w-[80px]">
-                    <input
-                      className={cellInput}
-                      value={o.size}
-                      onChange={(e) => onUpdate(idx, "size", e.target.value)}
-                      placeholder="Size"
-                    />
+
+                  <td className="px-3 py-2.5 min-w-[80px]">
+                    <input className={cell} value={o.size} onChange={(e) => onUpdate(idx, "size", e.target.value)} placeholder="Size" />
                   </td>
-                  <td className="px-3 py-2 w-12 text-center">
-                    <input
-                      type="number"
-                      min={1}
-                      className={`${cellInput} text-center`}
-                      value={o.qty}
-                      onChange={(e) => onUpdate(idx, "qty", Number(e.target.value))}
-                    />
+
+                  <td className="px-3 py-2.5 w-12 text-center">
+                    <input type="number" min={1} className={`${cell} text-center`} value={o.qty} onChange={(e) => onUpdate(idx, "qty", Number(e.target.value))} />
                   </td>
-                  <td className="px-3 py-2 text-right w-20">
-                    <input
-                      type="number"
-                      min={0}
-                      className={`${cellInput} text-right`}
-                      value={o.grossAmount || ""}
-                      onChange={(e) => onUpdate(idx, "grossAmount", Number(e.target.value))}
-                      placeholder="0"
-                    />
+
+                  <td className="px-3 py-2.5 w-20 text-right">
+                    <input type="number" min={0} className={`${cell} text-right`} value={o.grossAmount || ""} onChange={(e) => onUpdate(idx, "grossAmount", Number(e.target.value))} placeholder="0" />
                   </td>
-                  <td className="px-3 py-2 text-right w-20">
-                    <input
-                      type="number"
-                      min={0}
-                      className={`${cellInput} text-right text-red-500`}
-                      value={o.discount || ""}
-                      onChange={(e) => onUpdate(idx, "discount", Number(e.target.value))}
-                      placeholder="0"
-                    />
+
+                  <td className="px-3 py-2.5 w-20 text-right">
+                    <input type="number" min={0} className={`${cell} text-right text-red-500`} value={o.discount || ""} onChange={(e) => onUpdate(idx, "discount", Number(e.target.value))} placeholder="0" />
                   </td>
-                  <td className="px-3 py-2 text-right w-20">
-                    <input
-                      type="number"
-                      min={0}
-                      className={`${cellInput} text-right font-bold`}
-                      value={o.sellingPrice || ""}
-                      onChange={(e) => onUpdate(idx, "sellingPrice", Number(e.target.value))}
-                      placeholder="0"
-                    />
+
+                  <td className="px-3 py-2.5 w-20 text-right">
+                    <input type="number" min={0} className={`${cell} text-right font-bold`} value={o.sellingPrice || ""} onChange={(e) => onUpdate(idx, "sellingPrice", Number(e.target.value))} placeholder="0" />
                   </td>
-                  <td className="px-3 py-2">
-                    <span
-                      className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                        o.paymentType === "Prepaid"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-orange-100 text-orange-700"
-                      }`}
+
+                  <td className="px-3 py-2.5">
+                    <select
+                      className="bg-transparent border-0 text-[10px] font-bold cursor-pointer focus:outline-none"
+                      value={o.paymentType}
+                      onChange={(e) => onUpdate(idx, "paymentType", e.target.value)}
                     >
-                      {o.paymentType}
-                    </span>
+                      <option value="Prepaid">Prepaid</option>
+                      <option value="COD">COD</option>
+                    </select>
                   </td>
-                  <td className="px-3 py-2 min-w-[90px]">
-                    <input
-                      className={cellInput}
-                      value={o.courier}
-                      onChange={(e) => onUpdate(idx, "courier", e.target.value)}
-                      placeholder="Courier"
-                    />
+
+                  <td className="px-3 py-2.5 min-w-[90px]">
+                    <input className={cell} value={o.courier} onChange={(e) => onUpdate(idx, "courier", e.target.value)} placeholder="Courier" />
                   </td>
-                  <td className="px-3 py-2">
-                    <button
-                      onClick={() => onRemove(idx)}
-                      className="w-6 h-6 flex items-center justify-center rounded-lg text-[#ccc] hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
-                    >
+
+                  <td className="px-3 py-2.5">
+                    <button onClick={() => onRemove(idx)} className="w-6 h-6 flex items-center justify-center rounded-lg text-[#ddd] hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100">
                       <X size={12} />
                     </button>
                   </td>
@@ -636,88 +529,46 @@ function ReviewTable({
       </div>
 
       <div className="flex justify-end">
-        <button
-          onClick={onSave}
-          className="flex items-center gap-2 px-6 py-3 rounded-xl bg-black text-white font-bold text-sm hover:bg-[#1a1a1a] transition-colors shadow-[0_4px_14px_rgba(0,0,0,0.2)]"
-        >
-          <Save size={15} />
-          Save {orders.length} Orders to Today
+        <button onClick={onSave} className="flex items-center gap-2 px-6 py-3 rounded-xl bg-black text-white font-bold text-sm hover:bg-[#1a1a1a] transition-colors shadow-[0_4px_14px_rgba(0,0,0,0.2)]">
+          <Save size={15} /> Save {orders.length} Orders to Today
         </button>
       </div>
     </div>
   );
 }
 
-// ─── Order Card (History) ──────────────────────────────────────────────────────
+// ─── Order Card ────────────────────────────────────────────────────────────────
 function OrderCard({ order, onDelete }: { order: MeeshoOrder; onDelete: () => void }) {
   const [expanded, setExpanded] = useState(false);
   const cfg = STATUS_CONFIG[order.status];
 
   return (
     <div className="bg-white border border-[#e8e8e8] rounded-2xl overflow-hidden shadow-[0_1px_4px_rgba(0,0,0,0.04)] hover:shadow-[0_2px_10px_rgba(0,0,0,0.07)] transition-shadow">
-      <button
-        onClick={() => setExpanded((v) => !v)}
-        className="w-full text-left px-4 py-3.5 flex items-start gap-3"
-      >
-        <div
-          className="mt-1 w-2.5 h-2.5 rounded-full shrink-0"
-          style={{ background: cfg.color }}
-        />
+      <button onClick={() => setExpanded((v) => !v)} className="w-full text-left px-4 py-3.5 flex items-start gap-3">
+        <div className="mt-1 w-2.5 h-2.5 rounded-full shrink-0" style={{ background: cfg.color }} />
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <div className="font-bold text-black text-sm leading-tight">
-                {order.customerName || "—"}
-              </div>
-              <div className="text-[11px] text-[#888] font-mono mt-0.5 truncate">
-                #{order.orderNo || "—"}
-              </div>
+              <div className="font-bold text-black text-sm leading-tight">{order.customerName || "—"}</div>
+              <div className="text-[11px] text-[#888] font-mono mt-0.5 truncate">#{order.orderNo || "—"}</div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <span
-                className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                  order.paymentType === "Prepaid"
-                    ? "bg-green-100 text-green-700"
-                    : "bg-orange-100 text-orange-700"
-                }`}
-              >
+              <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${order.paymentType === "Prepaid" ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"}`}>
                 {order.paymentType}
               </span>
-              <span
-                className="px-2.5 py-0.5 rounded-lg text-[10px] font-bold border"
-                style={{ background: cfg.bg, color: cfg.color, borderColor: cfg.border }}
-              >
+              <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-bold border" style={{ background: cfg.bg, color: cfg.color, borderColor: cfg.border }}>
                 {cfg.label}
               </span>
-              <ChevronDown
-                size={14}
-                className={`text-[#aaa] transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
-              />
+              <ChevronDown size={14} className={`text-[#aaa] transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
             </div>
           </div>
           <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-            {order.sku && (
-              <span className="text-[11px] bg-[#f5f5f5] text-[#666] px-2 py-0.5 rounded-md font-medium font-mono">
-                {order.sku}
-              </span>
-            )}
+            {order.sku && <span className="text-[11px] bg-[#f5f5f5] text-[#666] px-2 py-0.5 rounded-md font-medium font-mono">{order.sku}</span>}
             {order.size && <span className="text-[11px] text-[#888]">{order.size}</span>}
             {order.qty > 0 && <span className="text-[11px] text-[#888]">Qty: {order.qty}</span>}
-            {order.discount > 0 && (
-              <span className="text-[11px] text-red-500 line-through">
-                ₹{order.grossAmount.toLocaleString("en-IN")}
-              </span>
-            )}
-            {order.sellingPrice > 0 && (
-              <span className="text-[11px] font-bold text-black">
-                ₹{order.sellingPrice.toLocaleString("en-IN")}
-              </span>
-            )}
-            {order.discount > 0 && (
-              <span className="text-[11px] text-green-600 font-semibold">
-                −₹{order.discount.toLocaleString("en-IN")}
-              </span>
-            )}
+            {order.discount > 0 && <span className="text-[11px] text-red-400 line-through">₹{order.grossAmount.toLocaleString("en-IN")}</span>}
+            {order.sellingPrice > 0 && <span className="text-[11px] font-bold text-black">₹{order.sellingPrice.toLocaleString("en-IN")}</span>}
+            {order.discount > 0 && <span className="text-[11px] text-green-600 font-semibold">−₹{order.discount.toLocaleString("en-IN")}</span>}
           </div>
         </div>
       </button>
@@ -730,7 +581,6 @@ function OrderCard({ order, onDelete }: { order: MeeshoOrder; onDelete: () => vo
               <div className="font-semibold text-sm text-black">{order.productName}</div>
             </div>
           )}
-
           {(order.customerAddress || order.customerCity) && (
             <div className="bg-[#fafafa] rounded-xl p-3">
               <div className="text-[10px] font-bold text-[#aaa] uppercase tracking-wider mb-1">Ship To</div>
@@ -739,7 +589,6 @@ function OrderCard({ order, onDelete }: { order: MeeshoOrder; onDelete: () => vo
               </div>
             </div>
           )}
-
           <div className="grid grid-cols-3 gap-2">
             <div className="bg-[#fafafa] rounded-xl p-2.5 text-center">
               <div className="text-[10px] font-bold text-[#aaa] uppercase tracking-wider mb-0.5">MRP</div>
@@ -754,36 +603,28 @@ function OrderCard({ order, onDelete }: { order: MeeshoOrder; onDelete: () => vo
               <div className="font-bold text-green-600 text-sm">₹{order.sellingPrice.toLocaleString("en-IN")}</div>
             </div>
           </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            {order.courier && (
-              <div className="bg-[#fafafa] rounded-xl p-2.5">
-                <div className="text-[10px] font-bold text-[#aaa] uppercase tracking-wider mb-0.5">Courier</div>
-                <div className="font-semibold text-black text-xs">{order.courier}</div>
-              </div>
-            )}
-            {order.invoiceNo && (
-              <div className="bg-[#fafafa] rounded-xl p-2.5">
-                <div className="text-[10px] font-bold text-[#aaa] uppercase tracking-wider mb-0.5">Invoice</div>
-                <div className="font-semibold text-black text-xs font-mono">{order.invoiceNo}</div>
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between">
+          {(order.courier || order.invoiceNo) && (
+            <div className="grid grid-cols-2 gap-2">
+              {order.courier && (
+                <div className="bg-[#fafafa] rounded-xl p-2.5">
+                  <div className="text-[10px] font-bold text-[#aaa] uppercase tracking-wider mb-0.5">Courier</div>
+                  <div className="font-semibold text-black text-xs">{order.courier}</div>
+                </div>
+              )}
+              {order.invoiceNo && (
+                <div className="bg-[#fafafa] rounded-xl p-2.5">
+                  <div className="text-[10px] font-bold text-[#aaa] uppercase tracking-wider mb-0.5">Invoice No.</div>
+                  <div className="font-semibold text-black text-xs font-mono">{order.invoiceNo}</div>
+                </div>
+              )}
+            </div>
+          )}
+          <div className="flex items-center justify-between pt-1">
             <span className="text-[11px] text-[#aaa]">Added {fmtTime(order.scannedAt)}</span>
-            <button
-              onClick={onDelete}
-              className="flex items-center gap-1 text-[11px] font-semibold text-red-400 hover:text-red-600 transition-colors"
-            >
+            <button onClick={onDelete} className="flex items-center gap-1 text-[11px] font-semibold text-red-400 hover:text-red-600 transition-colors">
               <Trash2 size={12} /> Delete
             </button>
           </div>
-          {order.notes && (
-            <div className="text-[12px] text-[#777] bg-[#fffbeb] border border-[#fde68a] rounded-xl px-3 py-2">
-              {order.notes}
-            </div>
-          )}
         </div>
       )}
     </div>
@@ -795,22 +636,18 @@ type AppState = "idle" | "processing" | "reviewing";
 
 export default function MeeshoOrders() {
   const { meeshoOrders, setMeeshoOrders } = useData();
-  const [appState, setAppState] = useState<AppState>("idle");
-  const [progressMsg, setProgressMsg] = useState("");
-  const [progressPct, setProgressPct] = useState(0);
+  const [appState, setAppState]           = useState<AppState>("idle");
+  const [progressMsg, setProgressMsg]     = useState("");
+  const [progressPct, setProgressPct]     = useState(0);
   const [extractedOrders, setExtractedOrders] = useState<ExtractedOrder[]>([]);
-  const [activeTab, setActiveTab] = useState<"today" | "all">("today");
-  const [dateFilter, setDateFilter] = useState(todayDate());
-  const [error, setError] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
+  const [activeTab, setActiveTab]         = useState<"today" | "all">("today");
+  const [dateFilter, setDateFilter]       = useState(todayDate());
+  const [error, setError]                 = useState<string | null>(null);
+  const [isDragging, setIsDragging]       = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const todayStr = todayDate();
-  const todayOrders = useMemo(
-    () => meeshoOrders.filter((o) => o.date === todayStr),
-    [meeshoOrders, todayStr]
-  );
-
+  const todayStr   = todayDate();
+  const todayOrders = useMemo(() => meeshoOrders.filter((o) => o.date === todayStr), [meeshoOrders, todayStr]);
   const filteredOrders = useMemo(() => {
     if (activeTab === "today") return todayOrders;
     if (dateFilter) return meeshoOrders.filter((o) => o.date === dateFilter);
@@ -818,26 +655,22 @@ export default function MeeshoOrders() {
   }, [meeshoOrders, todayOrders, activeTab, dateFilter]);
 
   const todayStats = useMemo(() => ({
-    count: todayOrders.length,
-    qty: todayOrders.reduce((s, o) => s + o.qty, 0),
-    revenue: todayOrders.filter((o) => o.status !== "RTO").reduce((s, o) => s + o.sellingPrice, 0),
+    count:    todayOrders.length,
+    qty:      todayOrders.reduce((s, o) => s + o.qty, 0),
+    revenue:  todayOrders.filter((o) => o.status !== "RTO").reduce((s, o) => s + o.sellingPrice, 0),
     discount: todayOrders.reduce((s, o) => s + o.discount, 0),
   }), [todayOrders]);
 
   const groupedByDate = useMemo(() => {
     if (activeTab === "today") return null;
     const groups: Record<string, MeeshoOrder[]> = {};
-    filteredOrders.forEach((o) => {
-      if (!groups[o.date]) groups[o.date] = [];
-      groups[o.date].push(o);
-    });
+    filteredOrders.forEach((o) => { if (!groups[o.date]) groups[o.date] = []; groups[o.date].push(o); });
     return Object.entries(groups).sort(([a], [b]) => b.localeCompare(a));
   }, [filteredOrders, activeTab]);
 
   const handleFile = useCallback(async (file: File) => {
-    if (!file.name.match(/\.(pdf)$/i)) {
-      setError("Please upload a PDF file.");
-      return;
+    if (!/\.pdf$/i.test(file.name) && file.type !== "application/pdf") {
+      setError("Please upload a PDF file (.pdf)."); return;
     }
     setError(null);
     setAppState("processing");
@@ -845,9 +678,12 @@ export default function MeeshoOrders() {
     setProgressMsg("Starting…");
     try {
       const orders = await extractFromPdf(file, (msg, pct) => {
-        setProgressMsg(msg);
-        setProgressPct(pct);
+        setProgressMsg(msg); setProgressPct(pct);
       });
+      if (orders.length === 0) {
+        setError("No orders found in this PDF. Make sure it is a Meesho shipping PDF.");
+        setAppState("idle"); return;
+      }
       setExtractedOrders(orders);
       setAppState("reviewing");
     } catch (e) {
@@ -857,25 +693,14 @@ export default function MeeshoOrders() {
     }
   }, []);
 
-  const handleDrop = useCallback(
-    (e: React.DragEvent<HTMLDivElement>) => {
-      e.preventDefault();
-      setIsDragging(false);
-      const file = e.dataTransfer.files?.[0];
-      if (file) handleFile(file);
-    },
-    [handleFile]
-  );
+  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault(); setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleFile(file);
+  }, [handleFile]);
 
-  const updateOrder = (idx: number, field: keyof ExtractedOrder, value: string | number) => {
-    setExtractedOrders((prev) =>
-      prev.map((o, i) => (i === idx ? { ...o, [field]: value } : o))
-    );
-  };
-
-  const removeOrder = (idx: number) => {
-    setExtractedOrders((prev) => prev.filter((_, i) => i !== idx));
-  };
+  const updateOrder = (idx: number, field: keyof ExtractedOrder, value: string | number) =>
+    setExtractedOrders((prev) => prev.map((o, i) => (i === idx ? { ...o, [field]: value } : o)));
 
   const saveAllOrders = () => {
     const now = new Date().toISOString();
@@ -883,29 +708,18 @@ export default function MeeshoOrders() {
       id: `${Date.now()}-${i}`,
       date: todayDate(),
       scannedAt: now,
-      orderNo: o.orderNo,
-      invoiceNo: o.invoiceNo,
-      customerName: o.customerName,
-      customerAddress: o.customerAddress,
-      customerCity: o.customerCity,
-      customerPincode: o.customerPincode,
-      sku: o.sku,
-      productName: o.productName,
-      size: o.size,
-      color: o.color,
-      qty: o.qty,
-      grossAmount: o.grossAmount,
-      discount: o.discount,
-      tax: o.tax,
-      sellingPrice: o.sellingPrice,
-      paymentType: o.paymentType,
-      courier: o.courier,
-      status: "Packed",
-      notes: "",
+      orderNo: o.orderNo, invoiceNo: o.invoiceNo,
+      customerName: o.customerName, customerAddress: o.customerAddress,
+      customerCity: o.customerCity, customerPincode: o.customerPincode,
+      sku: o.sku, productName: o.productName, size: o.size,
+      color: o.color, qty: o.qty,
+      grossAmount: o.grossAmount, discount: o.discount, tax: o.tax,
+      sellingPrice: o.sellingPrice, paymentType: o.paymentType,
+      courier: o.courier, status: "Packed", notes: "",
     }));
     setMeeshoOrders((prev) => [...newOrders, ...prev]);
-    setAppState("idle");
     setExtractedOrders([]);
+    setAppState("idle");
     setActiveTab("today");
   };
 
@@ -918,30 +732,22 @@ export default function MeeshoOrders() {
           <p className="text-sm text-[#888] mt-1">Daily packing tracker</p>
         </div>
         {appState !== "reviewing" && (
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-2 bg-black text-white px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-[#1a1a1a] active:scale-95 transition-all shadow-[0_4px_14px_rgba(0,0,0,0.2)]"
-          >
-            <Upload size={15} />
-            Upload PDF
+          <button onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-2 bg-black text-white px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-[#1a1a1a] active:scale-95 transition-all shadow-[0_4px_14px_rgba(0,0,0,0.2)]">
+            <Upload size={15} /> Upload PDF
           </button>
         )}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".pdf,application/pdf"
-          className="hidden"
-          onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }}
-        />
+        <input ref={fileInputRef} type="file" accept=".pdf,application/pdf" className="hidden"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
       </div>
 
-      {/* ── Today's Stats ── */}
+      {/* ── Stats ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { icon: ClipboardList, color: "text-blue-500", bg: "bg-[#eff6ff]", label: "Today", value: todayStats.count, sub: "Orders" },
-          { icon: Package, color: "text-green-500", bg: "bg-[#f0fdf4]", label: "Items", value: todayStats.qty, sub: "Qty packed" },
-          { icon: IndianRupee, color: "text-purple-500", bg: "bg-[#fdf4ff]", label: "Revenue", value: `₹${todayStats.revenue.toLocaleString("en-IN")}`, sub: "Earned today" },
-          { icon: TrendingDown, color: "text-red-400", bg: "bg-[#fff1f2]", label: "Discount", value: `₹${todayStats.discount.toLocaleString("en-IN")}`, sub: "Given today" },
+          { icon: ClipboardList, color: "text-blue-500",   bg: "bg-[#eff6ff]",  label: "Today",   value: todayStats.count,  sub: "Orders" },
+          { icon: Package,       color: "text-green-500",  bg: "bg-[#f0fdf4]",  label: "Items",   value: todayStats.qty,    sub: "Qty packed" },
+          { icon: IndianRupee,   color: "text-purple-500", bg: "bg-[#fdf4ff]",  label: "Revenue", value: `₹${todayStats.revenue.toLocaleString("en-IN")}`, sub: "Earned today" },
+          { icon: TrendingDown,  color: "text-red-400",    bg: "bg-[#fff1f2]",  label: "Discount",value: `₹${todayStats.discount.toLocaleString("en-IN")}`, sub: "Given today" },
         ].map(({ icon: Icon, color, bg, label, value, sub }) => (
           <div key={label} className="bg-white border border-[#e8e8e8] rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
             <div className="flex items-center gap-2 mb-2">
@@ -956,7 +762,16 @@ export default function MeeshoOrders() {
         ))}
       </div>
 
-      {/* ── Processing State ── */}
+      {/* ── Error ── */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 flex items-center gap-3">
+          <AlertCircle size={16} className="text-red-500 shrink-0" />
+          <span className="text-sm text-red-700 font-medium">{error}</span>
+          <button onClick={() => setError(null)} className="ml-auto text-red-400 hover:text-red-600"><X size={14} /></button>
+        </div>
+      )}
+
+      {/* ── Processing ── */}
       {appState === "processing" && (
         <div className="bg-white border border-[#e8e8e8] rounded-2xl p-8 flex flex-col items-center gap-4 shadow-sm">
           <div className="w-14 h-14 bg-[#f5f5f5] rounded-2xl flex items-center justify-center">
@@ -968,24 +783,10 @@ export default function MeeshoOrders() {
           </div>
           <div className="w-full max-w-xs">
             <div className="w-full h-2 bg-[#f5f5f5] rounded-full overflow-hidden">
-              <div
-                className="h-full bg-black rounded-full transition-all duration-500"
-                style={{ width: `${progressPct}%` }}
-              />
+              <div className="h-full bg-black rounded-full transition-all duration-500" style={{ width: `${progressPct}%` }} />
             </div>
             <div className="text-center text-xs text-[#aaa] mt-1">{progressPct}%</div>
           </div>
-        </div>
-      )}
-
-      {/* ── Error ── */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 flex items-center gap-3">
-          <AlertCircle size={16} className="text-red-500 shrink-0" />
-          <span className="text-sm text-red-700 font-medium">{error}</span>
-          <button onClick={() => setError(null)} className="ml-auto text-red-400 hover:text-red-600">
-            <X size={14} />
-          </button>
         </div>
       )}
 
@@ -994,24 +795,20 @@ export default function MeeshoOrders() {
         <ReviewTable
           orders={extractedOrders}
           onUpdate={updateOrder}
-          onRemove={removeOrder}
+          onRemove={(idx) => setExtractedOrders((p) => p.filter((_, i) => i !== idx))}
           onSave={saveAllOrders}
           onReset={() => { setAppState("idle"); setExtractedOrders([]); }}
         />
       )}
 
-      {/* ── Upload Drop Zone (idle + no orders) ── */}
+      {/* ── Drop Zone ── */}
       {appState === "idle" && meeshoOrders.length === 0 && (
         <div
           onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
           onDragLeave={() => setIsDragging(false)}
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
-          className={`border-2 border-dashed rounded-2xl p-10 flex flex-col items-center text-center gap-4 cursor-pointer transition-all ${
-            isDragging
-              ? "border-black bg-[#f5f5f5] scale-[1.01]"
-              : "border-[#ddd] hover:border-[#aaa] hover:bg-[#fafafa]"
-          }`}
+          className={`border-2 border-dashed rounded-2xl p-10 flex flex-col items-center text-center gap-4 cursor-pointer transition-all ${isDragging ? "border-black bg-[#f5f5f5] scale-[1.01]" : "border-[#ddd] hover:border-[#aaa] hover:bg-[#fafafa]"}`}
         >
           <div className="w-16 h-16 bg-[#f5f5f5] rounded-2xl flex items-center justify-center">
             <FileText size={32} className="text-[#888]" />
@@ -1019,29 +816,27 @@ export default function MeeshoOrders() {
           <div>
             <div className="font-bold text-black text-lg">Upload Today&apos;s Meesho PDF</div>
             <div className="text-sm text-[#666] mt-2 leading-relaxed max-w-sm">
-              Drop your Meesho orders PDF here or click to browse.<br />
-              All orders will be extracted automatically — customer name, SKU, product, price, discount, Prepaid/COD.
+              Drop your Meesho orders PDF here — all orders extracted automatically.<br />
+              Customer name, SKU, product, size, price, discount, Prepaid/COD.
             </div>
           </div>
           <div className="flex flex-wrap gap-2 justify-center">
-            {["Customer Name", "SKU", "Product", "Size", "Gross Price", "Discount", "Final Price", "Prepaid/COD"].map((t) => (
+            {["Customer Name","SKU","Product","Size","Gross Price","Discount","Final Price","Prepaid/COD"].map((t) => (
               <span key={t} className="px-2.5 py-1 bg-[#f0f0f0] rounded-lg text-xs font-semibold text-[#555]">{t}</span>
             ))}
           </div>
-          <div className="text-xs text-[#bbb]">Supports .pdf files · Multiple orders in one file</div>
+          <div className="text-xs text-[#bbb]">Supports .pdf · Multiple orders in one file</div>
         </div>
       )}
 
-      {/* ── Upload again banner (when orders exist) ── */}
+      {/* ── Upload again banner ── */}
       {appState === "idle" && meeshoOrders.length > 0 && (
         <div
           onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
           onDragLeave={() => setIsDragging(false)}
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
-          className={`border-2 border-dashed rounded-2xl px-5 py-4 flex items-center gap-4 cursor-pointer transition-all ${
-            isDragging ? "border-black bg-[#f5f5f5]" : "border-[#e8e8e8] hover:border-[#aaa]"
-          }`}
+          className={`border-2 border-dashed rounded-2xl px-5 py-4 flex items-center gap-4 cursor-pointer transition-all ${isDragging ? "border-black bg-[#f5f5f5]" : "border-[#e8e8e8] hover:border-[#aaa]"}`}
         >
           <div className="w-10 h-10 bg-[#f5f5f5] rounded-xl flex items-center justify-center shrink-0">
             <Upload size={18} className="text-[#666]" />
@@ -1053,65 +848,44 @@ export default function MeeshoOrders() {
         </div>
       )}
 
-      {/* ── Orders History ── */}
+      {/* ── History ── */}
       {appState !== "reviewing" && meeshoOrders.length > 0 && (
         <>
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex bg-[#f5f5f5] p-1 rounded-xl gap-1">
-              {(["today", "all"] as const).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setActiveTab(t)}
-                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === t ? "bg-white text-black shadow-sm" : "text-[#888] hover:text-black"}`}
-                >
+              {(["today","all"] as const).map((t) => (
+                <button key={t} onClick={() => setActiveTab(t)}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === t ? "bg-white text-black shadow-sm" : "text-[#888] hover:text-black"}`}>
                   {t === "today" ? `Today (${todayStats.count})` : `All (${meeshoOrders.length})`}
                 </button>
               ))}
             </div>
             {activeTab === "all" && (
-              <input
-                type="date"
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                className="bg-white border border-[#e8e8e8] rounded-xl px-3 py-1.5 text-xs font-medium text-black focus:outline-none focus:ring-2 focus:ring-black/10"
-              />
+              <input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)}
+                className="bg-white border border-[#e8e8e8] rounded-xl px-3 py-1.5 text-xs font-medium text-black focus:outline-none focus:ring-2 focus:ring-black/10" />
             )}
             {activeTab === "all" && dateFilter && (
-              <button onClick={() => setDateFilter("")} className="text-xs text-[#888] hover:text-black font-semibold">
-                Clear date
-              </button>
+              <button onClick={() => setDateFilter("")} className="text-xs text-[#888] hover:text-black font-semibold">Clear date</button>
             )}
           </div>
 
           {activeTab === "today" ? (
             <div className="space-y-3">
-              {filteredOrders.length === 0 ? (
-                <div className="text-center py-8 text-[#aaa] text-sm">
-                  No orders packed today yet. Upload a PDF above!
-                </div>
-              ) : (
-                filteredOrders.map((order) => (
-                  <OrderCard
-                    key={order.id}
-                    order={order}
-                    onDelete={() => setMeeshoOrders((p) => p.filter((o) => o.id !== order.id))}
-                  />
-                ))
-              )}
+              {filteredOrders.length === 0
+                ? <div className="text-center py-8 text-[#aaa] text-sm">No orders packed today yet. Upload a PDF above!</div>
+                : filteredOrders.map((order) => (
+                    <OrderCard key={order.id} order={order} onDelete={() => setMeeshoOrders((p) => p.filter((o) => o.id !== order.id))} />
+                  ))}
             </div>
           ) : (
             <div className="space-y-6">
-              {groupedByDate?.length === 0 && (
-                <div className="text-center py-8 text-[#aaa] text-sm">No orders found.</div>
-              )}
+              {groupedByDate?.length === 0 && <div className="text-center py-8 text-[#aaa] text-sm">No orders found.</div>}
               {groupedByDate?.map(([date, orders]) => (
                 <div key={date}>
                   <div className="flex items-center gap-3 mb-3">
                     <div className="flex items-center gap-2">
                       <CalendarDays size={13} className="text-[#aaa]" />
-                      <span className="text-xs font-bold text-[#888] uppercase tracking-wider">
-                        {formatDate(date)}
-                      </span>
+                      <span className="text-xs font-bold text-[#888] uppercase tracking-wider">{formatDate(date)}</span>
                     </div>
                     <div className="flex-1 h-px bg-[#f0f0f0]" />
                     <span className="text-xs font-bold text-black">
@@ -1120,11 +894,7 @@ export default function MeeshoOrders() {
                   </div>
                   <div className="space-y-3">
                     {orders.map((order) => (
-                      <OrderCard
-                        key={order.id}
-                        order={order}
-                        onDelete={() => setMeeshoOrders((p) => p.filter((o) => o.id !== order.id))}
-                      />
+                      <OrderCard key={order.id} order={order} onDelete={() => setMeeshoOrders((p) => p.filter((o) => o.id !== order.id))} />
                     ))}
                   </div>
                 </div>
