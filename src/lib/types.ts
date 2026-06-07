@@ -50,11 +50,20 @@ export interface Manufacturer {
   notes: string;
 }
 
+export interface PurchaseItem {
+  productName: string;
+  qty: number;
+  rate: number;
+}
+
 export interface PurchaseOrder {
   id: string;
   date: string;
   manufacturerId: string;
   orderType: OrderType;
+  /** Multi-item line items (preferred). If present, use this for display & totals. */
+  items?: PurchaseItem[];
+  /** Legacy single-item fields — kept for backward compat with old saved orders */
   productName: string;
   qty: number;
   rate: number;
