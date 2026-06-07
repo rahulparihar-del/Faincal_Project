@@ -13,7 +13,6 @@ import {
   ClipboardList,
   CalendarDays,
   IndianRupee,
-  CheckCircle2,
   AlertCircle,
   Loader2,
   Save,
@@ -28,239 +27,115 @@ const formatDate = (d: string) =>
   new Date(d + "T00:00:00").toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 const fmtTime = (iso: string) =>
   new Date(iso).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
-const parseMoney = (s: string): number => parseFloat(s.replace(/[^\d.]/g, "")) || 0;
+const parseMoney = (s: string) => parseFloat(s.replace(/[^\d.]/g, "")) || 0;
 
 const STATUS_CONFIG = {
-  Packed: { label: "Packed", bg: "rgba(59,130,246,0.1)", color: "#3b82f6", border: "rgba(59,130,246,0.25)" },
-  Shipped: { label: "Shipped", bg: "rgba(16,185,129,0.1)", color: "#10b981", border: "rgba(16,185,129,0.25)" },
-  RTO: { label: "RTO", bg: "rgba(239,68,68,0.1)", color: "#ef4444", border: "rgba(239,68,68,0.25)" },
+  Packed:  { label: "Packed",  bg: "rgba(59,130,246,0.1)",  color: "#3b82f6", border: "rgba(59,130,246,0.25)" },
+  Shipped: { label: "Shipped", bg: "rgba(16,185,129,0.1)",  color: "#10b981", border: "rgba(16,185,129,0.25)" },
+  RTO:     { label: "RTO",     bg: "rgba(239,68,68,0.1)",   color: "#ef4444", border: "rgba(239,68,68,0.25)" },
 } as const;
 
-// ─── PDF Position-Aware Helpers ────────────────────────────────────────────────
+// ─── PDF Helpers ───────────────────────────────────────────────────────────────
 interface PosItem { str: string; x: number; y: number; }
 
-function extractPosItems(rawItems: Array<{ str: string; transform: number[] }>): PosItem[] {
-  return rawItems
-    .filter((it) => it.str?.trim())
-    .map((it) => ({
-      str: it.str.trim(),
-      x: Math.round(it.transform[4]),
-      y: Math.round(it.transform[5]),
-    }));
+function extractPosItems(raw: Array<{str:string;transform:number[]}>): PosItem[] {
+  return raw
+    .filter(it => it.str?.trim())
+    .map(it => ({ str: it.str.trim(), x: Math.round(it.transform[4]), y: Math.round(it.transform[5]) }));
 }
 
-/** Group items by y-coordinate (same line), sort left→right within line, top→bottom across lines */
-function posItemsToText(items: PosItem[]): string {
-  const rows = new Map<number, { x: number; str: string }[]>();
+/** Group items by y (within 3pt tolerance), sort top→bottom and left→right within each row */
+function posToText(items: PosItem[]): string {
+  const rows = new Map<number, {x:number;str:string}[]>();
   for (const it of items) {
-    // Group items within 3pt of each other on y (handles slight y variation in same line)
     let key = it.y;
-    for (const existingY of rows.keys()) {
-      if (Math.abs(existingY - it.y) <= 3) { key = existingY; break; }
-    }
+    for (const k of rows.keys()) if (Math.abs(k - it.y) <= 3) { key = k; break; }
     if (!rows.has(key)) rows.set(key, []);
     rows.get(key)!.push({ x: it.x, str: it.str });
   }
-  return Array.from(rows.entries())
-    .sort((a, b) => b[0] - a[0])                               // top of page first
-    .map(([, parts]) => parts.sort((a, b) => a.x - b.x).map((p) => p.str).join(" "))
+  return [...rows.entries()]
+    .sort((a, b) => b[0] - a[0])
+    .map(([, parts]) => parts.sort((a, b) => a.x - b.x).map(p => p.str).join(" "))
     .join("\n");
 }
 
-// ─── Page Classification ───────────────────────────────────────────────────────
+/** Strip known right-column labels that bleed into customer name due to column merging */
+function cleanLine(line: string): string {
+  return line
+    .replace(/\b(xpress\s*bees|delhivery|shadowfax|ecom\s*express|bluedart|dtdc|valmo|dotzot|ekart|pickup|destination\s*code|return\s*code|air\s*waybill)\b.*/gi, "")
+    .replace(/\b(prepaid|do\s*not\s*collect|cash\s*on\s*delivery|COD)\b.*/gi, "")
+    .replace(/[^\w\s.''-]/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+// ─── Page classifier ───────────────────────────────────────────────────────────
 function classifyPage(text: string): "shipping" | "invoice" | "unknown" {
-  if (/TAX\s+INVOICE/i.test(text) || (/GSTIN/i.test(text) && /purchase\s+order/i.test(text))) return "invoice";
-  if (/customer\s+address/i.test(text) || /product\s+details/i.test(text) || /prepaid.*do\s+not\s+collect/i.test(text)) return "shipping";
+  const t = text.toLowerCase();
+  if (t.includes("tax invoice") || (t.includes("gstin") && t.includes("purchase order"))) return "invoice";
+  if (t.includes("customer address") || t.includes("product details") || t.includes("prepaid") || t.includes("do not collect")) return "shipping";
   return "unknown";
 }
 
-// ─── Shipping Label Parser ─────────────────────────────────────────────────────
-interface ShippingData {
-  orderNo: string; customerName: string; customerAddress: string;
-  customerCity: string; customerPincode: string; sku: string;
-  size: string; color: string; qty: number;
-  paymentType: "Prepaid" | "COD"; courier: string; codAmount: number;
+// ─── OCR a canvas image (shipping label) ──────────────────────────────────────
+async function ocrCanvas(canvas: HTMLCanvasElement, onProgress?: (s: string) => void): Promise<string> {
+  const Tesseract = await import("tesseract.js");
+  const { data } = await Tesseract.recognize(canvas, "eng", {
+    logger: (m: {status:string;progress:number}) => {
+      if (m.status === "recognizing text") onProgress?.(`OCR ${Math.round(m.progress * 100)}%…`);
+    },
+  });
+  return data.text || "";
 }
 
-function parseShippingLabel(rawItems: Array<{ str: string; transform: number[] }>): ShippingData {
-  const items = extractPosItems(rawItems);
-  const data: ShippingData = {
-    orderNo: "", customerName: "", customerAddress: "", customerCity: "",
-    customerPincode: "", sku: "", size: "", color: "", qty: 1,
-    paymentType: "Prepaid", courier: "", codAmount: 0,
-  };
-
-  if (items.length === 0) return data;
-
-  const xs = items.map((i) => i.x);
-  const ys = items.map((i) => i.y);
-  const xMin = Math.min(...xs), xMax = Math.max(...xs);
-  const yMin = Math.min(...ys), yMax = Math.max(...ys);
-
-  // ── Column split at ~47% from left (customer | courier+payment) ──
-  const splitX = xMin + (xMax - xMin) * 0.47;
-
-  // ── Product Details section = bottom 22% of the page ──
-  const productSectionY = yMin + (yMax - yMin) * 0.22;
-
-  const leftItems  = items.filter((i) => i.x <= splitX      && i.y > productSectionY);
-  const rightItems = items.filter((i) => i.x >  splitX      && i.y > productSectionY);
-  const bottomItems = items.filter((i) => i.y <= productSectionY);
-
-  const leftText   = posItemsToText(leftItems);
-  const rightText  = posItemsToText(rightItems);
-  const bottomText = posItemsToText(bottomItems);
-  const fullText   = posItemsToText(items);
-
-  // ── Payment type (right column) ──
-  if (/prepaid/i.test(rightText) || /prepaid/i.test(fullText)) {
-    data.paymentType = "Prepaid";
-  } else if (/cash\s+on\s+delivery|(?<!\w)COD(?!\w)/i.test(fullText)) {
-    data.paymentType = "COD";
-    const codAmt = fullText.match(/(?:Cash\s+on\s+Delivery|COD)[^₹\d]{0,25}(?:Rs\.?\s*)?([\d]+(?:\.\d+)?)/i);
-    if (codAmt) data.codAmount = parseFloat(codAmt[1]) || 0;
-  }
-
-  // ── Courier (right column first, then full text) ──
-  const courierList = [
-    { pat: /xpress\s*bees/i,   name: "Xpress Bees" },
-    { pat: /delhivery/i,        name: "Delhivery" },
-    { pat: /shadowfax/i,        name: "Shadowfax" },
-    { pat: /ecom\s*express/i,   name: "Ecom Express" },
-    { pat: /bluedart/i,         name: "BlueDart" },
-    { pat: /dtdc/i,             name: "DTDC" },
-    { pat: /valmo/i,            name: "Valmo" },
-    { pat: /shiprocket/i,       name: "Shiprocket" },
-    { pat: /dotzot/i,           name: "Dotzot" },
-    { pat: /ekart/i,            name: "Ekart" },
-  ];
-  for (const c of courierList) {
-    if (c.pat.test(rightText) || c.pat.test(fullText)) { data.courier = c.name; break; }
-  }
-
-  // ── Customer name + address (left column only) ──
-  // Now that we split columns, leftText only has customer-side content
-  const leftLines = leftText.split("\n").map((l) => l.trim()).filter(Boolean);
-  const custAddrIdx = leftLines.findIndex((l) => /customer\s*address/i.test(l));
-
-  if (custAddrIdx >= 0) {
-    const addrLines: string[] = [];
-    let nameFound = false;
-
-    for (let i = custAddrIdx + 1; i < leftLines.length; i++) {
-      const line = leftLines[i];
-      if (/if\s+undelivered|return\s+to/i.test(line)) break;
-
-      if (!nameFound && line.length >= 2 && line.length <= 70) {
-        data.customerName = line;
-        nameFound = true;
-      } else if (nameFound) {
-        addrLines.push(line);
-      }
-    }
-
-    // Extract city + pincode from address lines
-    for (const al of [...addrLines].reverse()) {
-      const pm = al.match(/\b(\d{6})\b/);
-      if (pm) {
-        data.customerPincode = pm[1];
-        const parts = al.replace(pm[1], "").split(",").map((p) => p.trim()).filter(Boolean);
-        data.customerCity = parts[parts.length - 1] || "";
-        break;
-      }
-    }
-    data.customerAddress = addrLines.slice(0, -1).join(", ").replace(/,\s*$/, "");
-  }
-
-  // Pincode fallback
-  if (!data.customerPincode) {
-    const pm = leftText.match(/\b(\d{6})\b/);
-    if (pm) data.customerPincode = pm[1];
-  }
-
-  // ── Product table (bottom section) ──
-  const bottomLines = bottomText.split("\n").map((l) => l.trim()).filter(Boolean);
-
-  for (const line of bottomLines) {
-    if (/product\s*details|^sku\b/i.test(line)) continue;
-
-    // SKU: ALLCAPS-ALLCAPS[-ALLCAPS...]
-    const skuMatch = line.match(/\b([A-Z]{2,}(?:-[A-Z0-9]+){1,})\b/);
-    if (!skuMatch) continue;
-
-    data.sku = skuMatch[1];
-
-    // Size: year/age range or garment size code
-    const sizeMatch = line.match(
-      /\b(\d{1,2}\s*[-–]\s*\d{1,2}\s*(?:years?|yrs?|months?|mos?|m|y)\b|free\s*size|XS\b|S\b|M\b|L\b|XL\b|XXL\b|XXXL\b)/i
-    );
-    if (sizeMatch) data.size = sizeMatch[1].trim();
-
-    // After SKU: remainder of line
-    const afterSku = line.slice(line.indexOf(skuMatch[1]) + skuMatch[1].length).trim();
-
-    // Qty: first 1-2 digit number in remainder (not part of date/pin/order)
-    const qtyMatch = afterSku.match(/\b(\d{1,2})\b(?!\s*[-\d])/);
-    if (qtyMatch) data.qty = Math.min(parseInt(qtyMatch[1], 10) || 1, 99);
-
-    // Color: word before order number
-    const colorMatch = afterSku.match(/\b(NA|[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b(?=\s+\d{10,})/);
-    if (colorMatch) data.color = colorMatch[1];
-
-    // Order No: long number at end (with optional _N suffix)
-    const orderMatches = [...line.matchAll(/\b(\d{10,}(?:_\d+)?)\b/g)];
-    if (orderMatches.length > 0) data.orderNo = orderMatches[orderMatches.length - 1][1];
-
-    break;
-  }
-
-  // Order No fallback: largest number in full page
-  if (!data.orderNo) {
-    const allNums = [...fullText.matchAll(/\b(\d{13,20}(?:_\d+)?)\b/g)];
-    if (allNums.length > 0) data.orderNo = allNums[allNums.length - 1][1];
-  }
-
-  return data;
+// ─── Render a PDF page to canvas for OCR ──────────────────────────────────────
+async function renderPageToCanvas(page: import("pdfjs-dist/types/src/display/api").PDFPageProxy): Promise<HTMLCanvasElement> {
+  const viewport = page.getViewport({ scale: 2 });
+  const canvas = document.createElement("canvas");
+  canvas.width  = viewport.width;
+  canvas.height = viewport.height;
+  const ctx = canvas.getContext("2d")!;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (page.render as unknown as (params: {canvasContext:CanvasRenderingContext2D;viewport:unknown}) => {promise:Promise<void>})({ canvasContext: ctx, viewport }).promise;
+  return canvas;
 }
 
 // ─── Invoice Parser ────────────────────────────────────────────────────────────
 interface InvoiceData {
-  orderNo: string; invoiceNo: string; productName: string;
+  orderNo: string; invoiceNo: string;
+  customerName: string; customerAddress: string; customerCity: string; customerPincode: string;
+  productName: string; size: string;
   grossAmount: number; discount: number; tax: number; total: number;
 }
 
-function parseInvoice(text: string): InvoiceData {
+function parseInvoice(rawText: string): InvoiceData {
   const data: InvoiceData = {
-    orderNo: "", invoiceNo: "", productName: "",
+    orderNo: "", invoiceNo: "",
+    customerName: "", customerAddress: "", customerCity: "", customerPincode: "",
+    productName: "", size: "",
     grossAmount: 0, discount: 0, tax: 0, total: 0,
   };
 
-  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  const lines = rawText.split("\n").map(l => l.trim()).filter(Boolean);
 
-  // ── Purchase Order No (long numeric, 13+ digits) ──
-  const poLineIdx = lines.findIndex((l) => /purchase\s*order\s*no/i.test(l));
-  if (poLineIdx >= 0) {
-    for (let i = poLineIdx; i <= Math.min(poLineIdx + 2, lines.length - 1); i++) {
+  // ── Purchase Order No (13+ digits) ──
+  const poLine = lines.findIndex(l => /purchase\s*order\s*no/i.test(l));
+  if (poLine >= 0) {
+    for (let i = poLine; i <= Math.min(poLine + 2, lines.length - 1); i++) {
       const m = lines[i].match(/\b(\d{13,})\b/);
       if (m) { data.orderNo = m[1]; break; }
     }
   }
-  if (!data.orderNo) {
-    const m = text.match(/\b(\d{15,20})\b/);
-    if (m) data.orderNo = m[1];
-  }
+  if (!data.orderNo) { const m = rawText.match(/\b(\d{15,20})\b/); if (m) data.orderNo = m[1]; }
 
-  // ── Invoice No: alphanumeric code (letters + digits, 6-15 chars) ──
-  // Must NOT be: pure English word, pure digits, date, or long number
-  const invLineIdx = lines.findIndex((l) => /invoice\s*no/i.test(l));
-  if (invLineIdx >= 0) {
-    for (let i = invLineIdx; i <= Math.min(invLineIdx + 2, lines.length - 1); i++) {
-      const codes = [...lines[i].matchAll(/\b([a-zA-Z][a-zA-Z0-9]{4,14})\b/g)].map((m) => m[1]);
+  // ── Invoice No (alphanumeric code: letters + digits, 5-15 chars) ──
+  const invLine = lines.findIndex(l => /invoice\s*no/i.test(l));
+  if (invLine >= 0) {
+    for (let i = invLine; i <= Math.min(invLine + 2, lines.length - 1); i++) {
+      const codes = [...lines[i].matchAll(/\b([a-zA-Z][a-zA-Z0-9]{4,14})\b/g)].map(m => m[1]);
       for (const code of codes) {
-        const hasLetter = /[a-zA-Z]/.test(code);
-        const hasDigit  = /[0-9]/.test(code);
-        const isKeyword = /invoice|order|date|total|bill|tax|hsn|qty|amount|discount|value|taxes|sold|gstin|igst|original|recipient/i.test(code);
-        if (hasLetter && hasDigit && !isKeyword) {
+        if (/[a-zA-Z]/.test(code) && /[0-9]/.test(code) &&
+            !/^(invoice|order|date|total|bill|ship|tax|hsn|qty|amount|discount|value|taxes|sold|gstin|igst|original|recipient|prepaid|purchase)/i.test(code)) {
           data.invoiceNo = code; break;
         }
       }
@@ -268,55 +143,208 @@ function parseInvoice(text: string): InvoiceData {
     }
   }
 
-  // ── Product Name (description column) ──
-  const tableHeaderIdx = lines.findIndex((l) =>
-    /description\s+hsn/i.test(l) || /description.*qty.*gross/i.test(l)
-  );
-  if (tableHeaderIdx >= 0) {
-    const descLines: string[] = [];
-    for (let i = tableHeaderIdx + 1; i < Math.min(tableHeaderIdx + 12, lines.length); i++) {
+  // ── Customer name + address from "BILL TO / SHIP TO" section ──
+  const billToLine = lines.findIndex(l => /bill\s*to.*ship\s*to/i.test(l));
+  if (billToLine >= 0 && billToLine + 1 < lines.length) {
+    const nameLine = lines[billToLine + 1];
+    // Format: "Kundan Kumar - kamal kant house, city, state, 814142, ..."
+    const nameMatch = nameLine.match(/^([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){0,4})\s*[-–]/);
+    if (nameMatch) {
+      data.customerName = nameMatch[1].trim();
+      // Everything after the dash = address
+      const addrFull = nameLine.slice(nameLine.indexOf("-") + 1).trim();
+      // Remove seller info that might bleed in (stop at all-caps company name or "Shop No")
+      const addrClean = addrFull
+        .replace(/\s+[A-Z]{2,}[A-Z\s]+(?:KIDSWEAR|WEAR|STORE|SHOP|LTD|PVT).*$/g, "")
+        .replace(/\s*Place of Supply.*$/i, "")
+        .trim();
+      const pincodeMatch = addrClean.match(/\b(\d{6})\b/);
+      if (pincodeMatch) {
+        data.customerPincode = pincodeMatch[1];
+        const parts = addrClean.split(",").map(p => p.trim()).filter(Boolean);
+        data.customerCity = parts[parts.length - 2]?.trim() || "";
+        data.customerAddress = parts.slice(0, -2).join(", ");
+      } else {
+        data.customerAddress = addrClean;
+      }
+    }
+  }
+
+  // ── Product name + amounts from invoice table ──
+  const tableHeaderLine = lines.findIndex(l => /description.*hsn|description.*qty.*gross/i.test(l));
+  if (tableHeaderLine >= 0) {
+    const descParts: string[] = [];
+
+    for (let i = tableHeaderLine + 1; i < Math.min(tableHeaderLine + 15, lines.length); i++) {
       const line = lines[i];
       if (/^\s*(?:other\s+charges|total)\b/i.test(line)) break;
 
-      // Line with HSN code (6 digits starting with 6) → parse amounts
-      const hsnMatch = line.match(/\b6\d{5}\b/);
-      if (hsnMatch) {
-        const rsAmts = [...line.matchAll(/Rs\.?\s*([\d,]+(?:\.\d+)?)/g)].map((m) => parseMoney(m[1]));
-        if (rsAmts.length >= 1) data.grossAmount = rsAmts[0];
-        if (rsAmts.length >= 2) data.discount    = rsAmts[1];
-        if (rsAmts.length >= 4) data.total        = rsAmts[rsAmts.length - 1];
-        // HSN code is inline with description — take desc before HSN
-        const beforeHsn = line.slice(0, line.indexOf(hsnMatch[0])).trim();
-        if (beforeHsn) descLines.push(beforeHsn);
+      // Find a line that has 2+ Rs. values → this is the product data row
+      const rsMatches = [...line.matchAll(/Rs\.?\s*([\d,]+(?:\.\d+)?)/g)];
+      if (rsMatches.length >= 2) {
+        const rsAmts = rsMatches.map(m => parseMoney(m[1]));
+        data.grossAmount = rsAmts[0];
+        data.discount    = rsAmts[1];
+        if (rsAmts.length >= 4) data.total = rsAmts[rsAmts.length - 1];
+        // Grab description prefix from this line (before HSN code or Rs.)
+        const beforeData = line.replace(/\b6\d{5}\b.*$/, "").replace(/Rs\..*$/, "").trim();
+        if (beforeData) descParts.push(beforeData);
         break;
       }
-      descLines.push(line);
+      // Line with HSN only (no amounts yet)
+      const hsnOnly = line.match(/^6\d{5}\b/) || line.match(/\b6\d{5}\b/);
+      if (hsnOnly) continue;
+
+      // Description continuation
+      if (!/Rs\.|IGST|Taxes?|Taxable/i.test(line)) descParts.push(line);
     }
-    data.productName = descLines.join(" ").replace(/\s+/g, " ").trim();
+
+    data.productName = descParts.join(" ").replace(/\s+/g, " ").trim();
   }
 
-  // ── Totals from "Total" line at the bottom ──
+  // ── Size from product name ──
+  const sizeInProd = data.productName.match(/\b(\d{1,2}\s*[-–]\s*\d{1,2}\s*(?:years?|yrs?|months?|mos?)\b|free\s*size|XS\b|S\b|M\b|L\b|XL\b|XXL\b)/i);
+  if (sizeInProd) data.size = sizeInProd[1].trim();
+
+  // ── Total from "Total" line at bottom ──
   for (let i = lines.length - 1; i >= 0; i--) {
     if (/^\s*total\b/i.test(lines[i])) {
-      const rsAmts = [...lines[i].matchAll(/Rs\.?\s*([\d,]+(?:\.\d+)?)/g)].map((m) => parseMoney(m[1]));
+      const rsAmts = [...lines[i].matchAll(/Rs\.?\s*([\d,]+(?:\.\d+)?)/g)].map(m => parseMoney(m[1]));
       if (rsAmts.length > 0) {
         data.total = rsAmts[rsAmts.length - 1];
-        if (rsAmts.length >= 2 && data.tax === 0) data.tax = rsAmts[0];
+        if (rsAmts.length >= 2 && !data.tax) data.tax = rsAmts[0];
         break;
       }
     }
   }
 
-  // ── Tax (IGST) ──
-  if (data.tax === 0) {
-    const igst = text.match(/IGST\s*@?[\d.]+%?\s*Rs\.?\s*([\d,]+(?:\.\d+)?)/i);
+  // ── Tax ──
+  if (!data.tax) {
+    const igst = rawText.match(/IGST\s*@?[\d.]+%?\s*Rs\.?\s*([\d,]+(?:\.\d+)?)/i);
     if (igst) data.tax = parseMoney(igst[1]);
   }
 
   return data;
 }
 
-// ─── Main Extractor ────────────────────────────────────────────────────────────
+// ─── Shipping Label Parser (full-text mode, no column split required) ─────────
+interface ShippingData {
+  orderNo: string; customerName: string; customerAddress: string;
+  customerCity: string; customerPincode: string;
+  sku: string; size: string; color: string; qty: number;
+  paymentType: "Prepaid" | "COD"; courier: string; codAmount: number;
+}
+
+const COURIER_LIST = [
+  { pat: /xpress\s*bees/i,  name: "Xpress Bees" },
+  { pat: /delhivery/i,       name: "Delhivery" },
+  { pat: /shadowfax/i,       name: "Shadowfax" },
+  { pat: /ecom\s*express/i,  name: "Ecom Express" },
+  { pat: /bluedart/i,        name: "BlueDart" },
+  { pat: /dtdc/i,            name: "DTDC" },
+  { pat: /valmo/i,           name: "Valmo" },
+  { pat: /shiprocket/i,      name: "Shiprocket" },
+  { pat: /dotzot/i,          name: "Dotzot" },
+  { pat: /ekart/i,           name: "Ekart" },
+];
+
+function parseShippingLabel(fullText: string): ShippingData {
+  const data: ShippingData = {
+    orderNo: "", customerName: "", customerAddress: "",
+    customerCity: "", customerPincode: "", sku: "",
+    size: "", color: "", qty: 1, paymentType: "Prepaid", courier: "", codAmount: 0,
+  };
+
+  // ── Payment type ──
+  if (/prepaid/i.test(fullText)) {
+    data.paymentType = "Prepaid";
+  } else if (/cash\s+on\s+delivery|(?<![a-z])COD(?![a-z])/i.test(fullText)) {
+    data.paymentType = "COD";
+    const codAmt = fullText.match(/(?:Cash\s+on\s+Delivery|COD)[^₹\d]{0,30}(?:Rs\.?\s*)?([\d]+(?:\.\d+)?)/i);
+    if (codAmt) data.codAmount = parseFloat(codAmt[1]) || 0;
+  }
+
+  // ── Courier ──
+  for (const c of COURIER_LIST) {
+    if (c.pat.test(fullText)) { data.courier = c.name; break; }
+  }
+
+  // ── Customer name (line after "Customer Address" header, stripped of right-column noise) ──
+  const lines = fullText.split("\n").map(l => l.trim()).filter(Boolean);
+  const custAddrIdx = lines.findIndex(l => /customer\s*address/i.test(l));
+
+  if (custAddrIdx >= 0) {
+    const addrBody: string[] = [];
+    for (let i = custAddrIdx + 1; i < Math.min(custAddrIdx + 10, lines.length); i++) {
+      const raw = lines[i];
+      if (/if\s+undelivered|return\s+to/i.test(raw)) break;
+      const cleaned = cleanLine(raw);
+      if (!data.customerName && cleaned.length >= 3) {
+        data.customerName = cleaned;
+      } else if (data.customerName && cleaned.length >= 3) {
+        addrBody.push(cleaned);
+      }
+    }
+
+    // Pincode from address lines
+    for (const al of [...addrBody].reverse()) {
+      const pm = al.match(/\b(\d{6})\b/);
+      if (pm) {
+        data.customerPincode = pm[1];
+        const parts = al.split(",").map(p => p.trim()).filter(Boolean);
+        data.customerCity = parts[parts.length - 1] || "";
+        break;
+      }
+    }
+    data.customerAddress = addrBody.slice(0, -1).join(", ");
+  }
+
+  // Pincode fallback
+  if (!data.customerPincode) {
+    const pm = fullText.match(/\b(\d{6})\b/);
+    if (pm) data.customerPincode = pm[1];
+  }
+
+  // ── SKU (search in Product Details section first, then full text) ──
+  const prodIdx = fullText.search(/product\s*details/i);
+  const searchZone = prodIdx >= 0 ? fullText.slice(prodIdx) : fullText;
+
+  // SKU pattern: 2+ ALL-CAPS words joined by hyphens, min 5 chars
+  const skuMatches = [...searchZone.matchAll(/\b([A-Z]{2,}(?:-[A-Z0-9]+){1,})\b/g)].map(m => m[1]);
+  const EXCLUDED_SKUS = /^(BILL|SHIP|PICK|RETURN|DEST|CODE|ECOM|BLUE|DART|DTDC|VALMO|XPRESS|BEES|ORDER|SIZE|COLOR|QTY|NA)-/i;
+  const sku = skuMatches.find(s => s.length >= 5 && !EXCLUDED_SKUS.test(s));
+  if (sku) data.sku = sku;
+
+  // ── Size ──
+  const sizeMatch = fullText.match(/\b(\d{1,2}\s*[-–]\s*\d{1,2}\s*(?:years?|yrs?|months?|mos?)\b|Free\s*Size)\b/i)
+    || fullText.match(/\b(XS|S|M|L|XL|XXL|XXXL)\b/);
+  if (sizeMatch) data.size = sizeMatch[1].trim();
+
+  // ── Qty and Color from product table row ──
+  // Look for the row that has the SKU code on it
+  if (data.sku) {
+    const skuLine = lines.find(l => l.includes(data.sku));
+    if (skuLine) {
+      const afterSku = skuLine.slice(skuLine.indexOf(data.sku) + data.sku.length).trim();
+      const qtyMatch = afterSku.match(/\b(\d{1,2})\b(?!\s*[-\d])/);
+      if (qtyMatch) data.qty = Math.min(parseInt(qtyMatch[1], 10) || 1, 99);
+      const colorMatch = afterSku.match(/\b(NA|[A-Z][a-z]+)\b(?=\s+\d{10,}|\s*$)/);
+      if (colorMatch) data.color = colorMatch[1];
+      const orderMatch = [...skuLine.matchAll(/\b(\d{10,}(?:_\d+)?)\b/g)];
+      if (orderMatch.length) data.orderNo = orderMatch[orderMatch.length - 1][1];
+    }
+  }
+
+  // ── Order No fallback ──
+  if (!data.orderNo) {
+    const allNums = [...fullText.matchAll(/\b(\d{13,20}(?:_\d+)?)\b/g)];
+    if (allNums.length) data.orderNo = allNums[allNums.length - 1][1];
+  }
+
+  return data;
+}
+
+// ─── Main extractor ────────────────────────────────────────────────────────────
 export interface ExtractedOrder {
   orderNo: string; invoiceNo: string;
   customerName: string; customerAddress: string; customerCity: string; customerPincode: string;
@@ -337,71 +365,83 @@ async function extractFromPdf(
   const pdf = await pdfjs.getDocument({ data: buffer }).promise;
   const total = pdf.numPages;
 
-  const pages: { rawItems: Array<{str:string;transform:number[]}>; text: string; type: "shipping" | "invoice" | "unknown"; pageNo: number }[] = [];
-
-  for (let i = 1; i <= total; i++) {
-    onProgress(`Reading page ${i} / ${total}…`, 5 + Math.round((i / total) * 60));
-    const page = await pdf.getPage(i);
-    const content = await page.getTextContent();
-    const rawItems = content.items as Array<{ str: string; transform: number[] }>;
-    const text = posItemsToText(extractPosItems(rawItems));
-    pages.push({ rawItems, text, type: classifyPage(text), pageNo: i });
-  }
-
-  onProgress("Parsing pages…", 70);
-
   const shippingPages: (ShippingData & { pageNo: number })[] = [];
   const invoicePages:  (InvoiceData  & { pageNo: number })[] = [];
 
-  for (const { rawItems, text, type, pageNo } of pages) {
-    if (type === "shipping") shippingPages.push({ ...parseShippingLabel(rawItems), pageNo });
-    else if (type === "invoice") invoicePages.push({ ...parseInvoice(text), pageNo });
+  for (let i = 1; i <= total; i++) {
+    onProgress(`Reading page ${i}/${total}…`, 5 + Math.round((i / total) * 65));
+    const page = await pdf.getPage(i);
+
+    // ── Try text extraction first ──
+    const content = await page.getTextContent();
+    const rawItems = content.items as Array<{ str: string; transform: number[] }>;
+    let text = posToText(extractPosItems(rawItems));
+
+    // ── If page has too little text → it's likely an image, OCR it ──
+    const hasEnoughText = text.replace(/\s/g, "").length > 80;
+    if (!hasEnoughText) {
+      try {
+        onProgress(`Page ${i}: scanning image…`, 5 + Math.round((i / total) * 65));
+        const canvas = await renderPageToCanvas(page);
+        text = await ocrCanvas(canvas, (s) => onProgress(s, 5 + Math.round((i / total) * 65)));
+      } catch {
+        // OCR failed, continue with empty text
+      }
+    }
+
+    const type = classifyPage(text);
+    if (type === "invoice")  invoicePages.push({ ...parseInvoice(text), pageNo: i });
+    else if (type === "shipping") shippingPages.push({ ...parseShippingLabel(text), pageNo: i });
   }
 
-  onProgress("Matching orders…", 85);
+  onProgress("Matching orders…", 80);
 
-  // Normalise order number: strip trailing _N suffix
   const norm = (s: string) => s.replace(/_\d+$/, "").trim();
-
   const orders: ExtractedOrder[] = [];
   const usedInvoices = new Set<number>();
 
   for (const ship of shippingPages) {
     const shipNo = norm(ship.orderNo);
-    const inv = invoicePages.find(
-      (iv) => !usedInvoices.has(iv.pageNo) && (norm(iv.orderNo) === shipNo || shipNo === "")
-    );
+
+    // Match invoice by order number, or take the next unmatched one (sequential PDF)
+    const inv = invoicePages.find(iv =>
+      !usedInvoices.has(iv.pageNo) &&
+      (shipNo && norm(iv.orderNo) === shipNo || !shipNo)
+    ) ?? invoicePages.find(iv => !usedInvoices.has(iv.pageNo));
+
     if (inv) usedInvoices.add(inv.pageNo);
 
     orders.push({
-      orderNo: ship.orderNo || inv?.orderNo || "",
-      invoiceNo: inv?.invoiceNo || "",
-      customerName: ship.customerName,
-      customerAddress: ship.customerAddress,
-      customerCity: ship.customerCity,
-      customerPincode: ship.customerPincode,
-      sku: ship.sku,
-      productName: inv?.productName || "",
-      size: ship.size,
-      color: ship.color,
-      qty: ship.qty,
-      grossAmount: inv?.grossAmount || 0,
-      discount: inv?.discount || 0,
-      tax: inv?.tax || 0,
-      sellingPrice: inv?.total || (ship.paymentType === "COD" ? ship.codAmount : 0),
-      paymentType: ship.paymentType,
-      courier: ship.courier,
+      orderNo:         ship.orderNo || inv?.orderNo || "",
+      invoiceNo:       inv?.invoiceNo || "",
+      customerName:    ship.customerName || inv?.customerName || "",
+      customerAddress: ship.customerAddress || inv?.customerAddress || "",
+      customerCity:    ship.customerCity   || inv?.customerCity   || "",
+      customerPincode: ship.customerPincode|| inv?.customerPincode|| "",
+      sku:             ship.sku,
+      productName:     inv?.productName || "",
+      size:            ship.size || inv?.size || "",
+      color:           ship.color,
+      qty:             ship.qty,
+      grossAmount:     inv?.grossAmount || 0,
+      discount:        inv?.discount    || 0,
+      tax:             inv?.tax         || 0,
+      sellingPrice:    inv?.total       || (ship.paymentType === "COD" ? ship.codAmount : 0),
+      paymentType:     ship.paymentType,
+      courier:         ship.courier,
       pageNos: [ship.pageNo, ...(inv ? [inv.pageNo] : [])],
     });
   }
 
-  // Add unmatched invoice-only pages
+  // Unmatched invoices (no shipping label found)
   for (const inv of invoicePages) {
     if (!usedInvoices.has(inv.pageNo)) {
       orders.push({
         orderNo: inv.orderNo, invoiceNo: inv.invoiceNo,
-        customerName: "", customerAddress: "", customerCity: "", customerPincode: "",
-        sku: "", productName: inv.productName, size: "", color: "", qty: 1,
+        customerName: inv.customerName, customerAddress: inv.customerAddress,
+        customerCity: inv.customerCity, customerPincode: inv.customerPincode,
+        sku: "", productName: inv.productName, size: inv.size,
+        color: "", qty: 1,
         grossAmount: inv.grossAmount, discount: inv.discount, tax: inv.tax,
         sellingPrice: inv.total, paymentType: "Prepaid", courier: "",
         pageNos: [inv.pageNo],
@@ -422,13 +462,11 @@ function ReviewTable({ orders, onUpdate, onRemove, onSave, onReset }: {
   onReset: () => void;
 }) {
   const cell = "w-full bg-transparent border-0 border-b border-transparent hover:border-[#ddd] focus:border-[#999] focus:outline-none text-xs text-black py-0.5 font-medium placeholder-[#ccc] min-w-0 transition-colors";
-
   const totalRevenue  = orders.reduce((s, o) => s + o.sellingPrice, 0);
   const totalDiscount = orders.reduce((s, o) => s + o.discount, 0);
 
   return (
     <div className="space-y-4">
-      {/* Summary */}
       <div className="bg-gradient-to-r from-[#f0fdf4] to-[#eff6ff] border border-[#bbf7d0] rounded-2xl px-5 py-3 flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-2">
           <Sparkles size={14} className="text-green-600" />
@@ -451,7 +489,7 @@ function ReviewTable({ orders, onUpdate, onRemove, onSave, onReset }: {
           <table className="w-full text-left text-xs whitespace-nowrap">
             <thead className="bg-[#fafafa] border-b border-[#e8e8e8]">
               <tr>
-                {["#","Customer","Order No.","SKU","Product Name","Size","Qty","Gross ₹","Disc ₹","Total ₹","Payment","Courier",""].map((h) => (
+                {["#","Customer","Order No.","SKU","Product Name","Size","Qty","Gross ₹","Disc ₹","Total ₹","Payment","Courier",""].map(h => (
                   <th key={h} className="px-3 py-3 text-[10px] font-semibold text-[#888] uppercase tracking-wider">{h}</th>
                 ))}
               </tr>
@@ -462,9 +500,9 @@ function ReviewTable({ orders, onUpdate, onRemove, onSave, onReset }: {
                   <td className="px-3 py-2.5 text-[#bbb] font-bold text-[10px]">{idx + 1}</td>
 
                   <td className="px-3 py-2.5 min-w-[140px]">
-                    <input className={cell} value={o.customerName} onChange={(e) => onUpdate(idx, "customerName", e.target.value)} placeholder="Customer name" />
+                    <input className={cell} value={o.customerName} onChange={e => onUpdate(idx, "customerName", e.target.value)} placeholder="Customer name" />
                     {(o.customerCity || o.customerPincode) && (
-                      <div className="text-[10px] text-[#bbb] mt-0.5 truncate">{[o.customerCity, o.customerPincode].filter(Boolean).join(" ")}</div>
+                      <div className="text-[10px] text-[#bbb] mt-0.5">{[o.customerCity, o.customerPincode].filter(Boolean).join(" ")}</div>
                     )}
                   </td>
 
@@ -474,46 +512,43 @@ function ReviewTable({ orders, onUpdate, onRemove, onSave, onReset }: {
                   </td>
 
                   <td className="px-3 py-2.5 min-w-[100px]">
-                    <input className={`${cell} font-mono`} value={o.sku} onChange={(e) => onUpdate(idx, "sku", e.target.value)} placeholder="SKU" />
+                    <input className={`${cell} font-mono`} value={o.sku} onChange={e => onUpdate(idx, "sku", e.target.value)} placeholder="SKU" />
                   </td>
 
                   <td className="px-3 py-2.5 min-w-[180px]">
-                    <input className={cell} value={o.productName} onChange={(e) => onUpdate(idx, "productName", e.target.value)} placeholder="Product name" />
+                    <input className={cell} value={o.productName} onChange={e => onUpdate(idx, "productName", e.target.value)} placeholder="Product name" />
                   </td>
 
-                  <td className="px-3 py-2.5 min-w-[80px]">
-                    <input className={cell} value={o.size} onChange={(e) => onUpdate(idx, "size", e.target.value)} placeholder="Size" />
+                  <td className="px-3 py-2.5 min-w-[90px]">
+                    <input className={cell} value={o.size} onChange={e => onUpdate(idx, "size", e.target.value)} placeholder="e.g. 3-4 Yrs" />
                   </td>
 
                   <td className="px-3 py-2.5 w-12 text-center">
-                    <input type="number" min={1} className={`${cell} text-center`} value={o.qty} onChange={(e) => onUpdate(idx, "qty", Number(e.target.value))} />
+                    <input type="number" min={1} className={`${cell} text-center`} value={o.qty} onChange={e => onUpdate(idx, "qty", Number(e.target.value))} />
                   </td>
 
                   <td className="px-3 py-2.5 w-20 text-right">
-                    <input type="number" min={0} className={`${cell} text-right`} value={o.grossAmount || ""} onChange={(e) => onUpdate(idx, "grossAmount", Number(e.target.value))} placeholder="0" />
+                    <input type="number" min={0} className={`${cell} text-right`} value={o.grossAmount || ""} onChange={e => onUpdate(idx, "grossAmount", Number(e.target.value))} placeholder="0" />
                   </td>
 
                   <td className="px-3 py-2.5 w-20 text-right">
-                    <input type="number" min={0} className={`${cell} text-right text-red-500`} value={o.discount || ""} onChange={(e) => onUpdate(idx, "discount", Number(e.target.value))} placeholder="0" />
+                    <input type="number" min={0} className={`${cell} text-right text-red-500`} value={o.discount || ""} onChange={e => onUpdate(idx, "discount", Number(e.target.value))} placeholder="0" />
                   </td>
 
                   <td className="px-3 py-2.5 w-20 text-right">
-                    <input type="number" min={0} className={`${cell} text-right font-bold`} value={o.sellingPrice || ""} onChange={(e) => onUpdate(idx, "sellingPrice", Number(e.target.value))} placeholder="0" />
+                    <input type="number" min={0} className={`${cell} text-right font-bold`} value={o.sellingPrice || ""} onChange={e => onUpdate(idx, "sellingPrice", Number(e.target.value))} placeholder="0" />
                   </td>
 
                   <td className="px-3 py-2.5">
-                    <select
-                      className="bg-transparent border-0 text-[10px] font-bold cursor-pointer focus:outline-none"
-                      value={o.paymentType}
-                      onChange={(e) => onUpdate(idx, "paymentType", e.target.value)}
-                    >
+                    <select className="bg-transparent border-0 text-[10px] font-bold cursor-pointer focus:outline-none"
+                      value={o.paymentType} onChange={e => onUpdate(idx, "paymentType", e.target.value)}>
                       <option value="Prepaid">Prepaid</option>
                       <option value="COD">COD</option>
                     </select>
                   </td>
 
                   <td className="px-3 py-2.5 min-w-[90px]">
-                    <input className={cell} value={o.courier} onChange={(e) => onUpdate(idx, "courier", e.target.value)} placeholder="Courier" />
+                    <input className={cell} value={o.courier} onChange={e => onUpdate(idx, "courier", e.target.value)} placeholder="Courier" />
                   </td>
 
                   <td className="px-3 py-2.5">
@@ -544,7 +579,7 @@ function OrderCard({ order, onDelete }: { order: MeeshoOrder; onDelete: () => vo
 
   return (
     <div className="bg-white border border-[#e8e8e8] rounded-2xl overflow-hidden shadow-[0_1px_4px_rgba(0,0,0,0.04)] hover:shadow-[0_2px_10px_rgba(0,0,0,0.07)] transition-shadow">
-      <button onClick={() => setExpanded((v) => !v)} className="w-full text-left px-4 py-3.5 flex items-start gap-3">
+      <button onClick={() => setExpanded(v => !v)} className="w-full text-left px-4 py-3.5 flex items-start gap-3">
         <div className="mt-1 w-2.5 h-2.5 rounded-full shrink-0" style={{ background: cfg.color }} />
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
@@ -556,9 +591,7 @@ function OrderCard({ order, onDelete }: { order: MeeshoOrder; onDelete: () => vo
               <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${order.paymentType === "Prepaid" ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"}`}>
                 {order.paymentType}
               </span>
-              <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-bold border" style={{ background: cfg.bg, color: cfg.color, borderColor: cfg.border }}>
-                {cfg.label}
-              </span>
+              <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-bold border" style={{ background: cfg.bg, color: cfg.color, borderColor: cfg.border }}>{cfg.label}</span>
               <ChevronDown size={14} className={`text-[#aaa] transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
             </div>
           </div>
@@ -590,33 +623,21 @@ function OrderCard({ order, onDelete }: { order: MeeshoOrder; onDelete: () => vo
             </div>
           )}
           <div className="grid grid-cols-3 gap-2">
-            <div className="bg-[#fafafa] rounded-xl p-2.5 text-center">
-              <div className="text-[10px] font-bold text-[#aaa] uppercase tracking-wider mb-0.5">MRP</div>
-              <div className="font-bold text-black text-sm">₹{order.grossAmount.toLocaleString("en-IN")}</div>
-            </div>
-            <div className="bg-[#fafafa] rounded-xl p-2.5 text-center">
-              <div className="text-[10px] font-bold text-[#aaa] uppercase tracking-wider mb-0.5">Disc</div>
-              <div className="font-bold text-red-500 text-sm">−₹{order.discount.toLocaleString("en-IN")}</div>
-            </div>
-            <div className="bg-[#fafafa] rounded-xl p-2.5 text-center">
-              <div className="text-[10px] font-bold text-[#aaa] uppercase tracking-wider mb-0.5">Paid</div>
-              <div className="font-bold text-green-600 text-sm">₹{order.sellingPrice.toLocaleString("en-IN")}</div>
-            </div>
+            {[
+              { label: "MRP",  value: `₹${order.grossAmount.toLocaleString("en-IN")}`,  cls: "text-black" },
+              { label: "Disc", value: `−₹${order.discount.toLocaleString("en-IN")}`,    cls: "text-red-500" },
+              { label: "Paid", value: `₹${order.sellingPrice.toLocaleString("en-IN")}`, cls: "text-green-600" },
+            ].map(({ label, value, cls }) => (
+              <div key={label} className="bg-[#fafafa] rounded-xl p-2.5 text-center">
+                <div className="text-[10px] font-bold text-[#aaa] uppercase tracking-wider mb-0.5">{label}</div>
+                <div className={`font-bold text-sm ${cls}`}>{value}</div>
+              </div>
+            ))}
           </div>
           {(order.courier || order.invoiceNo) && (
             <div className="grid grid-cols-2 gap-2">
-              {order.courier && (
-                <div className="bg-[#fafafa] rounded-xl p-2.5">
-                  <div className="text-[10px] font-bold text-[#aaa] uppercase tracking-wider mb-0.5">Courier</div>
-                  <div className="font-semibold text-black text-xs">{order.courier}</div>
-                </div>
-              )}
-              {order.invoiceNo && (
-                <div className="bg-[#fafafa] rounded-xl p-2.5">
-                  <div className="text-[10px] font-bold text-[#aaa] uppercase tracking-wider mb-0.5">Invoice No.</div>
-                  <div className="font-semibold text-black text-xs font-mono">{order.invoiceNo}</div>
-                </div>
-              )}
+              {order.courier   && <div className="bg-[#fafafa] rounded-xl p-2.5"><div className="text-[10px] font-bold text-[#aaa] uppercase tracking-wider mb-0.5">Courier</div><div className="font-semibold text-black text-xs">{order.courier}</div></div>}
+              {order.invoiceNo && <div className="bg-[#fafafa] rounded-xl p-2.5"><div className="text-[10px] font-bold text-[#aaa] uppercase tracking-wider mb-0.5">Invoice No.</div><div className="font-semibold text-black text-xs font-mono">{order.invoiceNo}</div></div>}
             </div>
           )}
           <div className="flex items-center justify-between pt-1">
@@ -639,52 +660,45 @@ export default function MeeshoOrders() {
   const [appState, setAppState]           = useState<AppState>("idle");
   const [progressMsg, setProgressMsg]     = useState("");
   const [progressPct, setProgressPct]     = useState(0);
-  const [extractedOrders, setExtractedOrders] = useState<ExtractedOrder[]>([]);
+  const [extracted, setExtracted]         = useState<ExtractedOrder[]>([]);
   const [activeTab, setActiveTab]         = useState<"today" | "all">("today");
   const [dateFilter, setDateFilter]       = useState(todayDate());
   const [error, setError]                 = useState<string | null>(null);
   const [isDragging, setIsDragging]       = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const todayStr   = todayDate();
-  const todayOrders = useMemo(() => meeshoOrders.filter((o) => o.date === todayStr), [meeshoOrders, todayStr]);
+  const todayStr    = todayDate();
+  const todayOrders = useMemo(() => meeshoOrders.filter(o => o.date === todayStr), [meeshoOrders, todayStr]);
   const filteredOrders = useMemo(() => {
     if (activeTab === "today") return todayOrders;
-    if (dateFilter) return meeshoOrders.filter((o) => o.date === dateFilter);
+    if (dateFilter) return meeshoOrders.filter(o => o.date === dateFilter);
     return meeshoOrders;
   }, [meeshoOrders, todayOrders, activeTab, dateFilter]);
 
-  const todayStats = useMemo(() => ({
+  const stats = useMemo(() => ({
     count:    todayOrders.length,
     qty:      todayOrders.reduce((s, o) => s + o.qty, 0),
-    revenue:  todayOrders.filter((o) => o.status !== "RTO").reduce((s, o) => s + o.sellingPrice, 0),
+    revenue:  todayOrders.filter(o => o.status !== "RTO").reduce((s, o) => s + o.sellingPrice, 0),
     discount: todayOrders.reduce((s, o) => s + o.discount, 0),
   }), [todayOrders]);
 
   const groupedByDate = useMemo(() => {
     if (activeTab === "today") return null;
     const groups: Record<string, MeeshoOrder[]> = {};
-    filteredOrders.forEach((o) => { if (!groups[o.date]) groups[o.date] = []; groups[o.date].push(o); });
+    filteredOrders.forEach(o => { if (!groups[o.date]) groups[o.date] = []; groups[o.date].push(o); });
     return Object.entries(groups).sort(([a], [b]) => b.localeCompare(a));
   }, [filteredOrders, activeTab]);
 
   const handleFile = useCallback(async (file: File) => {
-    if (!/\.pdf$/i.test(file.name) && file.type !== "application/pdf") {
-      setError("Please upload a PDF file (.pdf)."); return;
-    }
+    if (!/\.pdf$/i.test(file.name) && file.type !== "application/pdf") { setError("Please upload a PDF file."); return; }
     setError(null);
     setAppState("processing");
     setProgressPct(0);
     setProgressMsg("Starting…");
     try {
-      const orders = await extractFromPdf(file, (msg, pct) => {
-        setProgressMsg(msg); setProgressPct(pct);
-      });
-      if (orders.length === 0) {
-        setError("No orders found in this PDF. Make sure it is a Meesho shipping PDF.");
-        setAppState("idle"); return;
-      }
-      setExtractedOrders(orders);
+      const orders = await extractFromPdf(file, (msg, pct) => { setProgressMsg(msg); setProgressPct(pct); });
+      if (orders.length === 0) { setError("No orders found. Make sure this is a Meesho shipping PDF."); setAppState("idle"); return; }
+      setExtracted(orders);
       setAppState("reviewing");
     } catch (e) {
       console.error(e);
@@ -699,33 +713,24 @@ export default function MeeshoOrders() {
     if (file) handleFile(file);
   }, [handleFile]);
 
-  const updateOrder = (idx: number, field: keyof ExtractedOrder, value: string | number) =>
-    setExtractedOrders((prev) => prev.map((o, i) => (i === idx ? { ...o, [field]: value } : o)));
-
-  const saveAllOrders = () => {
+  const saveAll = () => {
     const now = new Date().toISOString();
-    const newOrders: MeeshoOrder[] = extractedOrders.map((o, i) => ({
-      id: `${Date.now()}-${i}`,
-      date: todayDate(),
-      scannedAt: now,
+    const newOrders: MeeshoOrder[] = extracted.map((o, i) => ({
+      id: `${Date.now()}-${i}`, date: todayDate(), scannedAt: now,
       orderNo: o.orderNo, invoiceNo: o.invoiceNo,
       customerName: o.customerName, customerAddress: o.customerAddress,
       customerCity: o.customerCity, customerPincode: o.customerPincode,
-      sku: o.sku, productName: o.productName, size: o.size,
-      color: o.color, qty: o.qty,
-      grossAmount: o.grossAmount, discount: o.discount, tax: o.tax,
-      sellingPrice: o.sellingPrice, paymentType: o.paymentType,
-      courier: o.courier, status: "Packed", notes: "",
+      sku: o.sku, productName: o.productName, size: o.size, color: o.color, qty: o.qty,
+      grossAmount: o.grossAmount, discount: o.discount, tax: o.tax, sellingPrice: o.sellingPrice,
+      paymentType: o.paymentType, courier: o.courier, status: "Packed", notes: "",
     }));
-    setMeeshoOrders((prev) => [...newOrders, ...prev]);
-    setExtractedOrders([]);
-    setAppState("idle");
-    setActiveTab("today");
+    setMeeshoOrders(prev => [...newOrders, ...prev]);
+    setExtracted([]); setAppState("idle"); setActiveTab("today");
   };
 
   return (
     <div className="space-y-6 pb-24 lg:pb-6">
-      {/* ── Header ── */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-black tracking-tight">Meesho Orders</h2>
@@ -738,16 +743,16 @@ export default function MeeshoOrders() {
           </button>
         )}
         <input ref={fileInputRef} type="file" accept=".pdf,application/pdf" className="hidden"
-          onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
+          onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
       </div>
 
-      {/* ── Stats ── */}
+      {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { icon: ClipboardList, color: "text-blue-500",   bg: "bg-[#eff6ff]",  label: "Today",   value: todayStats.count,  sub: "Orders" },
-          { icon: Package,       color: "text-green-500",  bg: "bg-[#f0fdf4]",  label: "Items",   value: todayStats.qty,    sub: "Qty packed" },
-          { icon: IndianRupee,   color: "text-purple-500", bg: "bg-[#fdf4ff]",  label: "Revenue", value: `₹${todayStats.revenue.toLocaleString("en-IN")}`, sub: "Earned today" },
-          { icon: TrendingDown,  color: "text-red-400",    bg: "bg-[#fff1f2]",  label: "Discount",value: `₹${todayStats.discount.toLocaleString("en-IN")}`, sub: "Given today" },
+          { icon: ClipboardList, color: "text-blue-500",   bg: "bg-[#eff6ff]", label: "Today",    value: stats.count,   sub: "Orders" },
+          { icon: Package,       color: "text-green-500",  bg: "bg-[#f0fdf4]", label: "Items",    value: stats.qty,     sub: "Qty packed" },
+          { icon: IndianRupee,   color: "text-purple-500", bg: "bg-[#fdf4ff]", label: "Revenue",  value: `₹${stats.revenue.toLocaleString("en-IN")}`, sub: "Earned today" },
+          { icon: TrendingDown,  color: "text-red-400",    bg: "bg-[#fff1f2]", label: "Discount", value: `₹${stats.discount.toLocaleString("en-IN")}`, sub: "Given today" },
         ].map(({ icon: Icon, color, bg, label, value, sub }) => (
           <div key={label} className="bg-white border border-[#e8e8e8] rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
             <div className="flex items-center gap-2 mb-2">
@@ -762,7 +767,7 @@ export default function MeeshoOrders() {
         ))}
       </div>
 
-      {/* ── Error ── */}
+      {/* Error */}
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 flex items-center gap-3">
           <AlertCircle size={16} className="text-red-500 shrink-0" />
@@ -771,7 +776,7 @@ export default function MeeshoOrders() {
         </div>
       )}
 
-      {/* ── Processing ── */}
+      {/* Processing */}
       {appState === "processing" && (
         <div className="bg-white border border-[#e8e8e8] rounded-2xl p-8 flex flex-col items-center gap-4 shadow-sm">
           <div className="w-14 h-14 bg-[#f5f5f5] rounded-2xl flex items-center justify-center">
@@ -779,7 +784,7 @@ export default function MeeshoOrders() {
           </div>
           <div className="text-center">
             <div className="font-bold text-black">{progressMsg}</div>
-            <div className="text-sm text-[#888] mt-1">Extracting order details from PDF…</div>
+            <div className="text-sm text-[#888] mt-1">Reading all orders from PDF…</div>
           </div>
           <div className="w-full max-w-xs">
             <div className="w-full h-2 bg-[#f5f5f5] rounded-full overflow-hidden">
@@ -790,38 +795,34 @@ export default function MeeshoOrders() {
         </div>
       )}
 
-      {/* ── Review Table ── */}
-      {appState === "reviewing" && extractedOrders.length > 0 && (
+      {/* Review */}
+      {appState === "reviewing" && extracted.length > 0 && (
         <ReviewTable
-          orders={extractedOrders}
-          onUpdate={updateOrder}
-          onRemove={(idx) => setExtractedOrders((p) => p.filter((_, i) => i !== idx))}
-          onSave={saveAllOrders}
-          onReset={() => { setAppState("idle"); setExtractedOrders([]); }}
+          orders={extracted}
+          onUpdate={(idx, field, val) => setExtracted(p => p.map((o, i) => i === idx ? { ...o, [field]: val } : o))}
+          onRemove={idx => setExtracted(p => p.filter((_, i) => i !== idx))}
+          onSave={saveAll}
+          onReset={() => { setAppState("idle"); setExtracted([]); }}
         />
       )}
 
-      {/* ── Drop Zone ── */}
+      {/* Drop Zone */}
       {appState === "idle" && meeshoOrders.length === 0 && (
-        <div
-          onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-          onDragLeave={() => setIsDragging(false)}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-          className={`border-2 border-dashed rounded-2xl p-10 flex flex-col items-center text-center gap-4 cursor-pointer transition-all ${isDragging ? "border-black bg-[#f5f5f5] scale-[1.01]" : "border-[#ddd] hover:border-[#aaa] hover:bg-[#fafafa]"}`}
-        >
+        <div onDragOver={e => { e.preventDefault(); setIsDragging(true); }} onDragLeave={() => setIsDragging(false)}
+          onDrop={handleDrop} onClick={() => fileInputRef.current?.click()}
+          className={`border-2 border-dashed rounded-2xl p-10 flex flex-col items-center text-center gap-4 cursor-pointer transition-all ${isDragging ? "border-black bg-[#f5f5f5] scale-[1.01]" : "border-[#ddd] hover:border-[#aaa] hover:bg-[#fafafa]"}`}>
           <div className="w-16 h-16 bg-[#f5f5f5] rounded-2xl flex items-center justify-center">
             <FileText size={32} className="text-[#888]" />
           </div>
           <div>
             <div className="font-bold text-black text-lg">Upload Today&apos;s Meesho PDF</div>
             <div className="text-sm text-[#666] mt-2 leading-relaxed max-w-sm">
-              Drop your Meesho orders PDF here — all orders extracted automatically.<br />
-              Customer name, SKU, product, size, price, discount, Prepaid/COD.
+              Drop your Meesho orders PDF — all orders extracted automatically.<br />
+              Customer, SKU, product, size, price, discount, Prepaid/COD.
             </div>
           </div>
           <div className="flex flex-wrap gap-2 justify-center">
-            {["Customer Name","SKU","Product","Size","Gross Price","Discount","Final Price","Prepaid/COD"].map((t) => (
+            {["Customer Name","SKU","Product","Size","Gross Price","Discount","Final Price","Prepaid/COD"].map(t => (
               <span key={t} className="px-2.5 py-1 bg-[#f0f0f0] rounded-lg text-xs font-semibold text-[#555]">{t}</span>
             ))}
           </div>
@@ -829,15 +830,11 @@ export default function MeeshoOrders() {
         </div>
       )}
 
-      {/* ── Upload again banner ── */}
+      {/* Upload again */}
       {appState === "idle" && meeshoOrders.length > 0 && (
-        <div
-          onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-          onDragLeave={() => setIsDragging(false)}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-          className={`border-2 border-dashed rounded-2xl px-5 py-4 flex items-center gap-4 cursor-pointer transition-all ${isDragging ? "border-black bg-[#f5f5f5]" : "border-[#e8e8e8] hover:border-[#aaa]"}`}
-        >
+        <div onDragOver={e => { e.preventDefault(); setIsDragging(true); }} onDragLeave={() => setIsDragging(false)}
+          onDrop={handleDrop} onClick={() => fileInputRef.current?.click()}
+          className={`border-2 border-dashed rounded-2xl px-5 py-4 flex items-center gap-4 cursor-pointer transition-all ${isDragging ? "border-black bg-[#f5f5f5]" : "border-[#e8e8e8] hover:border-[#aaa]"}`}>
           <div className="w-10 h-10 bg-[#f5f5f5] rounded-xl flex items-center justify-center shrink-0">
             <Upload size={18} className="text-[#666]" />
           </div>
@@ -848,20 +845,20 @@ export default function MeeshoOrders() {
         </div>
       )}
 
-      {/* ── History ── */}
+      {/* History */}
       {appState !== "reviewing" && meeshoOrders.length > 0 && (
         <>
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex bg-[#f5f5f5] p-1 rounded-xl gap-1">
-              {(["today","all"] as const).map((t) => (
+              {(["today","all"] as const).map(t => (
                 <button key={t} onClick={() => setActiveTab(t)}
                   className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === t ? "bg-white text-black shadow-sm" : "text-[#888] hover:text-black"}`}>
-                  {t === "today" ? `Today (${todayStats.count})` : `All (${meeshoOrders.length})`}
+                  {t === "today" ? `Today (${stats.count})` : `All (${meeshoOrders.length})`}
                 </button>
               ))}
             </div>
             {activeTab === "all" && (
-              <input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)}
+              <input type="date" value={dateFilter} onChange={e => setDateFilter(e.target.value)}
                 className="bg-white border border-[#e8e8e8] rounded-xl px-3 py-1.5 text-xs font-medium text-black focus:outline-none focus:ring-2 focus:ring-black/10" />
             )}
             {activeTab === "all" && dateFilter && (
@@ -872,10 +869,8 @@ export default function MeeshoOrders() {
           {activeTab === "today" ? (
             <div className="space-y-3">
               {filteredOrders.length === 0
-                ? <div className="text-center py-8 text-[#aaa] text-sm">No orders packed today yet. Upload a PDF above!</div>
-                : filteredOrders.map((order) => (
-                    <OrderCard key={order.id} order={order} onDelete={() => setMeeshoOrders((p) => p.filter((o) => o.id !== order.id))} />
-                  ))}
+                ? <div className="text-center py-8 text-[#aaa] text-sm">No orders today yet. Upload a PDF above!</div>
+                : filteredOrders.map(order => <OrderCard key={order.id} order={order} onDelete={() => setMeeshoOrders(p => p.filter(o => o.id !== order.id))} />)}
             </div>
           ) : (
             <div className="space-y-6">
@@ -893,9 +888,7 @@ export default function MeeshoOrders() {
                     </span>
                   </div>
                   <div className="space-y-3">
-                    {orders.map((order) => (
-                      <OrderCard key={order.id} order={order} onDelete={() => setMeeshoOrders((p) => p.filter((o) => o.id !== order.id))} />
-                    ))}
+                    {orders.map(order => <OrderCard key={order.id} order={order} onDelete={() => setMeeshoOrders(p => p.filter(o => o.id !== order.id))} />)}
                   </div>
                 </div>
               ))}
