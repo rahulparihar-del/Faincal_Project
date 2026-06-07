@@ -1,38 +1,46 @@
 "use client";
 
-import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useRef } from "react";
 import { useData } from "@/context/DataContext";
 import { MeeshoOrder } from "@/lib/types";
 import {
-  ScanLine,
+  Upload,
+  FileText,
   X,
   Package,
-  CheckCircle2,
-  Truck,
   ChevronDown,
   Trash2,
-  AlertCircle,
   ClipboardList,
   CalendarDays,
   IndianRupee,
-  Hash,
-  User,
-  Tag,
-  Ruler,
-  Palette,
-  MessageSquare,
-  Camera,
-  FileImage,
+  CheckCircle2,
+  AlertCircle,
   Loader2,
+  Save,
+  RotateCcw,
+  Tag,
   Sparkles,
+  TrendingDown,
 } from "lucide-react";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const todayDate = () => new Date().toISOString().split("T")[0];
 const formatDate = (d: string) =>
-  new Date(d + "T00:00:00").toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  new Date(d + "T00:00:00").toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 const fmtTime = (iso: string) =>
-  new Date(iso).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+  new Date(iso).toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+const parseMoney = (s: string): number => {
+  const m = s.replace(/[^\d.]/g, "");
+  return parseFloat(m) || 0;
+};
 
 const STATUS_CONFIG = {
   Packed: { label: "Packed", bg: "rgba(59,130,246,0.1)", color: "#3b82f6", border: "rgba(59,130,246,0.25)" },
@@ -40,8 +48,28 @@ const STATUS_CONFIG = {
   RTO: { label: "RTO", bg: "rgba(239,68,68,0.1)", color: "#ef4444", border: "rgba(239,68,68,0.25)" },
 } as const;
 
-// ─── OCR Parser: Extract Meesho Bill Data from Raw Text ───────────────────────
-interface ParsedBill {
+// ─── PDF Text Extraction ───────────────────────────────────────────────────────
+function pageItemsToLines(items: Array<{ str: string; transform: number[] }>): string {
+  const rows = new Map<number, { x: number; str: string }[]>();
+  for (const it of items) {
+    if (!it.str?.trim()) continue;
+    const y = Math.round(it.transform[5]);
+    if (!rows.has(y)) rows.set(y, []);
+    rows.get(y)!.push({ x: it.transform[4], str: it.str });
+  }
+  return Array.from(rows.entries())
+    .sort((a, b) => b[0] - a[0])
+    .map(([, parts]) =>
+      parts
+        .sort((a, b) => a.x - b.x)
+        .map((p) => p.str)
+        .join(" ")
+    )
+    .join("\n");
+}
+
+// ─── Shipping Label Parser ─────────────────────────────────────────────────────
+interface ShippingData {
   orderNo: string;
   customerName: string;
   customerAddress: string;
@@ -51,16 +79,15 @@ interface ParsedBill {
   size: string;
   color: string;
   qty: number;
+  paymentType: "Prepaid" | "COD";
   courier: string;
+  codAmount: number;
 }
 
-function parseMeeshoBill(rawText: string): ParsedBill {
-  const lines = rawText
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean);
+function parseShippingLabel(text: string): ShippingData {
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
 
-  const result: ParsedBill = {
+  const data: ShippingData = {
     orderNo: "",
     customerName: "",
     customerAddress: "",
@@ -70,815 +97,693 @@ function parseMeeshoBill(rawText: string): ParsedBill {
     size: "",
     color: "",
     qty: 1,
+    paymentType: "Prepaid",
     courier: "",
+    codAmount: 0,
   };
 
-  // ── Order Number ──
-  // The long numeric barcode number (13-20 digits) at the bottom
-  const orderNoMatch = rawText.match(/\b(\d{13,20})\b/);
-  if (orderNoMatch) result.orderNo = orderNoMatch[1];
+  // Payment type
+  if (/prepaid/i.test(text)) data.paymentType = "Prepaid";
+  else if (/cash on delivery|COD/i.test(text)) {
+    data.paymentType = "COD";
+    const codMatch = text.match(/(?:cash on delivery|COD)[:\s]+Rs\.?\s*([\d.]+)/i);
+    if (codMatch) data.codAmount = parseFloat(codMatch[1]);
+  }
 
-  // Also try "Order No." pattern
-  const orderNoLabel = rawText.match(/order\s*no\.?\s*[:\-]?\s*([A-Z0-9_\-]{8,})/i);
-  if (orderNoLabel) result.orderNo = orderNoLabel[1];
+  // Courier
+  const couriers = ["Xpress Bees", "XpressBees", "Delhivery", "Shadowfax", "Ecom Express", "BlueDart", "DTDC", "Shiprocket", "Valmo"];
+  for (const c of couriers) {
+    if (new RegExp(c, "i").test(text)) {
+      data.courier = c === "XpressBees" ? "Xpress Bees" : c;
+      break;
+    }
+  }
 
-  // ── Customer Name ──
-  // On Meesho bills, "Customer Address" appears as a bold section header
-  // The name is usually the first bold/ALL-CAPS line after it
+  // Customer Name (line after "Customer Address")
   const custAddrIdx = lines.findIndex((l) => /customer\s*address/i.test(l));
   if (custAddrIdx >= 0 && custAddrIdx + 1 < lines.length) {
-    // Next non-empty line after "Customer Address" is the name
-    const nameLine = lines[custAddrIdx + 1];
-    if (nameLine && !/prepaid|do not|xpress|shadowfax|delhivery|shiprocket|pickup|destination|return code/i.test(nameLine)) {
-      result.customerName = nameLine;
+    const candidate = lines[custAddrIdx + 1];
+    if (!/prepaid|xpress|delivery|pickup|cod/i.test(candidate)) {
+      data.customerName = candidate.replace(/\*/g, "").trim();
     }
   }
 
-  // ── Pincode ──
-  const pincodeMatch = rawText.match(/\b(\d{6})\b/g);
-  if (pincodeMatch) {
-    // Pick the one that appears after customer address section
-    const afterCustomer = rawText.slice(rawText.search(/customer\s*address/i));
-    const pinInSection = afterCustomer.match(/\b(\d{6})\b/);
-    if (pinInSection) result.customerPincode = pinInSection[1];
-    else result.customerPincode = pincodeMatch[0];
-  }
-
-  // ── Address (lines between name and "If undelivered") ──
+  // Address block (lines between customer name and "If undelivered")
   if (custAddrIdx >= 0) {
+    const endIdx = lines.findIndex((l, i) => i > custAddrIdx + 1 && /if undelivered|return to|prepaid|xpress|pickup/i.test(l));
+    const stop = endIdx > 0 ? endIdx : custAddrIdx + 7;
     const addrLines: string[] = [];
-    const endIdx = lines.findIndex((l, i) => i > custAddrIdx && /if undelivered|return to|prepaid|xpress|destination/i.test(l));
-    const stop = endIdx > 0 ? endIdx : Math.min(custAddrIdx + 6, lines.length);
-    for (let i = custAddrIdx + 2; i < stop; i++) {
+    for (let i = custAddrIdx + 2; i < Math.min(stop, lines.length); i++) {
       const l = lines[i];
-      if (l && !/customer address/i.test(l)) addrLines.push(l);
+      if (l && !data.customerName.includes(l)) addrLines.push(l);
     }
-    const addrText = addrLines.join(", ");
-    // Extract city (usually last part before pincode)
-    const cityPinMatch = addrText.match(/([A-Za-z\s]+),?\s*(\d{6})/);
-    if (cityPinMatch) {
-      result.customerCity = cityPinMatch[1].trim();
-    } else {
-      // Try to find city from District pattern
-      const districtMatch = addrText.match(/([A-Za-z\s]+)\s*district/i);
-      if (districtMatch) result.customerCity = districtMatch[1].trim();
+
+    // Extract pincode from last address line
+    for (const line of [...addrLines].reverse()) {
+      const pm = line.match(/\b(\d{6})\b/);
+      if (pm) {
+        data.customerPincode = pm[1];
+        // City = text before the pincode in that line
+        const beforePin = line.split(pm[1])[0].replace(/[,\s]+$/, "").trim();
+        // Often "District, State, Pincode" format
+        const parts = beforePin.split(",").map((p) => p.trim()).filter(Boolean);
+        data.customerCity = parts[parts.length - 1] || "";
+        break;
+      }
     }
-    result.customerAddress = addrLines.slice(0, -1).join(", ").replace(/,\s*$/, "");
+    data.customerAddress = addrLines.slice(0, -1).join(", ").replace(/,\s*$/, "");
   }
 
-  // ── Courier ──
-  if (/xpress\s*bees/i.test(rawText)) result.courier = "Xpress Bees";
-  else if (/delhivery/i.test(rawText)) result.courier = "Delhivery";
-  else if (/shadowfax/i.test(rawText)) result.courier = "Shadowfax";
-  else if (/ecom\s*express/i.test(rawText)) result.courier = "Ecom Express";
-  else if (/shiprocket/i.test(rawText)) result.courier = "Shiprocket";
-  else if (/bluedart/i.test(rawText)) result.courier = "BlueDart";
-  else if (/dtdc/i.test(rawText)) result.courier = "DTDC";
-
-  // ── SKU ──
-  // Usually in "Product Details" section. Meesho SKU format: letters-letters-letters
-  const skuMatch = rawText.match(/\b([A-Z]{2,}-[A-Z0-9\-]{2,})\b/);
-  if (skuMatch) result.sku = skuMatch[1];
-
-  // ── Size ──
-  const sizePatterns = [
-    /\b(\d{1,2}\s*-\s*\d{1,2}\s*(?:years?|yrs?|months?|mos?|m))\b/i,
-    /\bsize\s*[:\-]?\s*([A-Z0-9\/]+)\b/i,
-    /\b(XS|S|M|L|XL|XXL|XXXL|2XL|3XL)\b/,
-    /\b(\d{1,2}\s*-\s*\d{1,2}\s*(?:Y|Yr))\b/i,
-    /\b(Free\s*Size)\b/i,
-  ];
-  for (const p of sizePatterns) {
-    const m = rawText.match(p);
-    if (m) { result.size = m[1].trim(); break; }
+  // Pincode fallback
+  if (!data.customerPincode) {
+    const pm = text.match(/\b(\d{6})\b/);
+    if (pm) data.customerPincode = pm[1];
   }
 
-  // ── Color ──
-  const colorMatch = rawText.match(/\bcolor\s*[:\-]?\s*([A-Za-z\s]+?)(?:\n|$|\|)/i);
-  if (colorMatch && !/^(na|nil|none|n\/a)$/i.test(colorMatch[1].trim())) {
-    result.color = colorMatch[1].trim();
+  // Product Details — SKU, Size, Qty, Color, Order No.
+  // Pattern: after "Product Details" header line, there's a header row then data row
+  const prodIdx = lines.findIndex((l) => /product\s*details/i.test(l));
+  if (prodIdx >= 0) {
+    // Find the data row: usually contains SKU-like string
+    for (let i = prodIdx + 1; i < Math.min(prodIdx + 8, lines.length); i++) {
+      const l = lines[i];
+      // Skip header row
+      if (/\bsku\b.*\bsize\b/i.test(l) || /\bsku\b.*\bqty\b/i.test(l)) continue;
+
+      // Try to parse: SKU  Size  Qty  Color  OrderNo
+      // "KDK-YELLOW-BOY   3-4 Years   1   NA   294893329110980480_1"
+      const skuMatch = l.match(/\b([A-Z0-9]{2,}-[A-Z0-9\-]{2,})\b/);
+      if (skuMatch) {
+        data.sku = skuMatch[1];
+        // Size: e.g. "3-4 Years", "M", "XL", "Free Size"
+        const sizeMatch = l.match(/(\d+[-–]\d+\s*(?:Years?|Yrs?|Months?|M|Y)\b|Free\s*Size|XS|S\b|M\b|L\b|XL\b|XXL\b|XXXL\b)/i);
+        if (sizeMatch) data.size = sizeMatch[1].trim();
+
+        // Qty: first standalone digit
+        const afterSku = l.slice(l.indexOf(skuMatch[1]) + skuMatch[1].length);
+        const qtyMatch = afterSku.match(/\b(\d+)\b/);
+        if (qtyMatch) data.qty = parseInt(qtyMatch[1], 10) || 1;
+
+        // Color: "NA" or a word before order number
+        const colorMatch = afterSku.match(/\b(NA|[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b(?=\s+\d{10,})/);
+        if (colorMatch) data.color = colorMatch[1];
+
+        // Order No: long numeric string at end
+        const orderMatch = l.match(/\b(\d{10,}(?:_\d+)?)\b/);
+        if (orderMatch) data.orderNo = orderMatch[1];
+        break;
+      }
+    }
   }
 
-  // ── Qty ──
-  const qtyMatch = rawText.match(/\bqty\s*[:\-]?\s*(\d+)\b/i);
-  if (qtyMatch) result.qty = parseInt(qtyMatch[1], 10) || 1;
+  // Order No fallback: large numeric barcode number in the page
+  if (!data.orderNo) {
+    const matches = [...text.matchAll(/\b(\d{13,20})\b/g)];
+    if (matches.length) data.orderNo = matches[matches.length - 1][1];
+  }
 
-  return result;
+  return data;
 }
 
-// ─── Bill Scanner (Camera + OCR) ──────────────────────────────────────────────
-type ScanMode = "choose" | "ocr" | "barcode";
-
-function BillScanner({
-  onResult,
-  onClose,
-}: {
-  onResult: (parsed: Partial<ParsedBill> & { rawText?: string }) => void;
-  onClose: () => void;
-}) {
-  const [mode, setMode] = useState<ScanMode>("choose");
-  const [ocrStatus, setOcrStatus] = useState<"idle" | "processing" | "done" | "error">("idle");
-  const [ocrProgress, setOcrProgress] = useState(0);
-  const [ocrPreview, setOcrPreview] = useState<string | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const [barcodeError, setBarcodeError] = useState<string | null>(null);
-  const [barcodeScanning, setBarcodeScanning] = useState(false);
-
-  // ── Stop stream on unmount ──
-  useEffect(() => {
-    return () => { streamRef.current?.getTracks().forEach((t) => t.stop()); };
-  }, []);
-
-  // ── Start camera for OCR photo ──
-  const startOcrCamera = useCallback(async () => {
-    setMode("ocr");
-    setOcrStatus("idle");
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } },
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
-    } catch {
-      setOcrStatus("error");
-    }
-  }, []);
-
-  // ── Capture frame and run OCR ──
-  const captureAndOcr = useCallback(async () => {
-    if (!videoRef.current || !canvasRef.current) return;
-    setOcrStatus("processing");
-    setOcrProgress(0);
-
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d")!;
-    ctx.drawImage(video, 0, 0);
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
-    setOcrPreview(dataUrl);
-
-    // Stop camera stream to save battery
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-
-    try {
-      const Tesseract = await import("tesseract.js");
-      const { data } = await Tesseract.recognize(dataUrl, "eng", {
-        logger: (m: { status: string; progress: number }) => {
-          if (m.status === "recognizing text") {
-            setOcrProgress(Math.round(m.progress * 100));
-          }
-        },
-      });
-
-      const rawText = data.text;
-      const parsed = parseMeeshoBill(rawText);
-      setOcrStatus("done");
-
-      setTimeout(() => {
-        onResult({ ...parsed, rawText });
-      }, 600);
-    } catch {
-      setOcrStatus("error");
-    }
-  }, [onResult]);
-
-  // ── Upload image for OCR ──
-  const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setMode("ocr");
-    setOcrStatus("processing");
-    setOcrProgress(0);
-
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      const dataUrl = ev.target?.result as string;
-      setOcrPreview(dataUrl);
-      try {
-        const Tesseract = await import("tesseract.js");
-        const { data } = await Tesseract.recognize(dataUrl, "eng", {
-          logger: (m: { status: string; progress: number }) => {
-            if (m.status === "recognizing text") setOcrProgress(Math.round(m.progress * 100));
-          },
-        });
-        const parsed = parseMeeshoBill(data.text);
-        setOcrStatus("done");
-        setTimeout(() => onResult({ ...parsed, rawText: data.text }), 600);
-      } catch {
-        setOcrStatus("error");
-      }
-    };
-    reader.readAsDataURL(file);
-  }, [onResult]);
-
-  // ── Barcode scan mode ──
-  const startBarcodeMode = useCallback(async () => {
-    setMode("barcode");
-    setBarcodeScanning(true);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
-
-      const { BrowserMultiFormatReader } = await import("@zxing/browser");
-      const { NotFoundException } = await import("@zxing/library");
-      const reader = new BrowserMultiFormatReader();
-      let cancelled = false;
-
-      const decode = async () => {
-        if (cancelled || !videoRef.current) return;
-        try {
-          const result = await reader.decodeOnceFromVideoElement(videoRef.current);
-          if (!cancelled) {
-            streamRef.current?.getTracks().forEach((t) => t.stop());
-            onResult({ orderNo: result.getText() });
-          }
-        } catch (e) {
-          if (e instanceof NotFoundException || (e as Error)?.name === "NotFoundException") {
-            if (!cancelled) setTimeout(decode, 300);
-          } else {
-            if (!cancelled) setTimeout(decode, 500);
-          }
-        }
-      };
-      decode();
-    } catch {
-      setBarcodeError("Camera access denied. Please allow camera access.");
-      setBarcodeScanning(false);
-    }
-  }, [onResult]);
-
-  // ── Choose screen ──
-  if (mode === "choose") {
-    return (
-      <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center">
-        <div className="bg-white w-full sm:max-w-sm sm:rounded-3xl rounded-t-3xl overflow-hidden shadow-2xl">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-[#f0f0f0]">
-            <div className="font-bold text-black">Scan Meesho Bill</div>
-            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-[#f5f5f5]">
-              <X size={16} className="text-[#666]" />
-            </button>
-          </div>
-          <div className="px-5 py-5 space-y-3">
-            {/* Option 1 — OCR (recommended) */}
-            <button
-              onClick={startOcrCamera}
-              className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-black bg-black text-white hover:bg-[#111] transition-colors active:scale-[0.98]"
-            >
-              <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center shrink-0">
-                <Camera size={22} className="text-white" />
-              </div>
-              <div className="text-left">
-                <div className="font-bold text-sm flex items-center gap-2">
-                  Scan Full Bill <Sparkles size={12} className="text-yellow-300" />
-                </div>
-                <div className="text-[11px] text-white/60 mt-0.5">
-                  Take a photo → auto-fills all details (name, address, SKU, size…)
-                </div>
-              </div>
-            </button>
-
-            {/* Option 2 — Upload image */}
-            <label className="w-full flex items-center gap-4 p-4 rounded-2xl border border-[#e8e8e8] bg-white hover:bg-[#fafafa] transition-colors cursor-pointer active:scale-[0.98]">
-              <div className="w-12 h-12 bg-[#f5f5f5] rounded-xl flex items-center justify-center shrink-0">
-                <FileImage size={22} className="text-[#555]" />
-              </div>
-              <div className="text-left">
-                <div className="font-bold text-sm text-black">Upload Bill Photo</div>
-                <div className="text-[11px] text-[#888] mt-0.5">
-                  Choose existing photo from gallery
-                </div>
-              </div>
-              <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
-            </label>
-
-            {/* Option 3 — Barcode only */}
-            <button
-              onClick={startBarcodeMode}
-              className="w-full flex items-center gap-4 p-4 rounded-2xl border border-[#e8e8e8] bg-white hover:bg-[#fafafa] transition-colors active:scale-[0.98]"
-            >
-              <div className="w-12 h-12 bg-[#f5f5f5] rounded-xl flex items-center justify-center shrink-0">
-                <ScanLine size={22} className="text-[#555]" />
-              </div>
-              <div className="text-left">
-                <div className="font-bold text-sm text-black">Scan Barcode Only</div>
-                <div className="text-[11px] text-[#888] mt-0.5">
-                  Scans order number only — fill rest manually
-                </div>
-              </div>
-            </button>
-
-            <p className="text-center text-[11px] text-[#bbb] pb-1">
-              💡 Tip: &quot;Scan Full Bill&quot; reads all printed text automatically
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── OCR Camera / Processing ──
-  if (mode === "ocr") {
-    return (
-      <div className="fixed inset-0 z-[100] bg-black flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 bg-black/80 backdrop-blur-sm z-10">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
-              <Camera size={16} className="text-white" />
-            </div>
-            <div>
-              <div className="text-white font-bold text-sm">
-                {ocrStatus === "processing" ? "Reading Bill…" :
-                 ocrStatus === "done" ? "Done! ✓" :
-                 ocrStatus === "error" ? "Error" :
-                 "Point at full Meesho bill"}
-              </div>
-              <div className="text-white/50 text-[11px]">
-                {ocrStatus === "idle" ? "Fit entire bill in frame, then tap capture" :
-                 ocrStatus === "processing" ? `Scanning text… ${ocrProgress}%` :
-                 ocrStatus === "done" ? "Details extracted successfully!" :
-                 "Could not read text. Try better lighting."}
-              </div>
-            </div>
-          </div>
-          <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-full bg-white/10">
-            <X size={18} className="text-white" />
-          </button>
-        </div>
-
-        {/* Camera / Preview */}
-        <div className="flex-1 relative overflow-hidden">
-          {/* Preview image when processing */}
-          {ocrPreview && (
-            <img src={ocrPreview} alt="Bill preview" className="absolute inset-0 w-full h-full object-contain bg-black" />
-          )}
-
-          {/* Live video (hidden once captured) */}
-          {!ocrPreview && (
-            <>
-              <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
-              {/* Bill frame guide */}
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="border-2 border-dashed border-white/40 rounded-2xl"
-                  style={{ width: "85%", height: "65%" }}>
-                  <div className="absolute -top-5 left-0 right-0 text-center">
-                    <span className="text-white/60 text-xs font-medium bg-black/40 px-3 py-1 rounded-full">
-                      Fit entire Meesho bill inside
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Processing overlay */}
-          {ocrStatus === "processing" && (
-            <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-4">
-              <Loader2 size={36} className="text-white animate-spin" />
-              <div className="text-white font-bold text-sm">Reading bill text…</div>
-              <div className="w-48 h-2 bg-white/20 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-green-400 rounded-full transition-all duration-300"
-                  style={{ width: `${ocrProgress}%` }}
-                />
-              </div>
-              <div className="text-white/60 text-xs">{ocrProgress}%</div>
-            </div>
-          )}
-
-          {/* Done overlay */}
-          {ocrStatus === "done" && (
-            <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-3">
-              <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center">
-                <CheckCircle2 size={32} className="text-white" />
-              </div>
-              <div className="text-white font-bold">Details extracted!</div>
-            </div>
-          )}
-
-          {/* Error overlay */}
-          {ocrStatus === "error" && (
-            <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center gap-4 px-8 text-center">
-              <AlertCircle size={36} className="text-red-400" />
-              <div className="text-white font-bold">Could not read text</div>
-              <div className="text-white/60 text-sm">Ensure the bill is well-lit and in focus</div>
-              <button
-                onClick={() => { setOcrStatus("idle"); setOcrPreview(null); startOcrCamera(); }}
-                className="px-6 py-2.5 bg-white text-black font-bold rounded-xl text-sm"
-              >Try Again</button>
-            </div>
-          )}
-        </div>
-
-        {/* Hidden canvas for capture */}
-        <canvas ref={canvasRef} className="hidden" />
-
-        {/* Capture button */}
-        {ocrStatus === "idle" && (
-          <div className="p-6 flex justify-center bg-black">
-            <button
-              onClick={captureAndOcr}
-              className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-[0_0_0_4px_rgba(255,255,255,0.3)] active:scale-95 transition-transform"
-            >
-              <Camera size={28} className="text-black" />
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // ── Barcode scan mode ──
-  return (
-    <div className="fixed inset-0 z-[100] bg-black flex flex-col">
-      <div className="flex items-center justify-between px-5 py-4 bg-black/80 backdrop-blur-sm">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
-            <ScanLine size={16} className="text-white" />
-          </div>
-          <div>
-            <div className="text-white font-bold text-sm">Scan Barcode</div>
-            <div className="text-white/50 text-[11px]">Point at bottom barcode on Meesho bill</div>
-          </div>
-        </div>
-        <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-full bg-white/10">
-          <X size={18} className="text-white" />
-        </button>
-      </div>
-
-      <div className="flex-1 relative overflow-hidden">
-        {barcodeError ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-8 text-center">
-            <AlertCircle size={32} className="text-red-400" />
-            <p className="text-white/80 text-sm">{barcodeError}</p>
-            <button onClick={onClose} className="px-6 py-2.5 bg-white text-black font-bold rounded-xl text-sm">Go Back</button>
-          </div>
-        ) : (
-          <>
-            <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="relative w-72 h-40">
-                {["top-left", "top-right", "bottom-left", "bottom-right"].map((pos) => (
-                  <div key={pos} className={`absolute w-8 h-8 border-white/80 border-[3px] ${
-                    pos === "top-left" ? "top-0 left-0 border-r-0 border-b-0 rounded-tl-md" :
-                    pos === "top-right" ? "top-0 right-0 border-l-0 border-b-0 rounded-tr-md" :
-                    pos === "bottom-left" ? "bottom-0 left-0 border-r-0 border-t-0 rounded-bl-md" :
-                    "bottom-0 right-0 border-l-0 border-t-0 rounded-br-md"
-                  }`} />
-                ))}
-                <div className="absolute inset-0 overflow-hidden">
-                  <div className="absolute left-2 right-2 h-0.5 bg-gradient-to-r from-transparent via-green-400 to-transparent"
-                    style={{ animation: "scanLine 2s ease-in-out infinite" }} />
-                </div>
-              </div>
-            </div>
-            <div className="absolute bottom-8 left-0 right-0 flex justify-center">
-              <div className="bg-black/60 backdrop-blur-md px-5 py-2.5 rounded-full flex items-center gap-2">
-                {barcodeScanning && <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />}
-                <span className="text-white/80 text-xs font-medium">
-                  {barcodeScanning ? "Scanning… hold steady" : "Starting…"}
-                </span>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-      <style>{`@keyframes scanLine { 0% { top: 4px; } 50% { top: calc(100% - 4px); } 100% { top: 4px; } }`}</style>
-    </div>
-  );
+// ─── Invoice Parser ────────────────────────────────────────────────────────────
+interface InvoiceData {
+  orderNo: string;
+  invoiceNo: string;
+  productName: string;
+  grossAmount: number;
+  discount: number;
+  tax: number;
+  total: number;
 }
 
-// ─── Order Form ────────────────────────────────────────────────────────────────
-type DraftOrder = Omit<MeeshoOrder, "id" | "scannedAt">;
-
-function OrderForm({
-  prefill,
-  rawOcrText,
-  onSave,
-  onClose,
-}: {
-  prefill: Partial<ParsedBill>;
-  rawOcrText?: string;
-  onSave: (draft: DraftOrder) => void;
-  onClose: () => void;
-}) {
-  const [form, setForm] = useState<DraftOrder>({
-    date: todayDate(),
-    orderNo: prefill.orderNo ?? "",
-    customerName: prefill.customerName ?? "",
-    customerAddress: prefill.customerAddress ?? "",
-    customerCity: prefill.customerCity ?? "",
-    customerPincode: prefill.customerPincode ?? "",
-    sku: prefill.sku ?? "",
+function parseInvoice(text: string): InvoiceData {
+  const data: InvoiceData = {
+    orderNo: "",
+    invoiceNo: "",
     productName: "",
-    size: prefill.size ?? "",
-    color: prefill.color ?? "",
-    qty: prefill.qty ?? 1,
-    sellingPrice: 0,
-    courier: prefill.courier ?? "Xpress Bees",
-    status: "Packed",
-    notes: "",
-  });
+    grossAmount: 0,
+    discount: 0,
+    tax: 0,
+    total: 0,
+  };
 
-  const [showRaw, setShowRaw] = useState(false);
+  // Purchase Order No
+  const poMatch = text.match(/purchase\s+order\s+no\.?\s*\n?\s*([A-Z0-9]{8,})/i);
+  if (poMatch) data.orderNo = poMatch[1].trim();
 
-  const set = <K extends keyof DraftOrder>(key: K, val: DraftOrder[K]) =>
-    setForm((f) => ({ ...f, [key]: val }));
+  // Invoice No
+  const invMatch = text.match(/invoice\s+no\.?\s*\n?\s*([a-zA-Z0-9]+)/i);
+  if (invMatch) data.invoiceNo = invMatch[1].trim();
 
-  const inputCls =
-    "w-full bg-[#f8f8f8] border border-[#e8e8e8] rounded-xl px-3.5 py-2.5 text-sm font-medium text-black focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-[#bbb] transition-colors placeholder-[#bbb]";
-  const labelCls = "flex items-center gap-1.5 text-[11px] font-semibold text-[#888] uppercase tracking-wider mb-1.5";
+  // Product Name: text in the Description column before HSN number
+  // Usually the first multi-word text after the table header
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  const tableHeaderIdx = lines.findIndex((l) => /description\s+hsn/i.test(l) || /description.*qty.*gross/i.test(l));
 
-  // Count how many fields were auto-filled
-  const autoFilledCount = [
-    prefill.orderNo, prefill.customerName, prefill.customerAddress,
-    prefill.customerCity, prefill.customerPincode,
-    prefill.sku, prefill.size, prefill.color, prefill.courier,
-  ].filter(Boolean).length;
+  if (tableHeaderIdx >= 0) {
+    const descLines: string[] = [];
+    for (let i = tableHeaderIdx + 1; i < Math.min(tableHeaderIdx + 8, lines.length); i++) {
+      const l = lines[i];
+      // Stop at "Other Charges" or "Total" row
+      if (/other charges|^total\b/i.test(l)) break;
+      // Stop if line looks like it contains Rs. amounts (it's a data row, not description continuation)
+      if (/Rs\.\s*\d/.test(l) && descLines.length > 0) {
+        // This line might have the amounts — extract them
+        const amounts = [...l.matchAll(/Rs\.?\s*([\d,]+\.?\d*)/g)].map((m) => parseMoney(m[1]));
+        if (amounts.length >= 1) data.grossAmount = amounts[0];
+        if (amounts.length >= 2) data.discount = amounts[1];
+        if (amounts.length >= 4) data.total = amounts[amounts.length - 1];
+        break;
+      }
+      // If the line starts with a number (HSN code like 611130), parse amounts from it
+      if (/^\d{6}/.test(l)) {
+        const amounts = [...l.matchAll(/Rs\.?\s*([\d,]+\.?\d*)/g)].map((m) => parseMoney(m[0]));
+        if (amounts.length >= 1) data.grossAmount = amounts[0];
+        if (amounts.length >= 2) data.discount = amounts[1];
+        if (amounts.length >= 4) data.total = amounts[amounts.length - 1];
+        break;
+      }
+      descLines.push(l);
+    }
+    data.productName = descLines.join(" ").replace(/\s+/g, " ").trim();
+  }
+
+  // Amounts — comprehensive pattern search if table parsing didn't find them
+  if (data.grossAmount === 0) {
+    // "Gross Amount" column value
+    const grossMatch = text.match(/Rs\.?\s*([\d,]+\.?\d*)\s*(?:Rs\.?\s*[\d,]+\.?\d*\s*){1,5}Rs\.?\s*([\d,]+\.?\d*)\s*$/m);
+    if (grossMatch) {
+      data.grossAmount = parseMoney(grossMatch[1]);
+      data.total = parseMoney(grossMatch[2]);
+    }
+  }
+
+  // Total line at bottom: "Total ... Rs.256.00"
+  const totalLine = text.match(/^total\b.*Rs\.?\s*([\d,]+\.?\d*)\s*$/im);
+  if (totalLine) data.total = parseMoney(totalLine[1]);
+
+  // Tax: IGST amount
+  const igstMatch = text.match(/IGST\s*@?\s*[\d.]+%?\s*Rs\.?\s*([\d,]+\.?\d*)/i);
+  if (igstMatch) data.tax = parseMoney(igstMatch[1]);
+
+  // Discount
+  if (data.discount === 0) {
+    const discMatch = text.match(/discount\s+.*?Rs\.?\s*([\d,]+\.?\d*)/i);
+    if (discMatch) data.discount = parseMoney(discMatch[1]);
+  }
+
+  return data;
+}
+
+// ─── Page classifier ───────────────────────────────────────────────────────────
+function classifyPage(text: string): "shipping" | "invoice" | "unknown" {
+  const hasProductDetails = /product\s*details/i.test(text);
+  const hasCustomerAddress = /customer\s*address/i.test(text);
+  const hasTaxInvoice = /tax\s*invoice/i.test(text);
+  const hasPurchaseOrder = /purchase\s*order\s*no/i.test(text);
+
+  if (hasTaxInvoice || hasPurchaseOrder) return "invoice";
+  if (hasProductDetails || hasCustomerAddress) return "shipping";
+  return "unknown";
+}
+
+// ─── Main extractor ────────────────────────────────────────────────────────────
+export interface ExtractedOrder {
+  orderNo: string;
+  invoiceNo: string;
+  customerName: string;
+  customerAddress: string;
+  customerCity: string;
+  customerPincode: string;
+  sku: string;
+  productName: string;
+  size: string;
+  color: string;
+  qty: number;
+  grossAmount: number;
+  discount: number;
+  tax: number;
+  sellingPrice: number;
+  paymentType: "Prepaid" | "COD";
+  courier: string;
+  pageNos: number[];
+}
+
+async function extractFromPdf(
+  file: File,
+  onProgress: (msg: string, pct: number) => void
+): Promise<ExtractedOrder[]> {
+  onProgress("Loading PDF…", 5);
+  const pdfjs: typeof import("pdfjs-dist") = await import("pdfjs-dist");
+  pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+
+  const buffer = await file.arrayBuffer();
+  const pdf = await pdfjs.getDocument({ data: buffer }).promise;
+  const total = pdf.numPages;
+
+  // Extract text from each page
+  const pages: { text: string; type: "shipping" | "invoice" | "unknown"; pageNo: number }[] = [];
+
+  for (let i = 1; i <= total; i++) {
+    onProgress(`Reading page ${i} of ${total}…`, 5 + Math.round((i / total) * 60));
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const text = pageItemsToLines(content.items as Array<{ str: string; transform: number[] }>);
+    const type = classifyPage(text);
+    pages.push({ text, type, pageNo: i });
+  }
+
+  onProgress("Matching orders…", 70);
+
+  // Parse each page
+  const shippingPages: (ShippingData & { pageNo: number })[] = [];
+  const invoicePages: (InvoiceData & { pageNo: number })[] = [];
+
+  for (const { text, type, pageNo } of pages) {
+    if (type === "shipping") {
+      shippingPages.push({ ...parseShippingLabel(text), pageNo });
+    } else if (type === "invoice") {
+      invoicePages.push({ ...parseInvoice(text), pageNo });
+    }
+  }
+
+  // Match shipping + invoice by order number (strip trailing _N suffix)
+  const normalize = (s: string) => s.replace(/_\d+$/, "").trim();
+
+  const orders: ExtractedOrder[] = [];
+  const usedInvoices = new Set<number>();
+
+  for (const ship of shippingPages) {
+    const shipOrderNo = normalize(ship.orderNo);
+
+    // Find matching invoice
+    const inv = invoicePages.find(
+      (inv) => !usedInvoices.has(inv.pageNo) && normalize(inv.orderNo) === shipOrderNo
+    );
+
+    if (inv) usedInvoices.add(inv.pageNo);
+
+    orders.push({
+      orderNo: ship.orderNo || inv?.orderNo || "",
+      invoiceNo: inv?.invoiceNo || "",
+      customerName: ship.customerName,
+      customerAddress: ship.customerAddress,
+      customerCity: ship.customerCity,
+      customerPincode: ship.customerPincode,
+      sku: ship.sku,
+      productName: inv?.productName || "",
+      size: ship.size,
+      color: ship.color,
+      qty: ship.qty,
+      grossAmount: inv?.grossAmount || 0,
+      discount: inv?.discount || 0,
+      tax: inv?.tax || 0,
+      sellingPrice: inv?.total || (ship.paymentType === "COD" ? ship.codAmount : 0),
+      paymentType: ship.paymentType,
+      courier: ship.courier,
+      pageNos: [ship.pageNo, ...(inv ? [inv.pageNo] : [])],
+    });
+  }
+
+  // Add unmatched invoices (shipping page might have been unknown)
+  for (const inv of invoicePages) {
+    if (!usedInvoices.has(inv.pageNo)) {
+      orders.push({
+        orderNo: inv.orderNo,
+        invoiceNo: inv.invoiceNo,
+        customerName: "",
+        customerAddress: "",
+        customerCity: "",
+        customerPincode: "",
+        sku: "",
+        productName: inv.productName,
+        size: "",
+        color: "",
+        qty: 1,
+        grossAmount: inv.grossAmount,
+        discount: inv.discount,
+        tax: inv.tax,
+        sellingPrice: inv.total,
+        paymentType: "Prepaid",
+        courier: "",
+        pageNos: [inv.pageNo],
+      });
+    }
+  }
+
+  onProgress("Done!", 100);
+  return orders;
+}
+
+// ─── Review Table ──────────────────────────────────────────────────────────────
+function ReviewTable({
+  orders,
+  onUpdate,
+  onRemove,
+  onSave,
+  onReset,
+}: {
+  orders: ExtractedOrder[];
+  onUpdate: (idx: number, field: keyof ExtractedOrder, value: string | number) => void;
+  onRemove: (idx: number) => void;
+  onSave: () => void;
+  onReset: () => void;
+}) {
+  const cellInput =
+    "w-full bg-transparent border-0 border-b border-transparent focus:border-[#ccc] focus:outline-none text-xs text-black py-0.5 font-medium placeholder-[#bbb] min-w-0";
+
+  const totalRevenue = orders.reduce((s, o) => s + o.sellingPrice, 0);
+  const totalDiscount = orders.reduce((s, o) => s + o.discount, 0);
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="bg-white w-full sm:max-w-lg sm:rounded-3xl rounded-t-3xl overflow-hidden shadow-2xl max-h-[92vh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#f0f0f0] bg-white sticky top-0 z-10">
-          <div>
-            <div className="font-bold text-black text-base">Order Details</div>
-            {autoFilledCount > 0 ? (
-              <div className="text-[11px] text-green-600 mt-0.5 font-semibold flex items-center gap-1">
-                <Sparkles size={10} />
-                {autoFilledCount} fields auto-filled from bill
-              </div>
-            ) : (
-              <div className="text-[11px] text-[#888] mt-0.5">Fill in details from the Meesho bill</div>
-            )}
-          </div>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-[#f5f5f5] hover:bg-[#eee] transition-colors">
-            <X size={16} className="text-[#666]" />
-          </button>
+    <div className="space-y-4">
+      {/* Summary bar */}
+      <div className="bg-gradient-to-r from-[#f0fdf4] to-[#eff6ff] border border-[#bbf7d0] rounded-2xl px-5 py-3 flex flex-wrap items-center gap-4">
+        <div className="flex items-center gap-2">
+          <Sparkles size={14} className="text-green-600" />
+          <span className="text-sm font-bold text-green-700">
+            {orders.length} orders extracted
+          </span>
         </div>
-
-        {/* Scrollable form */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-
-          {/* Auto-fill banner */}
-          {autoFilledCount > 0 && (
-            <div className="bg-gradient-to-r from-[#f0fdf4] to-[#eff6ff] border border-[#bbf7d0] rounded-2xl px-4 py-3">
-              <div className="flex items-center gap-2 mb-1">
-                <Sparkles size={13} className="text-green-600" />
-                <div className="text-xs font-bold text-green-700">Auto-filled from bill scan</div>
-              </div>
-              <div className="text-[11px] text-[#555]">
-                Review and correct any fields below. Highlighted fields were read from your bill.
-              </div>
-              {rawOcrText && (
-                <button onClick={() => setShowRaw(!showRaw)} className="mt-2 text-[10px] text-blue-500 font-semibold underline">
-                  {showRaw ? "Hide" : "Show"} raw scan text
-                </button>
-              )}
-              {showRaw && rawOcrText && (
-                <pre className="mt-2 text-[10px] text-[#666] bg-white/60 rounded-lg p-2 overflow-auto max-h-28 whitespace-pre-wrap font-mono">
-                  {rawOcrText}
-                </pre>
-              )}
-            </div>
-          )}
-
-          {/* Order No */}
-          <div>
-            <label className={labelCls}><Hash size={11} /> Order Number</label>
-            <input
-              className={`${inputCls} ${prefill.orderNo ? "border-green-300 bg-[#f0fdf4]" : ""}`}
-              value={form.orderNo}
-              onChange={(e) => set("orderNo", e.target.value)}
-              placeholder="e.g. 29489332911..."
-            />
-          </div>
-
-          {/* Date + Status */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={labelCls}><CalendarDays size={11} /> Pack Date</label>
-              <input type="date" className={inputCls} value={form.date} onChange={(e) => set("date", e.target.value)} />
-            </div>
-            <div>
-              <label className={labelCls}><CheckCircle2 size={11} /> Status</label>
-              <select className={inputCls} value={form.status} onChange={(e) => set("status", e.target.value as MeeshoOrder["status"])}>
-                <option value="Packed">Packed</option>
-                <option value="Shipped">Shipped</option>
-                <option value="RTO">RTO</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="border-t border-dashed border-[#eee] pt-3">
-            <div className="text-[10px] font-bold text-[#aaa] uppercase tracking-widest mb-3">Customer Info</div>
-            <div className="space-y-3">
-              <div>
-                <label className={labelCls}><User size={11} /> Customer Name</label>
-                <input
-                  className={`${inputCls} ${prefill.customerName ? "border-green-300 bg-[#f0fdf4]" : ""}`}
-                  value={form.customerName}
-                  onChange={(e) => set("customerName", e.target.value)}
-                  placeholder="e.g. Kundan Kumar"
-                />
-              </div>
-              <div>
-                <label className={labelCls}>Address</label>
-                <input
-                  className={`${inputCls} ${prefill.customerAddress ? "border-green-300 bg-[#f0fdf4]" : ""}`}
-                  value={form.customerAddress}
-                  onChange={(e) => set("customerAddress", e.target.value)}
-                  placeholder="Street / Area"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={labelCls}>City</label>
-                  <input
-                    className={`${inputCls} ${prefill.customerCity ? "border-green-300 bg-[#f0fdf4]" : ""}`}
-                    value={form.customerCity}
-                    onChange={(e) => set("customerCity", e.target.value)}
-                    placeholder="City"
-                  />
-                </div>
-                <div>
-                  <label className={labelCls}>Pincode</label>
-                  <input
-                    className={`${inputCls} ${prefill.customerPincode ? "border-green-300 bg-[#f0fdf4]" : ""}`}
-                    value={form.customerPincode}
-                    onChange={(e) => set("customerPincode", e.target.value)}
-                    placeholder="6-digit"
-                    maxLength={6}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="border-t border-dashed border-[#eee] pt-3">
-            <div className="text-[10px] font-bold text-[#aaa] uppercase tracking-widest mb-3">Product Info</div>
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={labelCls}><Tag size={11} /> SKU</label>
-                  <input
-                    className={`${inputCls} ${prefill.sku ? "border-green-300 bg-[#f0fdf4]" : ""}`}
-                    value={form.sku}
-                    onChange={(e) => set("sku", e.target.value)}
-                    placeholder="e.g. KDK-YELLOW-BOY"
-                  />
-                </div>
-                <div>
-                  <label className={labelCls}><Ruler size={11} /> Size</label>
-                  <input
-                    className={`${inputCls} ${prefill.size ? "border-green-300 bg-[#f0fdf4]" : ""}`}
-                    value={form.size}
-                    onChange={(e) => set("size", e.target.value)}
-                    placeholder="e.g. 3-4 Years"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className={labelCls}>Product Name</label>
-                <input className={inputCls} value={form.productName} onChange={(e) => set("productName", e.target.value)} placeholder="e.g. Boys Yellow T-Shirt" />
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className={labelCls}><Palette size={11} /> Color</label>
-                  <input
-                    className={`${inputCls} ${prefill.color ? "border-green-300 bg-[#f0fdf4]" : ""}`}
-                    value={form.color}
-                    onChange={(e) => set("color", e.target.value)}
-                    placeholder="NA"
-                  />
-                </div>
-                <div>
-                  <label className={labelCls}>Qty</label>
-                  <input
-                    className={`${inputCls} ${prefill.qty && prefill.qty > 1 ? "border-green-300 bg-[#f0fdf4]" : ""}`}
-                    type="number" min={1}
-                    value={form.qty}
-                    onChange={(e) => set("qty", Number(e.target.value))}
-                  />
-                </div>
-                <div>
-                  <label className={labelCls}><IndianRupee size={11} /> Price</label>
-                  <input type="number" min={0} className={inputCls} value={form.sellingPrice || ""} onChange={(e) => set("sellingPrice", Number(e.target.value))} placeholder="0" />
-                </div>
-              </div>
-              <div>
-                <label className={labelCls}><Truck size={11} /> Courier</label>
-                <input
-                  className={`${inputCls} ${prefill.courier ? "border-green-300 bg-[#f0fdf4]" : ""}`}
-                  value={form.courier}
-                  onChange={(e) => set("courier", e.target.value)}
-                  placeholder="e.g. Xpress Bees"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="border-t border-dashed border-[#eee] pt-3">
-            <label className={labelCls}><MessageSquare size={11} /> Notes</label>
-            <textarea className={`${inputCls} resize-none`} rows={2} value={form.notes} onChange={(e) => set("notes", e.target.value)} placeholder="Optional notes…" />
-          </div>
+        <div className="text-xs text-[#555]">
+          Revenue: <strong>₹{totalRevenue.toLocaleString("en-IN")}</strong>
         </div>
-
-        {/* Footer */}
-        <div className="px-5 py-4 border-t border-[#f0f0f0] bg-white flex gap-3">
-          <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-[#e8e8e8] text-sm font-bold text-[#666] hover:bg-[#f5f5f5] transition-colors">
-            Cancel
+        <div className="text-xs text-[#555]">
+          Discount: <strong>₹{totalDiscount.toLocaleString("en-IN")}</strong>
+        </div>
+        <div className="ml-auto flex gap-2">
+          <button
+            onClick={onReset}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-[#666] border border-[#e8e8e8] bg-white hover:bg-[#f5f5f5] transition-colors"
+          >
+            <RotateCcw size={12} /> Reset
           </button>
           <button
-            onClick={() => onSave(form)}
-            disabled={!form.orderNo && !form.customerName}
-            className="flex-grow py-3 rounded-xl bg-black text-white text-sm font-bold flex items-center justify-center gap-2 hover:bg-[#1a1a1a] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            onClick={onSave}
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-black hover:bg-[#1a1a1a] transition-colors"
           >
-            <Package size={15} /> Save Order
+            <Save size={12} /> Save All Orders
           </button>
         </div>
+      </div>
+
+      {/* Table (horizontal scroll) */}
+      <div className="bg-white border border-[#e8e8e8] rounded-2xl overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs whitespace-nowrap">
+            <thead className="bg-[#fafafa] border-b border-[#e8e8e8]">
+              <tr>
+                {[
+                  "#",
+                  "Customer",
+                  "Order No.",
+                  "SKU",
+                  "Product Name",
+                  "Size",
+                  "Qty",
+                  "Gross (₹)",
+                  "Disc (₹)",
+                  "Total (₹)",
+                  "Payment",
+                  "Courier",
+                  "",
+                ].map((h) => (
+                  <th
+                    key={h}
+                    className="px-3 py-3 text-[10px] font-semibold text-[#888] uppercase tracking-wider"
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#f5f5f5]">
+              {orders.map((o, idx) => (
+                <tr key={idx} className="hover:bg-[#fafafa] transition-colors group">
+                  <td className="px-3 py-2 text-[#aaa] font-bold">{idx + 1}</td>
+                  <td className="px-3 py-2 min-w-[130px]">
+                    <input
+                      className={cellInput}
+                      value={o.customerName}
+                      onChange={(e) => onUpdate(idx, "customerName", e.target.value)}
+                      placeholder="Customer name"
+                    />
+                    {o.customerCity && (
+                      <div className="text-[10px] text-[#aaa] mt-0.5">{o.customerCity} {o.customerPincode}</div>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 min-w-[140px]">
+                    <div className="font-mono text-[10px] text-[#666] truncate max-w-[140px]" title={o.orderNo}>
+                      {o.orderNo || "—"}
+                    </div>
+                    {o.invoiceNo && <div className="text-[10px] text-[#bbb]">Inv: {o.invoiceNo}</div>}
+                  </td>
+                  <td className="px-3 py-2 min-w-[110px]">
+                    <input
+                      className={`${cellInput} font-mono`}
+                      value={o.sku}
+                      onChange={(e) => onUpdate(idx, "sku", e.target.value)}
+                      placeholder="SKU"
+                    />
+                  </td>
+                  <td className="px-3 py-2 min-w-[160px]">
+                    <input
+                      className={cellInput}
+                      value={o.productName}
+                      onChange={(e) => onUpdate(idx, "productName", e.target.value)}
+                      placeholder="Product name"
+                    />
+                  </td>
+                  <td className="px-3 py-2 min-w-[80px]">
+                    <input
+                      className={cellInput}
+                      value={o.size}
+                      onChange={(e) => onUpdate(idx, "size", e.target.value)}
+                      placeholder="Size"
+                    />
+                  </td>
+                  <td className="px-3 py-2 w-12 text-center">
+                    <input
+                      type="number"
+                      min={1}
+                      className={`${cellInput} text-center`}
+                      value={o.qty}
+                      onChange={(e) => onUpdate(idx, "qty", Number(e.target.value))}
+                    />
+                  </td>
+                  <td className="px-3 py-2 text-right w-20">
+                    <input
+                      type="number"
+                      min={0}
+                      className={`${cellInput} text-right`}
+                      value={o.grossAmount || ""}
+                      onChange={(e) => onUpdate(idx, "grossAmount", Number(e.target.value))}
+                      placeholder="0"
+                    />
+                  </td>
+                  <td className="px-3 py-2 text-right w-20">
+                    <input
+                      type="number"
+                      min={0}
+                      className={`${cellInput} text-right text-red-500`}
+                      value={o.discount || ""}
+                      onChange={(e) => onUpdate(idx, "discount", Number(e.target.value))}
+                      placeholder="0"
+                    />
+                  </td>
+                  <td className="px-3 py-2 text-right w-20">
+                    <input
+                      type="number"
+                      min={0}
+                      className={`${cellInput} text-right font-bold`}
+                      value={o.sellingPrice || ""}
+                      onChange={(e) => onUpdate(idx, "sellingPrice", Number(e.target.value))}
+                      placeholder="0"
+                    />
+                  </td>
+                  <td className="px-3 py-2">
+                    <span
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                        o.paymentType === "Prepaid"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-orange-100 text-orange-700"
+                      }`}
+                    >
+                      {o.paymentType}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 min-w-[90px]">
+                    <input
+                      className={cellInput}
+                      value={o.courier}
+                      onChange={(e) => onUpdate(idx, "courier", e.target.value)}
+                      placeholder="Courier"
+                    />
+                  </td>
+                  <td className="px-3 py-2">
+                    <button
+                      onClick={() => onRemove(idx)}
+                      className="w-6 h-6 flex items-center justify-center rounded-lg text-[#ccc] hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                    >
+                      <X size={12} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="flex justify-end">
+        <button
+          onClick={onSave}
+          className="flex items-center gap-2 px-6 py-3 rounded-xl bg-black text-white font-bold text-sm hover:bg-[#1a1a1a] transition-colors shadow-[0_4px_14px_rgba(0,0,0,0.2)]"
+        >
+          <Save size={15} />
+          Save {orders.length} Orders to Today
+        </button>
       </div>
     </div>
   );
 }
 
-// ─── Order Card ────────────────────────────────────────────────────────────────
+// ─── Order Card (History) ──────────────────────────────────────────────────────
 function OrderCard({ order, onDelete }: { order: MeeshoOrder; onDelete: () => void }) {
   const [expanded, setExpanded] = useState(false);
   const cfg = STATUS_CONFIG[order.status];
+
   return (
     <div className="bg-white border border-[#e8e8e8] rounded-2xl overflow-hidden shadow-[0_1px_4px_rgba(0,0,0,0.04)] hover:shadow-[0_2px_10px_rgba(0,0,0,0.07)] transition-shadow">
-      <button onClick={() => setExpanded((v) => !v)} className="w-full text-left px-4 py-3.5 flex items-start gap-3">
-        <div className="mt-1 w-2.5 h-2.5 rounded-full shrink-0" style={{ background: cfg.color }} />
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full text-left px-4 py-3.5 flex items-start gap-3"
+      >
+        <div
+          className="mt-1 w-2.5 h-2.5 rounded-full shrink-0"
+          style={{ background: cfg.color }}
+        />
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <div className="font-bold text-black text-sm leading-tight truncate">{order.customerName || "—"}</div>
-              <div className="text-[11px] text-[#888] mt-0.5 font-mono truncate">#{order.orderNo || "—"}</div>
+              <div className="font-bold text-black text-sm leading-tight">
+                {order.customerName || "—"}
+              </div>
+              <div className="text-[11px] text-[#888] font-mono mt-0.5 truncate">
+                #{order.orderNo || "—"}
+              </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-bold border" style={{ background: cfg.bg, color: cfg.color, borderColor: cfg.border }}>{cfg.label}</span>
-              <ChevronDown size={14} className={`text-[#aaa] transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
+              <span
+                className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                  order.paymentType === "Prepaid"
+                    ? "bg-green-100 text-green-700"
+                    : "bg-orange-100 text-orange-700"
+                }`}
+              >
+                {order.paymentType}
+              </span>
+              <span
+                className="px-2.5 py-0.5 rounded-lg text-[10px] font-bold border"
+                style={{ background: cfg.bg, color: cfg.color, borderColor: cfg.border }}
+              >
+                {cfg.label}
+              </span>
+              <ChevronDown
+                size={14}
+                className={`text-[#aaa] transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
+              />
             </div>
           </div>
           <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-            {order.sku && <span className="text-[11px] bg-[#f5f5f5] text-[#666] px-2 py-0.5 rounded-md font-medium">{order.sku}</span>}
-            {order.size && <span className="text-[11px] text-[#888]">Size: {order.size}</span>}
+            {order.sku && (
+              <span className="text-[11px] bg-[#f5f5f5] text-[#666] px-2 py-0.5 rounded-md font-medium font-mono">
+                {order.sku}
+              </span>
+            )}
+            {order.size && <span className="text-[11px] text-[#888]">{order.size}</span>}
             {order.qty > 0 && <span className="text-[11px] text-[#888]">Qty: {order.qty}</span>}
-            {order.sellingPrice > 0 && <span className="text-[11px] font-bold text-black">₹{order.sellingPrice.toLocaleString("en-IN")}</span>}
+            {order.discount > 0 && (
+              <span className="text-[11px] text-red-500 line-through">
+                ₹{order.grossAmount.toLocaleString("en-IN")}
+              </span>
+            )}
+            {order.sellingPrice > 0 && (
+              <span className="text-[11px] font-bold text-black">
+                ₹{order.sellingPrice.toLocaleString("en-IN")}
+              </span>
+            )}
+            {order.discount > 0 && (
+              <span className="text-[11px] text-green-600 font-semibold">
+                −₹{order.discount.toLocaleString("en-IN")}
+              </span>
+            )}
           </div>
         </div>
       </button>
+
       {expanded && (
         <div className="px-4 pb-4 pt-1 border-t border-[#f5f5f5] space-y-3">
-          {(order.customerAddress || order.customerCity || order.customerPincode) && (
+          {order.productName && (
             <div className="bg-[#fafafa] rounded-xl p-3">
-              <div className="text-[10px] font-bold text-[#aaa] uppercase tracking-wider mb-1">Delivery Address</div>
+              <div className="text-[10px] font-bold text-[#aaa] uppercase tracking-wider mb-0.5">Product</div>
+              <div className="font-semibold text-sm text-black">{order.productName}</div>
+            </div>
+          )}
+
+          {(order.customerAddress || order.customerCity) && (
+            <div className="bg-[#fafafa] rounded-xl p-3">
+              <div className="text-[10px] font-bold text-[#aaa] uppercase tracking-wider mb-1">Ship To</div>
               <div className="text-sm text-[#333] leading-relaxed">
                 {[order.customerAddress, order.customerCity, order.customerPincode].filter(Boolean).join(", ")}
               </div>
             </div>
           )}
-          <div className="grid grid-cols-2 gap-2 text-[12px]">
-            {order.productName && (
-              <div className="col-span-2 bg-[#fafafa] rounded-xl p-3">
-                <div className="text-[10px] font-bold text-[#aaa] uppercase tracking-wider mb-0.5">Product</div>
-                <div className="font-semibold text-black">{order.productName}</div>
-              </div>
-            )}
-            {order.color && (
-              <div className="bg-[#fafafa] rounded-xl p-2.5">
-                <div className="text-[10px] font-bold text-[#aaa] uppercase tracking-wider mb-0.5">Color</div>
-                <div className="font-semibold text-black">{order.color}</div>
-              </div>
-            )}
+
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-[#fafafa] rounded-xl p-2.5 text-center">
+              <div className="text-[10px] font-bold text-[#aaa] uppercase tracking-wider mb-0.5">MRP</div>
+              <div className="font-bold text-black text-sm">₹{order.grossAmount.toLocaleString("en-IN")}</div>
+            </div>
+            <div className="bg-[#fafafa] rounded-xl p-2.5 text-center">
+              <div className="text-[10px] font-bold text-[#aaa] uppercase tracking-wider mb-0.5">Disc</div>
+              <div className="font-bold text-red-500 text-sm">−₹{order.discount.toLocaleString("en-IN")}</div>
+            </div>
+            <div className="bg-[#fafafa] rounded-xl p-2.5 text-center">
+              <div className="text-[10px] font-bold text-[#aaa] uppercase tracking-wider mb-0.5">Paid</div>
+              <div className="font-bold text-green-600 text-sm">₹{order.sellingPrice.toLocaleString("en-IN")}</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
             {order.courier && (
               <div className="bg-[#fafafa] rounded-xl p-2.5">
                 <div className="text-[10px] font-bold text-[#aaa] uppercase tracking-wider mb-0.5">Courier</div>
-                <div className="font-semibold text-black">{order.courier}</div>
+                <div className="font-semibold text-black text-xs">{order.courier}</div>
+              </div>
+            )}
+            {order.invoiceNo && (
+              <div className="bg-[#fafafa] rounded-xl p-2.5">
+                <div className="text-[10px] font-bold text-[#aaa] uppercase tracking-wider mb-0.5">Invoice</div>
+                <div className="font-semibold text-black text-xs font-mono">{order.invoiceNo}</div>
               </div>
             )}
           </div>
+
           <div className="flex items-center justify-between">
-            <span className="text-[11px] text-[#aaa]">Scanned {fmtTime(order.scannedAt)}</span>
-            <button onClick={onDelete} className="flex items-center gap-1 text-[11px] font-semibold text-red-400 hover:text-red-600 transition-colors">
+            <span className="text-[11px] text-[#aaa]">Added {fmtTime(order.scannedAt)}</span>
+            <button
+              onClick={onDelete}
+              className="flex items-center gap-1 text-[11px] font-semibold text-red-400 hover:text-red-600 transition-colors"
+            >
               <Trash2 size={12} /> Delete
             </button>
           </div>
-          {order.notes && <div className="text-[12px] text-[#777] bg-[#fffbeb] border border-[#fde68a] rounded-xl px-3 py-2">{order.notes}</div>}
+          {order.notes && (
+            <div className="text-[12px] text-[#777] bg-[#fffbeb] border border-[#fde68a] rounded-xl px-3 py-2">
+              {order.notes}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -886,15 +791,26 @@ function OrderCard({ order, onDelete }: { order: MeeshoOrder; onDelete: () => vo
 }
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
+type AppState = "idle" | "processing" | "reviewing";
+
 export default function MeeshoOrders() {
   const { meeshoOrders, setMeeshoOrders } = useData();
-  const [showScanner, setShowScanner] = useState(false);
-  const [prefillData, setPrefillData] = useState<(Partial<ParsedBill> & { rawText?: string }) | null>(null);
+  const [appState, setAppState] = useState<AppState>("idle");
+  const [progressMsg, setProgressMsg] = useState("");
+  const [progressPct, setProgressPct] = useState(0);
+  const [extractedOrders, setExtractedOrders] = useState<ExtractedOrder[]>([]);
   const [activeTab, setActiveTab] = useState<"today" | "all">("today");
   const [dateFilter, setDateFilter] = useState(todayDate());
+  const [error, setError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const todayStr = todayDate();
-  const todayOrders = useMemo(() => meeshoOrders.filter((o) => o.date === todayStr), [meeshoOrders, todayStr]);
+  const todayOrders = useMemo(
+    () => meeshoOrders.filter((o) => o.date === todayStr),
+    [meeshoOrders, todayStr]
+  );
+
   const filteredOrders = useMemo(() => {
     if (activeTab === "today") return todayOrders;
     if (dateFilter) return meeshoOrders.filter((o) => o.date === dateFilter);
@@ -905,50 +821,127 @@ export default function MeeshoOrders() {
     count: todayOrders.length,
     qty: todayOrders.reduce((s, o) => s + o.qty, 0),
     revenue: todayOrders.filter((o) => o.status !== "RTO").reduce((s, o) => s + o.sellingPrice, 0),
+    discount: todayOrders.reduce((s, o) => s + o.discount, 0),
   }), [todayOrders]);
-
-  const handleScanResult = useCallback((data: Partial<ParsedBill> & { rawText?: string }) => {
-    setShowScanner(false);
-    setPrefillData(data);
-  }, []);
-
-  const handleSaveOrder = (draft: DraftOrder) => {
-    const order: MeeshoOrder = { ...draft, id: Date.now().toString(), scannedAt: new Date().toISOString() };
-    setMeeshoOrders((prev) => [order, ...prev]);
-    setPrefillData(null);
-  };
 
   const groupedByDate = useMemo(() => {
     if (activeTab === "today") return null;
     const groups: Record<string, MeeshoOrder[]> = {};
-    filteredOrders.forEach((o) => { if (!groups[o.date]) groups[o.date] = []; groups[o.date].push(o); });
+    filteredOrders.forEach((o) => {
+      if (!groups[o.date]) groups[o.date] = [];
+      groups[o.date].push(o);
+    });
     return Object.entries(groups).sort(([a], [b]) => b.localeCompare(a));
   }, [filteredOrders, activeTab]);
 
+  const handleFile = useCallback(async (file: File) => {
+    if (!file.name.match(/\.(pdf)$/i)) {
+      setError("Please upload a PDF file.");
+      return;
+    }
+    setError(null);
+    setAppState("processing");
+    setProgressPct(0);
+    setProgressMsg("Starting…");
+    try {
+      const orders = await extractFromPdf(file, (msg, pct) => {
+        setProgressMsg(msg);
+        setProgressPct(pct);
+      });
+      setExtractedOrders(orders);
+      setAppState("reviewing");
+    } catch (e) {
+      console.error(e);
+      setError("Failed to process PDF. Please try again.");
+      setAppState("idle");
+    }
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      setIsDragging(false);
+      const file = e.dataTransfer.files?.[0];
+      if (file) handleFile(file);
+    },
+    [handleFile]
+  );
+
+  const updateOrder = (idx: number, field: keyof ExtractedOrder, value: string | number) => {
+    setExtractedOrders((prev) =>
+      prev.map((o, i) => (i === idx ? { ...o, [field]: value } : o))
+    );
+  };
+
+  const removeOrder = (idx: number) => {
+    setExtractedOrders((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const saveAllOrders = () => {
+    const now = new Date().toISOString();
+    const newOrders: MeeshoOrder[] = extractedOrders.map((o, i) => ({
+      id: `${Date.now()}-${i}`,
+      date: todayDate(),
+      scannedAt: now,
+      orderNo: o.orderNo,
+      invoiceNo: o.invoiceNo,
+      customerName: o.customerName,
+      customerAddress: o.customerAddress,
+      customerCity: o.customerCity,
+      customerPincode: o.customerPincode,
+      sku: o.sku,
+      productName: o.productName,
+      size: o.size,
+      color: o.color,
+      qty: o.qty,
+      grossAmount: o.grossAmount,
+      discount: o.discount,
+      tax: o.tax,
+      sellingPrice: o.sellingPrice,
+      paymentType: o.paymentType,
+      courier: o.courier,
+      status: "Packed",
+      notes: "",
+    }));
+    setMeeshoOrders((prev) => [...newOrders, ...prev]);
+    setAppState("idle");
+    setExtractedOrders([]);
+    setActiveTab("today");
+  };
+
   return (
     <div className="space-y-6 pb-24 lg:pb-6">
-      {/* Header */}
+      {/* ── Header ── */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-black tracking-tight">Meesho Orders</h2>
           <p className="text-sm text-[#888] mt-1">Daily packing tracker</p>
         </div>
-        <button
-          onClick={() => setShowScanner(true)}
-          className="flex items-center gap-2 bg-black text-white px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-[#1a1a1a] active:scale-95 transition-all shadow-[0_4px_14px_rgba(0,0,0,0.2)]"
-        >
-          <ScanLine size={16} />
-          <span className="hidden sm:inline">Scan Bill</span>
-          <span className="sm:hidden">Scan</span>
-        </button>
+        {appState !== "reviewing" && (
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-2 bg-black text-white px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-[#1a1a1a] active:scale-95 transition-all shadow-[0_4px_14px_rgba(0,0,0,0.2)]"
+          >
+            <Upload size={15} />
+            Upload PDF
+          </button>
+        )}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,application/pdf"
+          className="hidden"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }}
+        />
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
+      {/* ── Today's Stats ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { icon: ClipboardList, color: "text-blue-500", bg: "bg-[#eff6ff]", label: "Today", value: todayStats.count, sub: "Orders packed" },
-          { icon: Package, color: "text-green-500", bg: "bg-[#f0fdf4]", label: "Qty", value: todayStats.qty, sub: "Items packed" },
-          { icon: IndianRupee, color: "text-purple-500", bg: "bg-[#fdf4ff]", label: "Revenue", value: `₹${todayStats.revenue.toLocaleString("en-IN")}`, sub: "Today's value" },
+          { icon: ClipboardList, color: "text-blue-500", bg: "bg-[#eff6ff]", label: "Today", value: todayStats.count, sub: "Orders" },
+          { icon: Package, color: "text-green-500", bg: "bg-[#f0fdf4]", label: "Items", value: todayStats.qty, sub: "Qty packed" },
+          { icon: IndianRupee, color: "text-purple-500", bg: "bg-[#fdf4ff]", label: "Revenue", value: `₹${todayStats.revenue.toLocaleString("en-IN")}`, sub: "Earned today" },
+          { icon: TrendingDown, color: "text-red-400", bg: "bg-[#fff1f2]", label: "Discount", value: `₹${todayStats.discount.toLocaleString("en-IN")}`, sub: "Given today" },
         ].map(({ icon: Icon, color, bg, label, value, sub }) => (
           <div key={label} className="bg-white border border-[#e8e8e8] rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
             <div className="flex items-center gap-2 mb-2">
@@ -963,89 +956,182 @@ export default function MeeshoOrders() {
         ))}
       </div>
 
-      {/* Empty state */}
-      {meeshoOrders.length === 0 && (
-        <div className="bg-gradient-to-br from-[#f8f4ff] to-[#eff6ff] border border-[#e0d5ff] rounded-2xl p-6 flex flex-col items-center text-center gap-3">
-          <div className="w-14 h-14 bg-white rounded-2xl shadow-sm flex items-center justify-center">
-            <Camera size={28} className="text-[#7c3aed]" />
+      {/* ── Processing State ── */}
+      {appState === "processing" && (
+        <div className="bg-white border border-[#e8e8e8] rounded-2xl p-8 flex flex-col items-center gap-4 shadow-sm">
+          <div className="w-14 h-14 bg-[#f5f5f5] rounded-2xl flex items-center justify-center">
+            <Loader2 size={28} className="text-black animate-spin" />
           </div>
-          <div>
-            <div className="font-bold text-black">Start Scanning!</div>
-            <div className="text-sm text-[#666] mt-1 leading-relaxed">
-              Tap <strong>Scan</strong> and take a photo of any Meesho bill.<br />
-              <span className="text-[#7c3aed] font-semibold">All customer & product details will be auto-filled ✨</span>
+          <div className="text-center">
+            <div className="font-bold text-black">{progressMsg}</div>
+            <div className="text-sm text-[#888] mt-1">Extracting order details from PDF…</div>
+          </div>
+          <div className="w-full max-w-xs">
+            <div className="w-full h-2 bg-[#f5f5f5] rounded-full overflow-hidden">
+              <div
+                className="h-full bg-black rounded-full transition-all duration-500"
+                style={{ width: `${progressPct}%` }}
+              />
             </div>
+            <div className="text-center text-xs text-[#aaa] mt-1">{progressPct}%</div>
           </div>
         </div>
       )}
 
-      {/* Tabs */}
-      {meeshoOrders.length > 0 && (
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex bg-[#f5f5f5] p-1 rounded-xl gap-1">
-            {(["today", "all"] as const).map((t) => (
-              <button key={t} onClick={() => setActiveTab(t)}
-                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === t ? "bg-white text-black shadow-sm" : "text-[#888] hover:text-black"}`}>
-                {t === "today" ? `Today (${todayStats.count})` : `All (${meeshoOrders.length})`}
-              </button>
-            ))}
-          </div>
-          {activeTab === "all" && (
-            <input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)}
-              className="bg-white border border-[#e8e8e8] rounded-xl px-3 py-1.5 text-xs font-medium text-black focus:outline-none focus:ring-2 focus:ring-black/10" />
-          )}
-          {activeTab === "all" && dateFilter && (
-            <button onClick={() => setDateFilter("")} className="text-xs text-[#888] hover:text-black font-semibold transition-colors">Clear date</button>
-          )}
-        </div>
-      )}
-
-      {/* Orders List */}
-      {activeTab === "today" ? (
-        <div className="space-y-3">
-          {filteredOrders.length === 0 ? (
-            <div className="text-center py-10 text-[#aaa] text-sm">No orders packed today yet. Tap <strong className="text-black">Scan</strong> to begin!</div>
-          ) : filteredOrders.map((order) => (
-            <OrderCard key={order.id} order={order} onDelete={() => setMeeshoOrders((p) => p.filter((o) => o.id !== order.id))} />
-          ))}
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {groupedByDate?.length === 0 && <div className="text-center py-10 text-[#aaa] text-sm">No orders found.</div>}
-          {groupedByDate?.map(([date, orders]) => (
-            <div key={date}>
-              <div className="flex items-center gap-3 mb-3">
-                <div className="flex items-center gap-2">
-                  <CalendarDays size={13} className="text-[#aaa]" />
-                  <span className="text-xs font-bold text-[#888] uppercase tracking-wider">{formatDate(date)}</span>
-                </div>
-                <div className="flex-1 h-px bg-[#f0f0f0]" />
-                <span className="text-xs font-bold text-black">{orders.length} orders · {orders.reduce((s, o) => s + o.qty, 0)} pcs</span>
-              </div>
-              <div className="space-y-3">
-                {orders.map((order) => (
-                  <OrderCard key={order.id} order={order} onDelete={() => setMeeshoOrders((p) => p.filter((o) => o.id !== order.id))} />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Overlays */}
-      {showScanner && <BillScanner onResult={handleScanResult} onClose={() => setShowScanner(false)} />}
-      {prefillData !== null && (
-        <OrderForm prefill={prefillData} rawOcrText={prefillData.rawText} onSave={handleSaveOrder} onClose={() => setPrefillData(null)} />
-      )}
-
-      {/* Manual add button */}
-      {meeshoOrders.length > 0 && prefillData === null && !showScanner && (
-        <div className="fixed bottom-20 right-4 lg:bottom-6 lg:right-6 z-40">
-          <button onClick={() => setPrefillData({})}
-            className="flex items-center gap-2 bg-white border border-[#e8e8e8] text-[#666] px-3.5 py-2 rounded-xl font-semibold text-xs shadow-[0_4px_20px_rgba(0,0,0,0.1)] hover:bg-[#f5f5f5] transition-colors">
-            <ClipboardList size={13} /> Add manually
+      {/* ── Error ── */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 flex items-center gap-3">
+          <AlertCircle size={16} className="text-red-500 shrink-0" />
+          <span className="text-sm text-red-700 font-medium">{error}</span>
+          <button onClick={() => setError(null)} className="ml-auto text-red-400 hover:text-red-600">
+            <X size={14} />
           </button>
         </div>
+      )}
+
+      {/* ── Review Table ── */}
+      {appState === "reviewing" && extractedOrders.length > 0 && (
+        <ReviewTable
+          orders={extractedOrders}
+          onUpdate={updateOrder}
+          onRemove={removeOrder}
+          onSave={saveAllOrders}
+          onReset={() => { setAppState("idle"); setExtractedOrders([]); }}
+        />
+      )}
+
+      {/* ── Upload Drop Zone (idle + no orders) ── */}
+      {appState === "idle" && meeshoOrders.length === 0 && (
+        <div
+          onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+          onDragLeave={() => setIsDragging(false)}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          className={`border-2 border-dashed rounded-2xl p-10 flex flex-col items-center text-center gap-4 cursor-pointer transition-all ${
+            isDragging
+              ? "border-black bg-[#f5f5f5] scale-[1.01]"
+              : "border-[#ddd] hover:border-[#aaa] hover:bg-[#fafafa]"
+          }`}
+        >
+          <div className="w-16 h-16 bg-[#f5f5f5] rounded-2xl flex items-center justify-center">
+            <FileText size={32} className="text-[#888]" />
+          </div>
+          <div>
+            <div className="font-bold text-black text-lg">Upload Today&apos;s Meesho PDF</div>
+            <div className="text-sm text-[#666] mt-2 leading-relaxed max-w-sm">
+              Drop your Meesho orders PDF here or click to browse.<br />
+              All orders will be extracted automatically — customer name, SKU, product, price, discount, Prepaid/COD.
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2 justify-center">
+            {["Customer Name", "SKU", "Product", "Size", "Gross Price", "Discount", "Final Price", "Prepaid/COD"].map((t) => (
+              <span key={t} className="px-2.5 py-1 bg-[#f0f0f0] rounded-lg text-xs font-semibold text-[#555]">{t}</span>
+            ))}
+          </div>
+          <div className="text-xs text-[#bbb]">Supports .pdf files · Multiple orders in one file</div>
+        </div>
+      )}
+
+      {/* ── Upload again banner (when orders exist) ── */}
+      {appState === "idle" && meeshoOrders.length > 0 && (
+        <div
+          onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+          onDragLeave={() => setIsDragging(false)}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          className={`border-2 border-dashed rounded-2xl px-5 py-4 flex items-center gap-4 cursor-pointer transition-all ${
+            isDragging ? "border-black bg-[#f5f5f5]" : "border-[#e8e8e8] hover:border-[#aaa]"
+          }`}
+        >
+          <div className="w-10 h-10 bg-[#f5f5f5] rounded-xl flex items-center justify-center shrink-0">
+            <Upload size={18} className="text-[#666]" />
+          </div>
+          <div>
+            <div className="font-bold text-sm text-black">Upload new PDF</div>
+            <div className="text-xs text-[#888]">Drop another Meesho PDF to extract more orders</div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Orders History ── */}
+      {appState !== "reviewing" && meeshoOrders.length > 0 && (
+        <>
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex bg-[#f5f5f5] p-1 rounded-xl gap-1">
+              {(["today", "all"] as const).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setActiveTab(t)}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === t ? "bg-white text-black shadow-sm" : "text-[#888] hover:text-black"}`}
+                >
+                  {t === "today" ? `Today (${todayStats.count})` : `All (${meeshoOrders.length})`}
+                </button>
+              ))}
+            </div>
+            {activeTab === "all" && (
+              <input
+                type="date"
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="bg-white border border-[#e8e8e8] rounded-xl px-3 py-1.5 text-xs font-medium text-black focus:outline-none focus:ring-2 focus:ring-black/10"
+              />
+            )}
+            {activeTab === "all" && dateFilter && (
+              <button onClick={() => setDateFilter("")} className="text-xs text-[#888] hover:text-black font-semibold">
+                Clear date
+              </button>
+            )}
+          </div>
+
+          {activeTab === "today" ? (
+            <div className="space-y-3">
+              {filteredOrders.length === 0 ? (
+                <div className="text-center py-8 text-[#aaa] text-sm">
+                  No orders packed today yet. Upload a PDF above!
+                </div>
+              ) : (
+                filteredOrders.map((order) => (
+                  <OrderCard
+                    key={order.id}
+                    order={order}
+                    onDelete={() => setMeeshoOrders((p) => p.filter((o) => o.id !== order.id))}
+                  />
+                ))
+              )}
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {groupedByDate?.length === 0 && (
+                <div className="text-center py-8 text-[#aaa] text-sm">No orders found.</div>
+              )}
+              {groupedByDate?.map(([date, orders]) => (
+                <div key={date}>
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="flex items-center gap-2">
+                      <CalendarDays size={13} className="text-[#aaa]" />
+                      <span className="text-xs font-bold text-[#888] uppercase tracking-wider">
+                        {formatDate(date)}
+                      </span>
+                    </div>
+                    <div className="flex-1 h-px bg-[#f0f0f0]" />
+                    <span className="text-xs font-bold text-black">
+                      {orders.length} orders · ₹{orders.reduce((s, o) => s + o.sellingPrice, 0).toLocaleString("en-IN")}
+                    </span>
+                  </div>
+                  <div className="space-y-3">
+                    {orders.map((order) => (
+                      <OrderCard
+                        key={order.id}
+                        order={order}
+                        onDelete={() => setMeeshoOrders((p) => p.filter((o) => o.id !== order.id))}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

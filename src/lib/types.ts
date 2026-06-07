@@ -82,7 +82,8 @@ export interface MeeshoOrder {
   id: string;
   date: string;            // YYYY-MM-DD (packing date)
   scannedAt: string;       // ISO timestamp
-  orderNo: string;         // Meesho order number from barcode
+  orderNo: string;         // Meesho order number
+  invoiceNo: string;       // Tax invoice number
   customerName: string;
   customerAddress: string;
   customerCity: string;
@@ -92,7 +93,11 @@ export interface MeeshoOrder {
   size: string;
   color: string;
   qty: number;
-  sellingPrice: number;
+  grossAmount: number;     // MRP / selling price before discount
+  discount: number;        // Discount applied
+  tax: number;             // GST / IGST amount
+  sellingPrice: number;    // Final amount paid by customer
+  paymentType: "Prepaid" | "COD"; // Prepaid or Cash on Delivery
   courier: string;
   status: "Packed" | "Shipped" | "RTO";
   notes: string;
