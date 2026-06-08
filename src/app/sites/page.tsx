@@ -93,6 +93,7 @@ function SiteCard({
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(site.title);
+  const [ogImgError, setOgImgError] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleOpen = () => window.open(site.url, "_blank", "noopener,noreferrer");
@@ -113,15 +114,15 @@ function SiteCard({
         <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-amber-400 via-orange-400 to-pink-400 z-10" />
       )}
 
-      {/* OG / Hero image */}
-      {site.ogImage ? (
+      {/* OG / Hero image — falls back to favicon tile if URL errors */}
+      {site.ogImage && !ogImgError ? (
         <div className="relative h-32 overflow-hidden bg-[#f5f5f5] shrink-0" onClick={handleOpen}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={site.ogImage}
             alt={site.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+            onError={() => setOgImgError(true)}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
         </div>
@@ -139,7 +140,7 @@ function SiteCard({
       {/* Content */}
       <div className="p-4 flex flex-col gap-2 flex-1">
         <div className="flex items-start gap-2">
-          {site.ogImage && (
+          {site.ogImage && !ogImgError && (
             <div className="w-6 h-6 rounded-md overflow-hidden shrink-0 bg-[#f5f5f5] border border-[#e8e8e8] flex items-center justify-center">
               <FaviconImg src={site.favicon} hostname={site.hostname} size={14} />
             </div>
