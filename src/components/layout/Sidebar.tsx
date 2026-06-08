@@ -15,6 +15,7 @@ import {
   Calendar,
   ScanLine,
   Receipt,
+  Globe,
 } from "lucide-react";
 import { gsap } from "gsap";
 import { useGSAP } from "@gsap/react";
@@ -29,6 +30,7 @@ const NAV_ITEMS = [
   { name: "Expenses",      href: "/expenses",      icon: Receipt },
   { name: "Bank",          href: "/bank",          icon: Landmark },
   { name: "P&L",           href: "/pl",            icon: BarChart3 },
+  { name: "My Sites",      href: "/sites",         icon: Globe },
 ];
 
 /* ─── Desktop Sidebar ──────────────────────────────────────────────────────── */
@@ -110,6 +112,9 @@ export function Sidebar({
               return (
                 <React.Fragment key={item.name}>
                   {index === 3 && (
+                    <div className="my-2 border-t border-[#e8e8e8] mx-2" />
+                  )}
+                  {index === 9 && (
                     <div className="my-2 border-t border-[#e8e8e8] mx-2" />
                   )}
                   <Link
