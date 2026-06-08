@@ -136,6 +136,8 @@ export interface PurchaseOrder {
   notes: string;
   gst?: string;
   paidAmount?: number;
+  shareCosts?: boolean;
+  shareWithBillId?: string;
 }
 
 export interface Transaction {

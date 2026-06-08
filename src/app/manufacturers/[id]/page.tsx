@@ -64,34 +64,100 @@ interface LandedBreakdown {
   totalLandedValue: number;
   hasAdditionalCosts: boolean;
   totalInventoryQty: number;
+  pooledAdditionalCosts: { name: string; amount: number; isShared: boolean; category?: string }[];
 }
-function getLandedBreakdown(p: PurchaseOrder): LandedBreakdown {
+function getLandedBreakdown(p: PurchaseOrder, allPurchases: PurchaseOrder[] = []): LandedBreakdown {
   const allItems = getItems(p);
   const productItems = getProductItems(allItems);
   const costItems = getCostItems(allItems);
+  
+  // Find all purchase orders from the same manufacturer on the same date that participate in sharing
+  const otherPurchases = allPurchases.filter(po => po.id !== p.id);
+  const relatedPos = p.shareCosts === false
+    ? [p]
+    : [
+        p,
+        ...otherPurchases.filter(po =>
+          po.manufacturerId &&
+          p.manufacturerId &&
+          po.manufacturerId === p.manufacturerId &&
+          po.date === p.date &&
+          po.shareCosts !== false &&
+          (po.shareWithBillId === "all" || !po.shareWithBillId || po.shareWithBillId === p.id) &&
+          (p.shareWithBillId === "all" || !p.shareWithBillId || p.shareWithBillId === po.id)
+        )
+      ];
+  
+  // Calculate combined values across all related bills
+  let combinedProductValue = 0;
+  let combinedAdditionalCosts = 0;
+  const pooledAdditionalCosts: { name: string; amount: number; isShared: boolean; category?: string }[] = [];
+  
+  relatedPos.forEach(po => {
+    const isCurrentPo = po.id === p.id;
+    const poItems = getItems(po);
+    const poProducts = getProductItems(poItems);
+    const poCosts = getCostItems(poItems);
+    
+    combinedProductValue += poProducts.reduce((s, i) => s + i.qty * i.rate, 0);
+    combinedAdditionalCosts += poCosts.reduce((s, i) => s + i.qty * i.rate, 0) + (po.transport ?? 0) + (po.localTransport ?? 0);
+    
+    // Add cost lines to the pooled array
+    poCosts.forEach(item => {
+      pooledAdditionalCosts.push({
+        name: item.productName || "Cost item",
+        amount: item.qty * item.rate,
+        isShared: !isCurrentPo,
+        category: item.costCategory,
+      });
+    });
+    
+    // Add transport costs to the pooled array
+    if (po.transport && po.transport > 0) {
+      pooledAdditionalCosts.push({
+        name: "Supplier Transport",
+        amount: po.transport,
+        isShared: !isCurrentPo,
+      });
+    }
+    if (po.localTransport && po.localTransport > 0) {
+      pooledAdditionalCosts.push({
+        name: "Local Transport",
+        amount: po.localTransport,
+        isShared: !isCurrentPo,
+      });
+    }
+  });
+  
   const totalProductValue = productItems.reduce((s, i) => s + i.qty * i.rate, 0);
   const costItemsTotal = costItems.reduce((s, i) => s + i.qty * i.rate, 0);
   const transportTotal = (p.transport ?? 0) + (p.localTransport ?? 0);
-  const totalAdditionalCosts = costItemsTotal + transportTotal;
   const totalInventoryQty = productItems.reduce((s, i) => s + i.qty, 0);
+  
+  // Allocate combined costs proportionally across all products of related POs
   const productRows = productItems.map(item => {
     const itemValue = item.qty * item.rate;
-    const proportion = totalProductValue > 0 ? itemValue / totalProductValue : 0;
-    const allocated = proportion * totalAdditionalCosts;
+    const proportion = combinedProductValue > 0 ? itemValue / combinedProductValue : 0;
+    const allocated = proportion * combinedAdditionalCosts;
     const landedTotal = itemValue + allocated;
     const landedPerUnit = item.qty > 0 ? landedTotal / item.qty : 0;
     return { item, itemValue, allocated, landedTotal, landedPerUnit };
   });
+  
+  // Calculate the share of additional costs that this PO receives
+  const totalAllocatedToThisPo = productRows.reduce((s, r) => s + r.allocated, 0);
+  
   return {
     productRows,
     costRows: costItems,
     totalProductValue,
     costItemsTotal,
     transportTotal,
-    totalAdditionalCosts,
-    totalLandedValue: totalProductValue + totalAdditionalCosts,
-    hasAdditionalCosts: totalAdditionalCosts > 0,
+    totalAdditionalCosts: totalAllocatedToThisPo,
+    totalLandedValue: totalProductValue + totalAllocatedToThisPo,
+    hasAdditionalCosts: combinedAdditionalCosts > 0,
     totalInventoryQty,
+    pooledAdditionalCosts,
   };
 }
 
@@ -602,7 +668,7 @@ export default function ManufacturerDetailPage() {
 
                   {/* Expanded breakdown */}
                   {isMulti && isExpanded && (() => {
-                    const lc = getLandedBreakdown(p);
+                    const lc = getLandedBreakdown(p, purchases);
                     const prodItems = getProductItems(items);
                     const extraCostItems = getCostItems(items);
                     return (
@@ -656,45 +722,39 @@ export default function ManufacturerDetailPage() {
                         </div>
 
                         {/* ── Additional Costs ── */}
-                        {(extraCostItems.length > 0 || transport > 0 || localTransport > 0) && (
+                        {lc.pooledAdditionalCosts.length > 0 && (
                           <div>
                             <div className="text-[10px] font-bold text-amber-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                               <Tag size={11} /> Additional Costs
                             </div>
                             <table className="w-full text-sm">
                               <tbody className="divide-y divide-[#fdf0e0]">
-                                {extraCostItems.map((item, idx) => (
+                                {lc.pooledAdditionalCosts.map((cost, idx) => (
                                   <tr key={idx} className="text-[#888]">
                                     <td className="py-1.5 w-7"></td>
                                     <td className="py-1.5">
-                                      <span className="text-xs font-medium text-[#555]">{item.productName}</span>
-                                      {item.costCategory && (
-                                        <span className="ml-1.5 text-[10px] text-[#aaa]">[{item.costCategory}]</span>
+                                      <span className={`text-xs font-medium ${cost.isShared ? "text-[#777] italic" : "text-[#555]"}`}>
+                                        {cost.name}
+                                      </span>
+                                      {cost.category && (
+                                        <span className="ml-1.5 text-[10px] text-[#aaa]">[{cost.category}]</span>
+                                      )}
+                                      {cost.isShared && (
+                                        <span className="ml-2 text-[9px] font-semibold px-1.5 py-0.5 bg-gray-100 text-gray-500 border border-gray-200 rounded-full normal-case not-italic">
+                                          Shared Shipment Cost
+                                        </span>
                                       )}
                                     </td>
-                                    <td className="py-1.5 text-right text-[#888] text-xs">{item.qty > 1 ? `${item.qty} ×` : ""}</td>
-                                    <td className="py-1.5 text-right text-[#888] text-xs">{item.qty > 1 ? `₹${item.rate.toLocaleString("en-IN")}` : ""}</td>
-                                    <td className="py-1.5 text-right font-semibold text-[#555]">₹{(item.qty * item.rate).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</td>
+                                    <td colSpan={2} />
+                                    <td className={`py-1.5 text-right font-semibold ${cost.isShared ? "text-[#777]" : "text-[#555]"}`}>
+                                      ₹{cost.amount.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                                    </td>
                                   </tr>
                                 ))}
-                                {transport > 0 && (
-                                  <tr className="text-[#888]">
-                                    <td className="py-1.5 w-7"></td>
-                                    <td className="py-1.5 text-xs font-medium text-[#555] flex items-center gap-1"><Truck size={11} /> Supplier Transport</td>
-                                    <td colSpan={2} />
-                                    <td className="py-1.5 text-right font-semibold text-[#555]">₹{transport.toLocaleString("en-IN")}</td>
-                                  </tr>
-                                )}
-                                {localTransport > 0 && (
-                                  <tr className="text-[#888]">
-                                    <td className="py-1.5 w-7"></td>
-                                    <td className="py-1.5 text-xs font-medium text-[#555] flex items-center gap-1"><Truck size={11} /> Local Transport</td>
-                                    <td colSpan={2} />
-                                    <td className="py-1.5 text-right font-semibold text-[#555]">₹{localTransport.toLocaleString("en-IN")}</td>
-                                  </tr>
-                                )}
                                 <tr className="border-t border-amber-200">
-                                  <td colSpan={4} className="py-1.5 text-right text-[11px] font-bold text-amber-700 uppercase tracking-wider">Total Additional Costs</td>
+                                  <td colSpan={4} className="py-1.5 text-right text-[11px] font-bold text-amber-700 uppercase tracking-wider">
+                                    {lc.pooledAdditionalCosts.some(c => c.isShared) ? "Total Shared & Direct Costs" : "Total Additional Costs"}
+                                  </td>
                                   <td className="py-1.5 text-right font-bold text-amber-700">₹{lc.totalAdditionalCosts.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</td>
                                 </tr>
                               </tbody>
