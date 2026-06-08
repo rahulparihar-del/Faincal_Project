@@ -7,6 +7,38 @@ import type {
 } from "@/lib/types";
 import { wholesaleTotal } from "@/lib/wholesale";
 
+/* ─── helpers ─────────────────────────────────────────────── */
+function getPurchaseGrandTotal(p: PurchaseOrder): number {
+  if (p.items && p.items.length > 0) {
+    const sub = p.items.reduce((s, i) => s + i.qty * i.rate, 0);
+    const gst = p.gstAmount ?? (sub * (p.gstPercent ?? 0) / 100);
+    return sub + gst + (p.transport ?? 0) + (p.localTransport ?? 0) + (p.roundingAmount ?? 0);
+  }
+  const sub = p.qty * p.rate;
+  const gst = p.gstAmount ?? (sub * (p.gstPercent ?? 0) / 100);
+  return sub + gst + (p.transport ?? 0) + (p.localTransport ?? 0) + (p.roundingAmount ?? 0);
+}
+
+function getPurchaseProductsName(p: PurchaseOrder): string {
+  if (p.items && p.items.length > 0) {
+    const prods = p.items.filter((i) => !i.type || i.type === "product");
+    const costs = p.items.filter((i) => i.type === "cost");
+    let name = prods.map((i) => i.productName).join(" · ");
+    if (costs.length > 0) {
+      name += ` (+${costs.length} cost lines)`;
+    }
+    return name || "—";
+  }
+  return p.productName;
+}
+
+function getPurchaseProductsQty(p: PurchaseOrder): number {
+  if (p.items && p.items.length > 0) {
+    return p.items.filter((i) => !i.type || i.type === "product").reduce((s, i) => s + i.qty, 0);
+  }
+  return p.qty;
+}
+
 // ── Brand palette (ARGB) ──
 const C = {
   brandBg: "FF111111",
@@ -399,17 +431,23 @@ export async function exportExcelReport(data: ReportData) {
   const mfgName = new Map(data.manufacturers.map((m) => [m.id, m.name]));
   const poRows = [...data.purchases]
     .sort((a, b) => (b.date || "").localeCompare(a.date || ""))
-    .map((p) => [
-      toDate(p.date),
-      mfgName.get(p.manufacturerId) || "—",
-      p.orderType,
-      p.productName,
-      p.qty,
-      p.rate,
-      p.qty * p.rate,
-      p.paymentStatus,
-      p.shipmentStatus,
-    ]);
+    .map((p) => {
+      const itemsList = p.items || [];
+      const primaryProduct = itemsList.find((i: any) => !i.type || i.type === "product");
+      const rateVal = primaryProduct ? primaryProduct.rate : p.rate;
+
+      return [
+        toDate(p.date),
+        mfgName.get(p.manufacturerId) || "—",
+        p.orderType,
+        getPurchaseProductsName(p),
+        getPurchaseProductsQty(p),
+        rateVal,
+        getPurchaseGrandTotal(p),
+        p.paymentStatus,
+        p.shipmentStatus,
+      ];
+    });
   buildTableSheet(
     wb,
     "Purchases",

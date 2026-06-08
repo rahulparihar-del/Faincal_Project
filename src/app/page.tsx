@@ -21,6 +21,18 @@ import {
   FileText,
 } from "lucide-react";
 
+/* ─── helpers ─────────────────────────────────────────────── */
+function getPurchaseGrandTotal(p: any): number {
+  if (p.items && p.items.length > 0) {
+    const sub = p.items.reduce((s: number, i: any) => s + i.qty * i.rate, 0);
+    const gst = p.gstAmount ?? (sub * (p.gstPercent ?? 0) / 100);
+    return sub + gst + (p.transport ?? 0) + (p.localTransport ?? 0) + (p.roundingAmount ?? 0);
+  }
+  const sub = p.qty * p.rate;
+  const gst = p.gstAmount ?? (sub * (p.gstPercent ?? 0) / 100);
+  return sub + gst + (p.transport ?? 0) + (p.localTransport ?? 0) + (p.roundingAmount ?? 0);
+}
+
 export default function Dashboard() {
   const { ecomSales, wholesaleSales, purchases, transactions, isReady } = useData();
   const chartRef = useRef<HTMLDivElement>(null);
@@ -32,7 +44,7 @@ export default function Dashboard() {
     const wholesaleRev = wholesaleSales.reduce((acc, sale) => acc + wholesaleTotal(sale), 0);
     const totalRevenue = ecomRev + wholesaleRev;
 
-    const totalPurchases = purchases.reduce((acc, p) => acc + p.qty * p.rate, 0);
+    const totalPurchases = purchases.reduce((acc, p) => acc + getPurchaseGrandTotal(p), 0);
     const debitTx = transactions
       .filter((t) => t.type === "Debit")
       .reduce((acc, t) => acc + t.amount, 0);
@@ -42,7 +54,11 @@ export default function Dashboard() {
 
     const pendingPayments = purchases
       .filter((p) => p.paymentStatus !== "Paid")
-      .reduce((acc, p) => acc + p.qty * p.rate, 0);
+      .reduce((acc, p) => {
+        const total = getPurchaseGrandTotal(p);
+        const paid = p.paymentStatus === "Partial" ? (p.paidAmount ?? 0) : 0;
+        return acc + (total - paid);
+      }, 0);
 
     const activeWholesale = wholesaleSales.filter((w) => {
       return w.paymentReceived < wholesaleTotal(w);
@@ -111,12 +127,30 @@ export default function Dashboard() {
     });
 
     purchases.slice(0, 20).forEach((p) => {
+      const itemsList = p.items || [];
+      const prodItems = itemsList.filter((i: any) => !i.type || i.type === "product");
+      const costItems = itemsList.filter((i: any) => i.type === "cost");
+      let label = "";
+      if (itemsList.length > 1) {
+        if (prodItems.length > 0) {
+          label = `Purchase — ${prodItems.length} product${prodItems.length !== 1 ? "s" : ""}`;
+          if (costItems.length > 0) {
+            label += ` (+${costItems.length} cost${costItems.length !== 1 ? "s" : ""})`;
+          }
+        } else {
+          label = `Purchase — ${costItems.length} cost line${costItems.length !== 1 ? "s" : ""}`;
+        }
+      } else if (itemsList.length === 1) {
+        label = `Purchase — ${itemsList[0].productName}`;
+      } else {
+        label = `Purchase — ${p.productName}`;
+      }
       items.push({
         id: `po-${p.id}`,
         date: p.date,
         icon: FileText,
-        label: `Purchase — ${p.productName}`,
-        amount: p.qty * p.rate,
+        label,
+        amount: getPurchaseGrandTotal(p),
         type: "debit",
       });
     });

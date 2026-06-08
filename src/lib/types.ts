@@ -83,6 +83,12 @@ export interface PurchaseItem {
   productName: string;
   qty: number;
   rate: number;
+  /** "product" = inventory item (counted in stock).
+   *  "cost"    = additional charge (fusing, packing, labour, etc.)
+   *  undefined = treated as "product" for backward compatibility */
+  type?: "product" | "cost";
+  /** Label for cost items (e.g. "Fusing Charges", "Packing", "Labour") */
+  costCategory?: string;
 }
 
 export interface PurchaseOrder {

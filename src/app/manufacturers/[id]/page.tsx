@@ -9,13 +9,41 @@ import { gsap } from "gsap";
 import {
   ArrowLeft, Edit2, Save, X, Phone, MapPin, Package,
   CheckCircle2, Clock, Truck, FileText, ChevronDown, ChevronLeft, ChevronRight,
-  IndianRupee, ShoppingBag, AlertCircle, Upload, Eye,
+  IndianRupee, ShoppingBag, AlertCircle, Upload, Eye, Tag, Calculator,
 } from "lucide-react";
 
 /* ─── helpers ─────────────────────────────────────────────── */
 function getItems(p: PurchaseOrder): PurchaseItem[] {
   if (p.items && p.items.length > 0) return p.items;
   return [{ productName: p.productName, qty: p.qty, rate: p.rate }];
+}
+function isCostItem(item: PurchaseItem): boolean {
+  if (item.type === "cost") return true;
+  if (item.type === "product") return false;
+  // Fallback to name analysis for legacy data/untyped rows
+  const name = (item.productName || "").toLowerCase();
+  const costKeywords = ["charge", "fusing", "fushing", "stitching", "packing", "labour", "transport", "freight", "delivery"];
+  return costKeywords.some(keyword => name.includes(keyword));
+}
+
+function getCostCategoryByName(name: string): string {
+  const n = name.toLowerCase();
+  if (n.includes("fusing") || n.includes("fushing")) return "Fusing";
+  if (n.includes("stitching")) return "Stitching";
+  if (n.includes("packing")) return "Packing";
+  if (n.includes("labour")) return "Labour";
+  if (n.includes("transport") || n.includes("freight") || n.includes("delivery")) {
+    if (n.includes("local")) return "Local Transport";
+    return "Supplier Transport";
+  }
+  return "Other";
+}
+
+function getProductItems(items: PurchaseItem[]): PurchaseItem[] {
+  return items.filter(i => !isCostItem(i));
+}
+function getCostItems(items: PurchaseItem[]): PurchaseItem[] {
+  return items.filter(i => isCostItem(i));
 }
 function getSubtotal(p: PurchaseOrder): number {
   return getItems(p).reduce((s, i) => s + i.qty * i.rate, 0);
@@ -24,6 +52,47 @@ function getGrandTotal(p: PurchaseOrder): number {
   const sub = getSubtotal(p);
   const gst = p.gstAmount ?? (sub * (p.gstPercent ?? 0) / 100);
   return sub + gst + (p.transport ?? 0) + (p.localTransport ?? 0) + (p.roundingAmount ?? 0);
+}
+
+interface LandedBreakdown {
+  productRows: { item: PurchaseItem; itemValue: number; allocated: number; landedTotal: number; landedPerUnit: number }[];
+  costRows: PurchaseItem[];
+  totalProductValue: number;
+  costItemsTotal: number;
+  transportTotal: number;
+  totalAdditionalCosts: number;
+  totalLandedValue: number;
+  hasAdditionalCosts: boolean;
+  totalInventoryQty: number;
+}
+function getLandedBreakdown(p: PurchaseOrder): LandedBreakdown {
+  const allItems = getItems(p);
+  const productItems = getProductItems(allItems);
+  const costItems = getCostItems(allItems);
+  const totalProductValue = productItems.reduce((s, i) => s + i.qty * i.rate, 0);
+  const costItemsTotal = costItems.reduce((s, i) => s + i.qty * i.rate, 0);
+  const transportTotal = (p.transport ?? 0) + (p.localTransport ?? 0);
+  const totalAdditionalCosts = costItemsTotal + transportTotal;
+  const totalInventoryQty = productItems.reduce((s, i) => s + i.qty, 0);
+  const productRows = productItems.map(item => {
+    const itemValue = item.qty * item.rate;
+    const proportion = totalProductValue > 0 ? itemValue / totalProductValue : 0;
+    const allocated = proportion * totalAdditionalCosts;
+    const landedTotal = itemValue + allocated;
+    const landedPerUnit = item.qty > 0 ? landedTotal / item.qty : 0;
+    return { item, itemValue, allocated, landedTotal, landedPerUnit };
+  });
+  return {
+    productRows,
+    costRows: costItems,
+    totalProductValue,
+    costItemsTotal,
+    transportTotal,
+    totalAdditionalCosts,
+    totalLandedValue: totalProductValue + totalAdditionalCosts,
+    hasAdditionalCosts: totalAdditionalCosts > 0,
+    totalInventoryQty,
+  };
 }
 
 function getPoAttachments(p: PurchaseOrder): { url: string; filename: string }[] {
@@ -383,19 +452,31 @@ export default function ManufacturerDetailPage() {
 
                       {/* Items */}
                       <div className="flex-1 min-w-0">
-                        {isMulti ? (
-                          <div>
-                            <div className="font-semibold text-black text-sm">{items.length} products</div>
-                            <div className="text-xs text-[#aaa] mt-0.5 truncate">
-                              {items.map(i => i.productName).join(" · ")}
+                        {(() => {
+                          const prodItems = getProductItems(items);
+                          const costItemsInList = getCostItems(items);
+                          return isMulti ? (
+                            <div>
+                              <div className="font-semibold text-black text-sm">
+                                {prodItems.length} product{prodItems.length !== 1 ? "s" : ""}
+                                {costItemsInList.length > 0 && (
+                                  <span className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 bg-amber-50 text-amber-700 border border-amber-100 rounded-full">
+                                    +{costItemsInList.length} cost{costItemsInList.length !== 1 ? "s" : ""}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-xs text-[#aaa] mt-0.5 truncate">
+                                {prodItems.map(i => i.productName).join(" · ").slice(0, 50)}
+                                {prodItems.map(i => i.productName).join(" · ").length > 50 ? "…" : ""}
+                              </div>
                             </div>
-                          </div>
-                        ) : (
-                          <div>
-                            <div className="font-semibold text-black text-sm">{items[0].productName}</div>
-                            <div className="text-xs text-[#aaa] mt-0.5">{items[0].qty} × ₹{items[0].rate.toLocaleString("en-IN")}</div>
-                          </div>
-                        )}
+                          ) : (
+                            <div>
+                              <div className="font-semibold text-black text-sm">{items[0].productName}</div>
+                              <div className="text-xs text-[#aaa] mt-0.5">{items[0].qty} × ₹{items[0].rate.toLocaleString("en-IN")}</div>
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       {/* Type badge */}
@@ -520,76 +601,172 @@ export default function ManufacturerDetailPage() {
                   </div>
 
                   {/* Expanded breakdown */}
-                  {isMulti && isExpanded && (
-                    <div className="px-16 pb-4 bg-[#fafafa] border-t border-[#f0f0f0]">
-                      <table className="w-full text-sm mt-3">
-                        <thead>
-                          <tr className="text-[11px] font-bold text-[#bbb] uppercase tracking-wider border-b border-[#eee]">
-                            <th className="pb-2 text-left w-6">#</th>
-                            <th className="pb-2 text-left">Product</th>
-                            <th className="pb-2 text-right">Qty</th>
-                            <th className="pb-2 text-right">Rate</th>
-                            <th className="pb-2 text-right">Amount</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[#f5f5f5]">
-                          {items.map((it, idx) => (
-                            <tr key={idx}>
-                              <td className="py-2 text-[#ccc] text-xs">{idx + 1}</td>
-                              <td className="py-2 font-medium text-black">{it.productName}</td>
-                              <td className="py-2 text-right text-[#888]">{it.qty.toLocaleString("en-IN")}</td>
-                              <td className="py-2 text-right text-[#888]">₹{it.rate.toLocaleString("en-IN")}</td>
-                              <td className="py-2 text-right font-semibold">₹{(it.qty * it.rate).toLocaleString("en-IN")}</td>
-                            </tr>
-                          ))}
-                          <tr className="border-t border-[#e8e8e8] text-[#999]">
-                            <td colSpan={4} className="py-1.5 text-right text-[11px] font-semibold uppercase tracking-wider">Sub Total</td>
-                            <td className="py-1.5 text-right text-sm font-semibold">₹{subtotal.toLocaleString("en-IN")}</td>
-                          </tr>
-                          {gstPct > 0 && (
-                            <tr className="text-[#999]">
-                              <td colSpan={4} className="py-1.5 text-right text-[11px] font-semibold uppercase tracking-wider">IGST {gstPct}%</td>
-                              <td className="py-1.5 text-right text-sm font-semibold">₹{gstAmt.toLocaleString("en-IN")}</td>
-                            </tr>
-                          )}
-                          {transport > 0 && (
-                            <tr className="text-[#999]">
-                              <td colSpan={4} className="py-1.5 text-right text-[11px] font-semibold uppercase tracking-wider">Supplier Transport</td>
-                              <td className="py-1.5 text-right text-sm font-semibold">₹{transport.toLocaleString("en-IN")}</td>
-                            </tr>
-                          )}
-                          {localTransport > 0 && (
-                            <tr className="text-[#999]">
-                              <td colSpan={4} className="py-1.5 text-right text-[11px] font-semibold uppercase tracking-wider">Local Transport</td>
-                              <td className="py-1.5 text-right text-sm font-semibold">₹{localTransport.toLocaleString("en-IN")}</td>
-                            </tr>
-                          )}
-                          {rounding !== 0 && (
-                            <tr className="text-[#999]">
-                              <td colSpan={4} className="py-1.5 text-right text-[11px] font-semibold uppercase tracking-wider">Rounding</td>
-                              <td className="py-1.5 text-right text-sm font-semibold">{rounding >= 0 ? "+" : ""}₹{rounding.toLocaleString("en-IN")}</td>
-                            </tr>
-                          )}
-                          <tr className="border-t border-[#e0e0e0]">
-                            <td colSpan={4} className="py-2 text-right text-[12px] font-bold text-black uppercase tracking-wider">Total</td>
-                            <td className="py-2 text-right text-base font-bold text-black">₹{grandTotal.toLocaleString("en-IN")}</td>
-                          </tr>
-                          {p.paymentStatus !== "Paid" && (
-                            <>
-                              <tr className="text-[#999]">
-                                <td colSpan={4} className="py-1.5 text-right text-[11px] font-semibold uppercase tracking-wider text-right">Paid Amount</td>
-                                <td className="py-1.5 text-right text-sm font-semibold text-green-600">₹{(p.paymentStatus === "Partial" ? (p.paidAmount ?? 0) : 0).toLocaleString("en-IN")}</td>
+                  {isMulti && isExpanded && (() => {
+                    const lc = getLandedBreakdown(p);
+                    const prodItems = getProductItems(items);
+                    const extraCostItems = getCostItems(items);
+                    return (
+                      <div className="px-6 lg:px-16 pb-6 pt-4 bg-[#fafafa] border-t border-[#f0f0f0] space-y-4">
+                        {/* ── Products table ── */}
+                        <div>
+                          <div className="text-[10px] font-bold text-[#aaa] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                            <Package size={11} /> Inventory Products
+                          </div>
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="text-[11px] font-semibold text-[#999] uppercase tracking-wider border-b border-[#eee]">
+                                <th className="pb-1.5 text-left w-7">#</th>
+                                <th className="pb-1.5 text-left">Product</th>
+                                <th className="pb-1.5 text-right">Qty</th>
+                                <th className="pb-1.5 text-right">Rate</th>
+                                <th className="pb-1.5 text-right">Value</th>
+                                {lc.hasAdditionalCosts && <th className="pb-1.5 text-right text-amber-600">Alloc. Cost</th>}
+                                {lc.hasAdditionalCosts && <th className="pb-1.5 text-right text-green-700">Landed/Unit</th>}
                               </tr>
-                              <tr className="text-[#999]">
-                                <td colSpan={4} className="py-1.5 text-right text-[11px] font-semibold uppercase tracking-wider text-right">Balance Pending</td>
-                                <td className="py-1.5 text-right text-sm font-semibold text-red-500">₹{(grandTotal - (p.paymentStatus === "Partial" ? (p.paidAmount ?? 0) : 0)).toLocaleString("en-IN")}</td>
+                            </thead>
+                            <tbody className="divide-y divide-[#f0f0f0]">
+                              {lc.productRows.map((row, idx) => (
+                                <tr key={idx} className="hover:bg-white/60">
+                                  <td className="py-2 text-[#bbb] text-xs">{idx + 1}</td>
+                                  <td className="py-2 font-medium text-black">{row.item.productName}</td>
+                                  <td className="py-2 text-right text-[#555]">{row.item.qty.toLocaleString("en-IN")}</td>
+                                  <td className="py-2 text-right text-[#555]">₹{row.item.rate.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                                  <td className="py-2 text-right font-semibold">₹{row.itemValue.toLocaleString("en-IN")}</td>
+                                  {lc.hasAdditionalCosts && (
+                                    <td className="py-2 text-right text-amber-700 font-medium text-xs">+₹{row.allocated.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</td>
+                                  )}
+                                  {lc.hasAdditionalCosts && (
+                                    <td className="py-2 text-right font-bold text-green-700">₹{row.landedPerUnit.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</td>
+                                  )}
+                                </tr>
+                              ))}
+                              {/* Product subtotal */}
+                              {prodItems.length > 0 && (
+                                <tr className="border-t border-[#e8e8e8] text-[#888]">
+                                  <td colSpan={4} className="py-1.5 text-right text-[11px] font-semibold uppercase tracking-wider">Product Subtotal</td>
+                                  <td className="py-1.5 text-right font-semibold">₹{lc.totalProductValue.toLocaleString("en-IN")}</td>
+                                  {lc.hasAdditionalCosts && <td />}
+                                  {lc.hasAdditionalCosts && (
+                                    <td className="py-1.5 text-right font-bold text-green-700">₹{lc.totalLandedValue.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</td>
+                                  )}
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* ── Additional Costs ── */}
+                        {(extraCostItems.length > 0 || transport > 0 || localTransport > 0) && (
+                          <div>
+                            <div className="text-[10px] font-bold text-amber-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                              <Tag size={11} /> Additional Costs
+                            </div>
+                            <table className="w-full text-sm">
+                              <tbody className="divide-y divide-[#fdf0e0]">
+                                {extraCostItems.map((item, idx) => (
+                                  <tr key={idx} className="text-[#888]">
+                                    <td className="py-1.5 w-7"></td>
+                                    <td className="py-1.5">
+                                      <span className="text-xs font-medium text-[#555]">{item.productName}</span>
+                                      {item.costCategory && (
+                                        <span className="ml-1.5 text-[10px] text-[#aaa]">[{item.costCategory}]</span>
+                                      )}
+                                    </td>
+                                    <td className="py-1.5 text-right text-[#888] text-xs">{item.qty > 1 ? `${item.qty} ×` : ""}</td>
+                                    <td className="py-1.5 text-right text-[#888] text-xs">{item.qty > 1 ? `₹${item.rate.toLocaleString("en-IN")}` : ""}</td>
+                                    <td className="py-1.5 text-right font-semibold text-[#555]">₹{(item.qty * item.rate).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</td>
+                                  </tr>
+                                ))}
+                                {transport > 0 && (
+                                  <tr className="text-[#888]">
+                                    <td className="py-1.5 w-7"></td>
+                                    <td className="py-1.5 text-xs font-medium text-[#555] flex items-center gap-1"><Truck size={11} /> Supplier Transport</td>
+                                    <td colSpan={2} />
+                                    <td className="py-1.5 text-right font-semibold text-[#555]">₹{transport.toLocaleString("en-IN")}</td>
+                                  </tr>
+                                )}
+                                {localTransport > 0 && (
+                                  <tr className="text-[#888]">
+                                    <td className="py-1.5 w-7"></td>
+                                    <td className="py-1.5 text-xs font-medium text-[#555] flex items-center gap-1"><Truck size={11} /> Local Transport</td>
+                                    <td colSpan={2} />
+                                    <td className="py-1.5 text-right font-semibold text-[#555]">₹{localTransport.toLocaleString("en-IN")}</td>
+                                  </tr>
+                                )}
+                                <tr className="border-t border-amber-200">
+                                  <td colSpan={4} className="py-1.5 text-right text-[11px] font-bold text-amber-700 uppercase tracking-wider">Total Additional Costs</td>
+                                  <td className="py-1.5 text-right font-bold text-amber-700">₹{lc.totalAdditionalCosts.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+
+                        {/* ── Invoice totals ── */}
+                        <div className="border-t border-[#e8e8e8] pt-3">
+                          <table className="w-full text-sm">
+                            <tbody>
+                              {gstPct > 0 && (
+                                <tr className="text-[#888]">
+                                  <td colSpan={4} className="py-1 text-right text-[11px] font-semibold uppercase tracking-wider">IGST {gstPct}%</td>
+                                  <td className="py-1 text-right font-semibold">₹{gstAmt.toLocaleString("en-IN")}</td>
+                                </tr>
+                              )}
+                              {rounding !== 0 && (
+                                <tr className="text-[#888]">
+                                  <td colSpan={4} className="py-1 text-right text-[11px] font-semibold uppercase tracking-wider">Rounding</td>
+                                  <td className="py-1 text-right font-semibold">{rounding >= 0 ? "+" : ""}₹{rounding.toLocaleString("en-IN")}</td>
+                                </tr>
+                              )}
+                               <tr>
+                                <td colSpan={4} className="py-2 text-right text-[12px] font-bold text-black uppercase tracking-wider">Grand Total (Invoice)</td>
+                                <td className="py-2 text-right font-bold text-black text-base">₹{grandTotal.toLocaleString("en-IN")}</td>
                               </tr>
-                            </>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
+                              {p.paymentStatus !== "Paid" && (
+                                <>
+                                  <tr className="text-[#888]">
+                                    <td colSpan={4} className="py-1.5 text-right text-[11px] font-semibold uppercase tracking-wider text-right">Paid Amount</td>
+                                    <td className="py-1.5 text-right font-semibold text-green-600">₹{(p.paymentStatus === "Partial" ? (p.paidAmount ?? 0) : 0).toLocaleString("en-IN")}</td>
+                                  </tr>
+                                  <tr className="text-[#888]">
+                                    <td colSpan={4} className="py-1.5 text-right text-[11px] font-semibold uppercase tracking-wider text-right">Balance Pending</td>
+                                    <td className="py-1.5 text-right font-semibold text-red-500">₹{(grandTotal - (p.paymentStatus === "Partial" ? (p.paidAmount ?? 0) : 0)).toLocaleString("en-IN")}</td>
+                                  </tr>
+                                </>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Landed Cost Summary Section */}
+                        {lc.hasAdditionalCosts && (
+                          <div className="bg-green-50/60 border border-green-100 rounded-xl p-4 mt-3 text-left">
+                            <div className="text-[11px] font-bold text-green-800 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                              <Calculator size={12} className="text-green-700" /> Landed Cost Summary
+                            </div>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+                              <div>
+                                <div className="text-[#666] mb-0.5">Product Value</div>
+                                <div className="font-bold text-black text-sm">₹{lc.totalProductValue.toLocaleString("en-IN")}</div>
+                              </div>
+                              <div>
+                                <div className="text-[#666] mb-0.5">Additional Costs</div>
+                                <div className="font-bold text-amber-700 text-sm">₹{lc.totalAdditionalCosts.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</div>
+                              </div>
+                              <div>
+                                <div className="text-[#666] mb-0.5">Total Landed Value</div>
+                                <div className="font-bold text-green-700 text-sm">₹{lc.totalLandedValue.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</div>
+                              </div>
+                              <div>
+                                <div className="text-[#666] mb-0.5">Total Inventory Quantity</div>
+                                <div className="font-bold text-black text-sm">{lc.totalInventoryQty.toLocaleString("en-IN")} units</div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}

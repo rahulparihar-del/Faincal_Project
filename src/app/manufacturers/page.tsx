@@ -8,6 +8,24 @@ import { Manufacturer } from "@/lib/types";
 import { gsap } from "gsap";
 import { useGSAP } from "@gsap/react";
 import { Plus, Edit2, Trash2, ChevronDown, Users, Phone, MapPin } from "lucide-react";
+/* ─── helpers ─────────────────────────────────────────────── */
+function getPurchaseGrandTotal(p: any): number {
+  if (p.items && p.items.length > 0) {
+    const sub = p.items.reduce((s: number, i: any) => s + i.qty * i.rate, 0);
+    const gst = p.gstAmount ?? (sub * (p.gstPercent ?? 0) / 100);
+    return sub + gst + (p.transport ?? 0) + (p.localTransport ?? 0) + (p.roundingAmount ?? 0);
+  }
+  const sub = p.qty * p.rate;
+  const gst = p.gstAmount ?? (sub * (p.gstPercent ?? 0) / 100);
+  return sub + gst + (p.transport ?? 0) + (p.localTransport ?? 0) + (p.roundingAmount ?? 0);
+}
+
+function getPurchaseProductQty(p: any): number {
+  if (p.items && p.items.length > 0) {
+    return p.items.filter((i: any) => !i.type || i.type === "product").reduce((s: number, i: any) => s + i.qty, 0);
+  }
+  return p.qty;
+}
 
 export default function ManufacturersPage() {
   const { manufacturers, setManufacturers, purchases } = useData();
@@ -19,14 +37,16 @@ export default function ManufacturersPage() {
   const mfgStats = useMemo(() => {
     const map = new Map<string, { orders: number; totalAmount: number; pending: number }>();
     purchases.forEach((p) => {
-      const amount = p.qty * p.rate;
+      const amount = getPurchaseGrandTotal(p);
+      const paid = p.paymentStatus === "Paid" ? amount : (p.paymentStatus === "Partial" ? (p.paidAmount ?? 0) : 0);
+      const pending = amount - paid;
       if (!map.has(p.manufacturerId)) {
-        map.set(p.manufacturerId, { orders: 1, totalAmount: amount, pending: p.paymentStatus !== "Paid" ? amount : 0 });
+        map.set(p.manufacturerId, { orders: 1, totalAmount: amount, pending });
       } else {
         const s = map.get(p.manufacturerId)!;
         s.orders += 1;
         s.totalAmount += amount;
-        if (p.paymentStatus !== "Paid") s.pending += amount;
+        s.pending += pending;
       }
     });
     return map;
@@ -230,22 +250,42 @@ function MfgCard({
           <h4 className="font-bold text-[12px] text-[#888] uppercase tracking-wider mb-3">Order History</h4>
           {mfgPurchases.length > 0 ? (
             <div className="space-y-2">
-              {mfgPurchases.map((p) => (
-                <div key={p.id} className="bg-white p-3 rounded-xl border border-[#e8e8e8] text-sm flex justify-between items-center">
-                  <div>
-                    <div className="font-semibold text-black">
-                      {p.productName} <span className="text-[#888] font-normal">({p.qty} units)</span>
+              {mfgPurchases.map((p) => {
+                const total = getPurchaseGrandTotal(p);
+                const prodQty = getPurchaseProductQty(p);
+                const itemsList = p.items || [];
+                const prodItems = itemsList.filter((i: any) => !i.type || i.type === "product");
+                const costItemsCount = itemsList.filter((i: any) => i.type === "cost").length;
+
+                return (
+                  <div key={p.id} className="bg-white p-3 rounded-xl border border-[#e8e8e8] text-sm flex justify-between items-center">
+                    <div>
+                      <div className="font-semibold text-black">
+                        {itemsList.length > 1 ? (
+                          <span>
+                            {prodItems.length} product{prodItems.length !== 1 ? "s" : ""}
+                            {costItemsCount > 0 && (
+                              <span className="ml-1.5 text-[9px] font-semibold px-1.5 py-0.5 bg-amber-50 text-amber-700 border border-amber-100 rounded-full">
+                                +{costItemsCount} cost{costItemsCount !== 1 ? "s" : ""}
+                              </span>
+                            )}
+                          </span>
+                        ) : (
+                          p.productName
+                        )}
+                        <span className="text-[#888] font-normal"> ({prodQty} units)</span>
+                      </div>
+                      <div className="text-xs text-[#888] mt-1">{p.date} · {p.orderType}</div>
                     </div>
-                    <div className="text-xs text-[#888] mt-1">{p.date} · {p.orderType}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-bold text-black">₹{(p.qty * p.rate).toLocaleString("en-IN")}</div>
-                    <div className={`text-xs font-bold mt-1 ${p.paymentStatus === "Paid" ? "text-black" : "text-[#888]"}`}>
-                      {p.paymentStatus}
+                    <div className="text-right">
+                      <div className="font-bold text-black">₹{total.toLocaleString("en-IN")}</div>
+                      <div className={`text-xs font-bold mt-1 ${p.paymentStatus === "Paid" ? "text-black" : "text-[#888]"}`}>
+                        {p.paymentStatus}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="text-sm text-[#888] text-center py-4">No orders placed yet.</div>

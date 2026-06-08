@@ -9,6 +9,18 @@ import { Download, FileSpreadsheet, TrendingUp, TrendingDown, DollarSign, MinusC
 import { format, parseISO } from "date-fns";
 import { exportExcelReport } from "@/lib/export/excelReport";
 
+/* ─── helpers ─────────────────────────────────────────────── */
+function getPurchaseGrandTotal(p: any): number {
+  if (p.items && p.items.length > 0) {
+    const sub = p.items.reduce((s: number, i: any) => s + i.qty * i.rate, 0);
+    const gst = p.gstAmount ?? (sub * (p.gstPercent ?? 0) / 100);
+    return sub + gst + (p.transport ?? 0) + (p.localTransport ?? 0) + (p.roundingAmount ?? 0);
+  }
+  const sub = p.qty * p.rate;
+  const gst = p.gstAmount ?? (sub * (p.gstPercent ?? 0) / 100);
+  return sub + gst + (p.transport ?? 0) + (p.localTransport ?? 0) + (p.roundingAmount ?? 0);
+}
+
 export default function ProfitAndLossPage() {
   const { ecomSales, wholesaleSales, manufacturers, purchases, transactions } = useData();
   const [isExporting, setIsExporting] = React.useState(false);
@@ -60,7 +72,7 @@ export default function ProfitAndLossPage() {
       if (p.orderType === "Bulk") {
         const mk = getMonthKey(p.date);
         const m = ensureMonth(mk);
-        const val = p.qty * p.rate;
+        const val = getPurchaseGrandTotal(p);
         totalCogs += val;
         m.cogs += val;
       }
