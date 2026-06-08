@@ -62,8 +62,9 @@ body {
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* Minimum 44px touch targets (WCAG 2.5.5) */
-  button, a, [role="button"] {
+  /* Minimum 44px touch targets (WCAG 2.5.5) — exclude toggle switches,
+     which are intentionally short pills sized by their own classes. */
+  button:not([role="switch"]), a, [role="button"] {
     min-height: 44px;
   }
 

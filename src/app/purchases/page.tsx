@@ -1348,7 +1348,7 @@ function PurchaseFormDrawer({
               <button
                 type="button"
                 onClick={() => setMeta({ ...meta, applyGst: !meta.applyGst })}
-                className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${meta.applyGst ? "bg-black" : "bg-[#ddd]"}`}
+                className={`relative shrink-0 w-12 h-6 rounded-full transition-colors duration-200 ${meta.applyGst ? "bg-black" : "bg-[#ddd]"}`}
                 role="switch" aria-checked={meta.applyGst}
               >
                 <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${meta.applyGst ? "translate-x-6" : "translate-x-0"}`} />
@@ -1380,7 +1380,7 @@ function PurchaseFormDrawer({
               <button
                 type="button"
                 onClick={() => setMeta({ ...meta, shareCosts: !meta.shareCosts })}
-                className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${meta.shareCosts ? "bg-black" : "bg-[#ddd]"}`}
+                className={`relative shrink-0 w-12 h-6 rounded-full transition-colors duration-200 ${meta.shareCosts ? "bg-black" : "bg-[#ddd]"}`}
                 role="switch" aria-checked={meta.shareCosts}
               >
                 <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${meta.shareCosts ? "translate-x-6" : "translate-x-0"}`} />
