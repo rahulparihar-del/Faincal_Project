@@ -7,14 +7,12 @@ import {
   Trash2,
   ExternalLink,
   Link2,
-  Search,
   X,
   Edit3,
   Check,
   RefreshCw,
   Star,
   StarOff,
-  GripVertical,
   AlertCircle,
 } from "lucide-react";
 
@@ -129,7 +127,7 @@ function SiteCard({
         </div>
       ) : (
         <div
-          className="h-20 flex items-center justify-center bg-gradient-to-br from-[#f8f8f8] to-[#f0f0f0] shrink-0 cursor-pointer"
+          className="h-32 flex items-center justify-center bg-gradient-to-br from-[#f8f8f8] to-[#f0f0f0] shrink-0 cursor-pointer"
           onClick={handleOpen}
         >
           <div className="w-14 h-14 rounded-2xl bg-white shadow-sm flex items-center justify-center border border-[#e8e8e8]">
@@ -319,8 +317,6 @@ function AddUrlBar({ onAdd, loading }: { onAdd: (url: string, category: string) 
 /* ─── Page ─────────────────────────────────────────────────── */
 export default function MySitesPage() {
   const [bookmarks, setBookmarks] = useState<SiteBookmark[]>([]);
-  const [search, setSearch] = useState("");
-  const [activeCategory, setActiveCategory] = useState("All");
   const [adding, setAdding] = useState(false);
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -413,24 +409,12 @@ export default function MySitesPage() {
     );
   };
 
-  /* Filter + sort */
-  const filtered = bookmarks
-    .filter((b) => {
-      const q = search.toLowerCase();
-      const matchSearch =
-        !q ||
-        b.title.toLowerCase().includes(q) ||
-        b.hostname.toLowerCase().includes(q) ||
-        b.description.toLowerCase().includes(q) ||
-        b.url.toLowerCase().includes(q);
-      const matchCat = activeCategory === "All" || b.category === activeCategory;
-      return matchSearch && matchCat;
-    })
-    .sort((a, b) => {
-      if (a.pinned && !b.pinned) return -1;
-      if (!a.pinned && b.pinned) return 1;
-      return new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime();
-    });
+  /* Sort: pinned first, then newest */
+  const filtered = [...bookmarks].sort((a, b) => {
+    if (a.pinned && !b.pinned) return -1;
+    if (!a.pinned && b.pinned) return 1;
+    return new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime();
+  });
 
   const pinnedCount = bookmarks.filter((b) => b.pinned).length;
 
@@ -458,53 +442,7 @@ export default function MySitesPage() {
         </div>
       )}
 
-      {/* Search + category filter */}
-      {bookmarks.length > 0 && (
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          {/* Search */}
-          <div className="flex-1 flex items-center gap-2 bg-white border border-[#e8e8e8] rounded-xl px-3 py-2.5 focus-within:border-black focus-within:ring-2 focus-within:ring-black/10 transition-all">
-            <Search size={14} className="text-[#bbb] shrink-0" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search bookmarks…"
-              className="flex-1 bg-transparent text-sm text-black placeholder:text-[#bbb] focus:outline-none border-none p-0"
-            />
-            {search && (
-              <button onClick={() => setSearch("")} className="text-[#ccc] hover:text-black transition-colors">
-                <X size={14} />
-              </button>
-            )}
-          </div>
 
-          {/* Category pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
-            {CATEGORIES.map((cat) => {
-              const count = cat === "All"
-                ? bookmarks.length
-                : bookmarks.filter((b) => b.category === cat).length;
-              if (cat !== "All" && count === 0) return null;
-              return (
-                <button
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
-                  className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
-                    activeCategory === cat
-                      ? "bg-black text-white shadow-sm"
-                      : "bg-white border border-[#e8e8e8] text-[#888] hover:text-black hover:border-[#ccc]"
-                  }`}
-                >
-                  {cat}
-                  <span className={`text-[10px] font-bold ${activeCategory === cat ? "text-white/70" : "text-[#bbb]"}`}>
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {/* Grid */}
       {filtered.length > 0 ? (
@@ -546,15 +484,6 @@ export default function MySitesPage() {
               </button>
             ))}
           </div>
-        </div>
-      ) : (
-        /* No search results */
-        <div className="flex flex-col items-center justify-center py-16 gap-3">
-          <Search size={32} className="text-[#ddd]" />
-          <p className="text-[#888] text-sm">No bookmarks match &ldquo;{search}&rdquo;</p>
-          <button onClick={() => { setSearch(""); setActiveCategory("All"); }} className="text-xs font-semibold text-black underline">
-            Clear filters
-          </button>
         </div>
       )}
     </div>
