@@ -123,3 +123,18 @@ as $$
 $$;
 
 grant execute on function public.biztrack_db_usage() to anon, authenticated;
+
+-- ---------- My Sites bookmarks ----------
+create table if not exists public.site_bookmarks (
+  id          text primary key,
+  data        jsonb not null,
+  created_at  timestamptz not null default now()
+);
+
+alter table public.site_bookmarks enable row level security;
+
+do $$
+begin
+  execute 'drop policy if exists "anon_full_access" on public.site_bookmarks;';
+  execute 'create policy "anon_full_access" on public.site_bookmarks for all to anon, authenticated using (true) with check (true);';
+end $$;

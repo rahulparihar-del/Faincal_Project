@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback } from "react";
+import { useSupabaseTable } from "@/lib/hooks/useSupabaseTable";
 import {
   Globe,
   Plus,
@@ -34,20 +35,6 @@ const STORAGE_KEY = "biztrack_site_bookmarks";
 const CATEGORIES = ["All", "Ecommerce", "Tools", "Finance", "Social", "Other"];
 
 /* ─── Helpers ─────────────────────────────────────────────────── */
-function loadBookmarks(): SiteBookmark[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveBookmarks(bookmarks: SiteBookmark[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(bookmarks));
-}
-
 function normalizeUrl(input: string): string {
   let url = input.trim();
   if (!url.match(/^https?:\/\//i)) url = "https://" + url;
@@ -317,22 +304,16 @@ function AddUrlBar({ onAdd, loading }: { onAdd: (url: string, category: string) 
 
 /* ─── Page ─────────────────────────────────────────────────── */
 export default function MySitesPage() {
-  const [bookmarks, setBookmarks] = useState<SiteBookmark[]>([]);
+  // Persisted to Supabase (with localStorage fallback) — keeps the same legacy
+  // localStorage key so any previously-saved bookmarks migrate over automatically.
+  const [bookmarks, setBookmarks] = useSupabaseTable<SiteBookmark>(
+    "site_bookmarks",
+    STORAGE_KEY,
+    []
+  );
   const [adding, setAdding] = useState(false);
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  // Load from localStorage on mount
-  useEffect(() => {
-    setBookmarks(loadBookmarks());
-  }, []);
-
-  // Persist on change
-  useEffect(() => {
-    if (bookmarks.length > 0 || localStorage.getItem(STORAGE_KEY)) {
-      saveBookmarks(bookmarks);
-    }
-  }, [bookmarks]);
 
   /* Fetch metadata */
   const fetchMeta = useCallback(async (url: string): Promise<Omit<SiteBookmark, "id" | "pinned" | "addedAt" | "category">> => {
