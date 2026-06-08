@@ -50,6 +50,14 @@ function getPoAttachments(p: PurchaseOrder): { url: string; filename: string }[]
       filename: p.txnImageName || "Receipt.png",
     });
   }
+  if (p.localTxnImages && p.localTxnImages.length > 0) {
+    p.localTxnImages.forEach((img, idx) => {
+      attachments.push({
+        url: img,
+        filename: p.localTxnImageNames?.[idx] || `Local Transport ${idx + 1}`,
+      });
+    });
+  }
   return attachments;
 }
 
@@ -685,6 +693,12 @@ function PurchaseFormDrawer({
   const [txnImages, setTxnImages] = useState<string[]>([]);
   const [txnImageNames, setTxnImageNames] = useState<string[]>([]);
   const txnFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Local Transport Receipt state (multiple)
+  const [localTxnImages, setLocalTxnImages] = useState<string[]>([]);
+  const [localTxnImageNames, setLocalTxnImageNames] = useState<string[]>([]);
+  const localTxnFileInputRef = useRef<HTMLInputElement>(null);
+
   const [toast, setToast] = useState({ visible: false, message: "" });
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -703,6 +717,12 @@ function PurchaseFormDrawer({
       files.push({
         url: img,
         filename: txnImageNames[idx] || `Receipt ${idx + 1}`,
+      });
+    });
+    localTxnImages.forEach((img, idx) => {
+      files.push({
+        url: img,
+        filename: localTxnImageNames[idx] || `Local Transport ${idx + 1}`,
       });
     });
     return files;
@@ -737,6 +757,8 @@ function PurchaseFormDrawer({
         setPdfSizeWarning(false);
         setTxnImages(po.txnImages || (po.txnImage ? [po.txnImage] : []));
         setTxnImageNames(po.txnImageNames || (po.txnImageName ? [po.txnImageName] : []));
+        setLocalTxnImages(po.localTxnImages || []);
+        setLocalTxnImageNames(po.localTxnImageNames || []);
       }
     } else if (isOpen) {
       setMeta({ ...defaultMeta, manufacturerId: manufacturers.length > 0 ? manufacturers[0].id : "" });
@@ -746,6 +768,8 @@ function PurchaseFormDrawer({
       setPdfSizeWarning(false);
       setTxnImages([]);
       setTxnImageNames([]);
+      setLocalTxnImages([]);
+      setLocalTxnImageNames([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, editingId]);
@@ -800,14 +824,35 @@ function PurchaseFormDrawer({
         return;
       }
       const sizeMb = file.size / (1024 * 1024);
-      if (sizeMb > 3) {
-        showToast(`"${file.name}" is too large (>3MB)`);
-      }
+      if (sizeMb > 3) showToast(`"${file.name}" is too large (>3MB)`);
       const reader = new FileReader();
       reader.onload = (ev) => {
         const dataUrl = ev.target?.result as string;
         setTxnImages((prev) => [...prev, dataUrl]);
         setTxnImageNames((prev) => [...prev, file.name]);
+        showToast(`✅ "${file.name}" uploaded`);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  /* ─── Local Transport Image helpers (multiple) ─── */
+  const handleLocalTxnImagesSelect = (files: FileList) => {
+    if (!files || files.length === 0) return;
+    Array.from(files).forEach((file) => {
+      const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+      const isImg = file.type.startsWith("image/") || /\.(jpg|jpeg|png|webp)$/i.test(file.name);
+      if (!isPdf && !isImg) {
+        showToast(`"${file.name}" is not an Image or PDF`);
+        return;
+      }
+      const sizeMb = file.size / (1024 * 1024);
+      if (sizeMb > 3) showToast(`"${file.name}" is too large (>3MB)`);
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const dataUrl = ev.target?.result as string;
+        setLocalTxnImages((prev) => [...prev, dataUrl]);
+        setLocalTxnImageNames((prev) => [...prev, file.name]);
         showToast(`✅ "${file.name}" uploaded`);
       };
       reader.readAsDataURL(file);
@@ -849,6 +894,8 @@ function PurchaseFormDrawer({
       txnImageName: txnImageNames.length > 0 ? txnImageNames[0] : undefined,
       txnImages: txnImages.length > 0 ? txnImages : undefined,
       txnImageNames: txnImageNames.length > 0 ? txnImageNames : undefined,
+      localTxnImages: localTxnImages.length > 0 ? localTxnImages : undefined,
+      localTxnImageNames: localTxnImageNames.length > 0 ? localTxnImageNames : undefined,
       paymentStatus: meta.paymentStatus,
       paymentDate: meta.paymentDate,
       paidAmount: meta.paymentStatus === "Paid" ? grandTotal : (meta.paymentStatus === "Partial" ? meta.paidAmount : 0),
@@ -1011,6 +1058,108 @@ function PurchaseFormDrawer({
               </div>
             </div>
             <p className="text-[11px] text-[#aaa] ml-1">Both charges are added after GST — not taxable</p>
+
+            {/* ─── Local Transport Receipt Upload ─── */}
+            <div className="bg-orange-50/60 border border-orange-100 rounded-xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-[13px] font-semibold text-orange-800 flex items-center gap-1.5">
+                    <Truck size={13} /> Local Transport Receipts
+                  </div>
+                  <div className="text-[11px] text-orange-600 mt-0.5">Upload bills/receipts paid at delivery (multiple allowed)</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => localTxnFileInputRef.current?.click()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-xs font-semibold transition-colors shrink-0"
+                >
+                  <Upload size={12} /> Add
+                </button>
+              </div>
+
+              {/* Hidden file input */}
+              <input
+                ref={localTxnFileInputRef}
+                type="file"
+                accept="image/*,application/pdf"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files) handleLocalTxnImagesSelect(e.target.files);
+                  e.target.value = "";
+                }}
+              />
+
+              {localTxnImages.length > 0 && (
+                <div className="grid grid-cols-1 gap-2">
+                  {localTxnImages.map((img, idx) => {
+                    const name = localTxnImageNames[idx] || `Local Transport ${idx + 1}`;
+                    const isImg = img.startsWith("data:image/") || /\.(jpg|jpeg|png|webp|gif)$/i.test(name);
+                    return (
+                      <div key={idx} className="bg-white border border-orange-100 rounded-xl p-3 flex items-center justify-between gap-3 shadow-sm">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-10 h-10 rounded-lg border border-orange-100 overflow-hidden flex items-center justify-center shrink-0 bg-orange-50">
+                            {isImg ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={img} alt={name} className="w-full h-full object-cover" />
+                            ) : (
+                              <FileText size={18} className="text-orange-500" />
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-xs font-semibold text-black truncate">{name}</div>
+                            <div className="text-[10px] text-[#888] mt-0.5">{isImg ? "Image" : "PDF"} · Local Transport</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const files = getDrawerAttachments();
+                              const activeIdx = files.findIndex((f) => f.url === img);
+                              onViewPdf(files, activeIdx !== -1 ? activeIdx : 0);
+                            }}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg bg-orange-50 text-orange-500 hover:bg-orange-100 transition-colors border border-orange-100"
+                            title="Preview"
+                          >
+                            <Eye size={12} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setLocalTxnImages((prev) => prev.filter((_, i) => i !== idx));
+                              setLocalTxnImageNames((prev) => prev.filter((_, i) => i !== idx));
+                              showToast("Local receipt removed");
+                            }}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg bg-white text-[#888] hover:bg-red-50 hover:text-red-600 transition-colors border border-orange-100"
+                            title="Remove"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {localTxnImages.length === 0 && (
+                <button
+                  type="button"
+                  onClick={() => localTxnFileInputRef.current?.click()}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (e.dataTransfer.files) handleLocalTxnImagesSelect(e.dataTransfer.files);
+                  }}
+                  className="w-full border-2 border-dashed border-orange-200 hover:border-orange-400 bg-white hover:bg-orange-50 rounded-xl px-5 py-4 flex flex-col items-center gap-1.5 transition-colors cursor-pointer group"
+                >
+                  <Upload size={16} className="text-orange-400" />
+                  <div className="text-xs font-semibold text-orange-700">Upload delivery receipts</div>
+                  <div className="text-[10px] text-orange-400">Click or drag screenshots/PDFs here</div>
+                </button>
+              )}
+            </div>
           </div>
 
           {/* ─── Rounding ─── */}

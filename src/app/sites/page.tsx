@@ -486,7 +486,7 @@ export default function MySitesPage() {
             ))}
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

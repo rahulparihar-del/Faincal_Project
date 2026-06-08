@@ -44,6 +44,14 @@ function getPoAttachments(p: PurchaseOrder): { url: string; filename: string }[]
       filename: p.txnImageName || "Receipt.png",
     });
   }
+  if (p.localTxnImages && p.localTxnImages.length > 0) {
+    p.localTxnImages.forEach((img, idx) => {
+      attachments.push({
+        url: img,
+        filename: p.localTxnImageNames?.[idx] || `Local Transport ${idx + 1}`,
+      });
+    });
+  }
   return attachments;
 }
 
@@ -485,6 +493,27 @@ export default function ManufacturerDetailPage() {
                               <Eye size={12} />
                             </button>
                           ) : null
+                        )}
+                        {/* Local Transport Receipts badge */}
+                        {p.localTxnImages && p.localTxnImages.length > 0 && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const files = getPoAttachments(p);
+                              const firstLocalUrl = p.localTxnImages![0];
+                              const activeIdx = files.findIndex((f) => f.url === firstLocalUrl);
+                              setViewingPdf({ files, activeIndex: activeIdx !== -1 ? activeIdx : 0 });
+                            }}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg bg-orange-50 text-orange-400 hover:text-orange-600 hover:bg-orange-100 transition-colors cursor-pointer relative"
+                            title={`Local Transport Receipts (${p.localTxnImages.length})`}
+                          >
+                            <Truck size={12} />
+                            {p.localTxnImages.length > 1 && (
+                              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-orange-500 text-white rounded-full text-[8px] font-bold flex items-center justify-center border border-white">
+                                {p.localTxnImages.length}
+                              </span>
+                            )}
+                          </button>
                         )}
                       </div>
                     </div>

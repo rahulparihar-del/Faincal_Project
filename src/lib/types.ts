@@ -118,6 +118,10 @@ export interface PurchaseOrder {
   txnImages?: string[];
   /** Original filenames of the transaction receipts */
   txnImageNames?: string[];
+  /** Local transport delivery receipt images (multiple) */
+  localTxnImages?: string[];
+  /** Original filenames of the local transport delivery receipts */
+  localTxnImageNames?: string[];
   paymentStatus: PaymentStatus;
   paymentDate: string;
   shipmentStatus: ShipmentStatus;
