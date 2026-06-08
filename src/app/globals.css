@@ -115,6 +115,224 @@ body {
   }
 }
 
+/* ── Mobile tables card stack layout (< 768px) ── */
+@media (max-width: 767px) {
+  /* Hide standard headers */
+  .overflow-x-auto table.responsive-table thead {
+    display: none !important;
+  }
+  
+  /* Make the table, tbody, and tr block-level so they stack */
+  .overflow-x-auto table.responsive-table,
+  .overflow-x-auto table.responsive-table tbody,
+  .overflow-x-auto table.responsive-table tr {
+    display: block !important;
+    width: 100% !important;
+  }
+  
+  /* Format each row (tr) as a premium card */
+  .overflow-x-auto table.responsive-table tr {
+    margin-bottom: 0.875rem !important;
+    border: 1.5px solid var(--color-gray-200) !important;
+    border-radius: 14px !important;
+    padding: 0.75rem 1rem !important;
+    background-color: var(--color-white) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+  }
+  
+  .dark .overflow-x-auto table.responsive-table tr {
+    border-color: #2a2a2a !important;
+    background-color: #161616 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+  }
+
+  /* Make each cell (td) a row inside the card - using grid to prevent text wrapping/shrinking issues */
+  .overflow-x-auto table.responsive-table td {
+    display: grid !important;
+    grid-template-columns: 110px 1fr !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    padding: 0.5rem 0 !important;
+    border-bottom: 1px solid var(--color-gray-100) !important;
+    font-size: 0.75rem !important; /* Slightly smaller text for mobile */
+    width: 100% !important;
+    max-width: none !important; /* override desktop max-w-[...] so card values aren't clipped */
+    overflow: visible !important; /* undo `truncate` (overflow:hidden) in card view */
+    text-overflow: clip !important;
+    box-sizing: border-box !important;
+    white-space: normal !important;
+    text-align: right !important;
+  }
+
+  /* Let truncated/value content wrap and break long words in the card cell */
+  .overflow-x-auto table.responsive-table td,
+  .overflow-x-auto table.responsive-table td > * {
+    overflow-wrap: anywhere !important;
+  }
+  
+  .dark .overflow-x-auto table.responsive-table td {
+    border-bottom-color: #222222 !important;
+  }
+  
+  /* Remove border for the last cell in the card */
+  .overflow-x-auto table.responsive-table td:last-child {
+    border-bottom: 0 !important;
+  }
+  
+  /* Use data-label attribute to render headers on the left */
+  .overflow-x-auto table.responsive-table td::before {
+    content: attr(data-label) !important;
+    font-weight: 600 !important;
+    color: var(--color-gray-500) !important;
+    text-align: left !important;
+    padding-right: 0.75rem !important;
+    font-size: 0.7rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    flex-shrink: 0 !important;
+    justify-self: start !important;
+  }
+
+  .dark .overflow-x-auto table.responsive-table td::before {
+    color: #888888 !important;
+  }
+
+  /* Align cell value content to the right side of the grid cell */
+  .overflow-x-auto table.responsive-table td > * {
+    justify-self: end !important;
+  }
+
+  /* Specific override: if the data-label is empty or has a single character/helper icon, do not display it */
+  .overflow-x-auto table.responsive-table td[data-label=""]::before {
+    display: none !important;
+  }
+
+  /* Reset grid layout for expanded rows containing sub-tables so they span full width */
+  .overflow-x-auto table.responsive-table td.expanded-row-cell {
+    display: block !important;
+    width: 100% !important;
+    padding: 0.5rem 0 !important;
+    border-bottom: 0 !important;
+  }
+  
+  .overflow-x-auto table.responsive-table td.expanded-row-cell::before {
+    display: none !important;
+  }
+  
+  .overflow-x-auto table.responsive-table td.expanded-row-cell > * {
+    justify-self: auto !important;
+  }
+
+  /* Reset sub-tables inside expanded rows to standard horizontal tables with independent scrolling */
+  .overflow-x-auto td.expanded-row-cell table {
+    display: table !important;
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin-top: 0.5rem !important;
+  }
+  
+  .overflow-x-auto td.expanded-row-cell table thead {
+    display: table-header-group !important;
+  }
+  
+  .overflow-x-auto td.expanded-row-cell table thead tr {
+    display: table-row !important;
+    background: transparent !important;
+    border: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+  }
+
+  .overflow-x-auto td.expanded-row-cell table thead th {
+    display: table-cell !important;
+    font-size: 0.65rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    color: var(--color-gray-500) !important;
+    border-bottom: 1px solid var(--color-gray-200) !important;
+    padding: 0.5rem 0.375rem !important;
+    font-weight: 600 !important;
+  }
+
+  .overflow-x-auto td.expanded-row-cell table tbody {
+    display: table-row-group !important;
+  }
+
+  .overflow-x-auto td.expanded-row-cell table tbody tr {
+    display: table-row !important;
+    background: transparent !important;
+    border: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+  }
+
+  .dark .overflow-x-auto td.expanded-row-cell table tbody tr {
+    background: transparent !important;
+  }
+
+  .overflow-x-auto td.expanded-row-cell table tbody td {
+    display: table-cell !important;
+    width: auto !important;
+    padding: 0.5rem 0.375rem !important;
+    font-size: 0.75rem !important;
+    border-bottom: 1px solid var(--color-gray-100) !important;
+    white-space: nowrap !important;
+    text-align: inherit !important;
+  }
+  
+  .dark .overflow-x-auto td.expanded-row-cell table tbody td {
+    border-bottom-color: #222222 !important;
+  }
+
+  .overflow-x-auto td.expanded-row-cell table tbody td::before {
+    display: none !important;
+  }
+
+  /* For Actions cell (and any cell containing multiple buttons/actions), use flex to group them on the right */
+  .overflow-x-auto table.responsive-table td[data-label="Actions" i] {
+    display: flex !important;
+    justify-content: flex-end !important;
+  }
+  
+  .overflow-x-auto table.responsive-table td[data-label="Actions" i]::before {
+    content: attr(data-label) !important;
+    margin-right: auto !important;
+    font-weight: 600 !important;
+    color: var(--color-gray-500) !important;
+    text-align: left !important;
+    padding-right: 0.75rem !important;
+    font-size: 0.7rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Custom responsive list in manufacturer details purchase history */
+  .mobile-responsive-list > div > .cursor-pointer > .flex {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.75rem !important;
+  }
+  
+  .mobile-responsive-list > div > .cursor-pointer > .flex > .w-24 {
+    width: auto !important;
+  }
+  
+  .mobile-responsive-list > div > .cursor-pointer > .flex > .text-right {
+    text-align: left !important;
+  }
+  
+  .mobile-responsive-list > div > .cursor-pointer > .flex > .items-end {
+    align-items: flex-start !important;
+  }
+
+  .mobile-responsive-list > div > .cursor-pointer > .flex > .flex-row {
+    justify-content: flex-start !important;
+  }
+}
+
 /* ── Premium Input Styles ── */
 input[type="text"],
 input[type="number"],

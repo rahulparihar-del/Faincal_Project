@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Disable dynamic route indicators in dev mode that overlap navigation
+  devIndicators: false,
+
   // Gzip/Brotli compression for all responses
   compress: true,
 

@@ -21,16 +21,16 @@ import { gsap } from "gsap";
 import { useGSAP } from "@gsap/react";
 
 const NAV_ITEMS = [
-  { name: "Dashboard",     href: "/",             icon: LayoutDashboard },
-  { name: "Manufacturers", href: "/manufacturers", icon: Users },
-  { name: "Purchases",     href: "/purchases",     icon: FileText },
-  { name: "E-commerce",    href: "/ecom",          icon: ShoppingCart },
-  { name: "Meesho Orders", href: "/meesho",        icon: ScanLine },
-  { name: "Wholesale",     href: "/wholesale",     icon: Truck },
-  { name: "Expenses",      href: "/expenses",      icon: Receipt },
-  { name: "Bank",          href: "/bank",          icon: Landmark },
-  { name: "P&L",           href: "/pl",            icon: BarChart3 },
-  { name: "My Sites",      href: "/sites",         icon: Globe },
+  { name: "Dashboard",     href: "/",             icon: LayoutDashboard, mobileName: "Home" },
+  { name: "Manufacturers", href: "/manufacturers", icon: Users,           mobileName: "Mfg" },
+  { name: "Purchases",     href: "/purchases",     icon: FileText,        mobileName: "Purchases" },
+  { name: "E-commerce",    href: "/ecom",          icon: ShoppingCart,    mobileName: "E-com" },
+  { name: "Meesho Orders", href: "/meesho",        icon: ScanLine,        mobileName: "Meesho" },
+  { name: "Wholesale",     href: "/wholesale",     icon: Truck,           mobileName: "Wholesale" },
+  { name: "Expenses",      href: "/expenses",      icon: Receipt,         mobileName: "Expenses" },
+  { name: "Bank",          href: "/bank",          icon: Landmark,        mobileName: "Bank" },
+  { name: "P&L",           href: "/pl",            icon: BarChart3,       mobileName: "P&L" },
+  { name: "My Sites",      href: "/sites",         icon: Globe,           mobileName: "Sites" },
 ];
 
 /* ─── Desktop Sidebar ──────────────────────────────────────────────────────── */
@@ -188,11 +188,11 @@ export function MobileTabBar() {
               />
             </div>
             <span
-              className={`text-[10px] font-semibold tracking-tight transition-colors ${
+              className={`text-[9px] sm:text-[10px] font-semibold tracking-tight transition-colors ${
                 isActive ? "text-black" : "text-[#aaa]"
               }`}
             >
-              {item.name}
+              {item.mobileName || item.name}
             </span>
           </Link>
         );

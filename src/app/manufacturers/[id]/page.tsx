@@ -90,27 +90,27 @@ function getLandedBreakdown(p: PurchaseOrder, allPurchases: PurchaseOrder[] = []
   
   // Calculate combined values across all related bills
   let combinedProductValue = 0;
-  let combinedAdditionalCosts = 0;
+  let pooledTransportCosts = 0;
   const pooledAdditionalCosts: { name: string; amount: number; isShared: boolean; category?: string }[] = [];
   
+  // 1. Direct cost items (only from the current PO)
+  costItems.forEach(item => {
+    pooledAdditionalCosts.push({
+      name: item.productName || "Cost item",
+      amount: item.qty * item.rate,
+      isShared: false,
+      category: item.costCategory,
+    });
+  });
+
+  // 2. Accumulate values across all related bills
   relatedPos.forEach(po => {
     const isCurrentPo = po.id === p.id;
     const poItems = getItems(po);
     const poProducts = getProductItems(poItems);
-    const poCosts = getCostItems(poItems);
     
     combinedProductValue += poProducts.reduce((s, i) => s + i.qty * i.rate, 0);
-    combinedAdditionalCosts += poCosts.reduce((s, i) => s + i.qty * i.rate, 0) + (po.transport ?? 0) + (po.localTransport ?? 0);
-    
-    // Add cost lines to the pooled array
-    poCosts.forEach(item => {
-      pooledAdditionalCosts.push({
-        name: item.productName || "Cost item",
-        amount: item.qty * item.rate,
-        isShared: !isCurrentPo,
-        category: item.costCategory,
-      });
-    });
+    pooledTransportCosts += (po.transport ?? 0) + (po.localTransport ?? 0);
     
     // Add transport costs to the pooled array
     if (po.transport && po.transport > 0) {
@@ -134,11 +134,17 @@ function getLandedBreakdown(p: PurchaseOrder, allPurchases: PurchaseOrder[] = []
   const transportTotal = (p.transport ?? 0) + (p.localTransport ?? 0);
   const totalInventoryQty = productItems.reduce((s, i) => s + i.qty, 0);
   
-  // Allocate combined costs proportionally across all products of related POs
+  // Allocate direct costs to p's products, and transport costs across all related products
   const productRows = productItems.map(item => {
     const itemValue = item.qty * item.rate;
-    const proportion = combinedProductValue > 0 ? itemValue / combinedProductValue : 0;
-    const allocated = proportion * combinedAdditionalCosts;
+    
+    // Direct cost allocation
+    const directAllocated = totalProductValue > 0 ? (itemValue / totalProductValue) * costItemsTotal : 0;
+    
+    // Transport cost allocation (proportional to combined product value)
+    const transportAllocated = combinedProductValue > 0 ? (itemValue / combinedProductValue) * pooledTransportCosts : 0;
+    
+    const allocated = directAllocated + transportAllocated;
     const landedTotal = itemValue + allocated;
     const landedPerUnit = item.qty > 0 ? landedTotal / item.qty : 0;
     return { item, itemValue, allocated, landedTotal, landedPerUnit };
@@ -155,7 +161,7 @@ function getLandedBreakdown(p: PurchaseOrder, allPurchases: PurchaseOrder[] = []
     transportTotal,
     totalAdditionalCosts: totalAllocatedToThisPo,
     totalLandedValue: totalProductValue + totalAllocatedToThisPo,
-    hasAdditionalCosts: combinedAdditionalCosts > 0,
+    hasAdditionalCosts: pooledAdditionalCosts.length > 0,
     totalInventoryQty,
     pooledAdditionalCosts,
   };
@@ -485,7 +491,7 @@ export default function ManufacturerDetailPage() {
             No purchase orders from this manufacturer yet.
           </div>
         ) : (
-          <div className="divide-y divide-[#f5f5f5]">
+          <div className="divide-y divide-[#f5f5f5] mobile-responsive-list">
             {mfgPurchases.map((p) => {
               const items = getItems(p);
               const subtotal = getSubtotal(p);

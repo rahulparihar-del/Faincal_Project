@@ -10,6 +10,47 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [isMobileOpen, setMobileOpen] = useState(false);
   const { isReady } = useData();
 
+  React.useEffect(() => {
+    const updateTableLabels = () => {
+      document.querySelectorAll("table").forEach((table) => {
+        // Find headers in thead
+        const headers = Array.from(table.querySelectorAll("thead th")).map((th) => {
+          // Exclude helper/empty headers if needed, but standard mapping is positional
+          return th.textContent ? th.textContent.trim() : "";
+        });
+        if (headers.length === 0) return;
+
+        // Add class to the table
+        table.classList.add("responsive-table");
+
+        // Assign data-label to td elements in tbody tr
+        table.querySelectorAll("tbody tr").forEach((row) => {
+          row.querySelectorAll("td").forEach((td, index) => {
+            const header = headers[index];
+            if (header && !td.getAttribute("data-label")) {
+              td.setAttribute("data-label", header);
+            }
+          });
+        });
+      });
+    };
+
+    // Run initially
+    updateTableLabels();
+
+    // Observe changes in document body to capture client-side route changes and dynamic render
+    const observer = new MutationObserver(() => {
+      updateTableLabels();
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+
+    return () => observer.disconnect();
+  }, [isReady]);
+
   if (!isReady) {
     return (
       <div className="fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-gray-50 dark:bg-neutral-950 transition-opacity duration-300">
