@@ -7,19 +7,23 @@ import { gsap } from "gsap";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { AuthTopBar } from "./AuthTopBar";
-import { Lock, Mail, Eye, EyeOff, ArrowRight, ArrowLeft, ShieldCheck } from "lucide-react";
+import { Lock, Mail, Eye, EyeOff, ArrowRight, ArrowLeft, ShieldCheck, Loader2 } from "lucide-react";
 
-export function LoginScreen({ onBack }: { onBack?: () => void }) {
+type Phase = "idle" | "loading" | "closing";
+
+export function LoginScreen({ onBack, onEnterApp }: { onBack?: () => void; onEnterApp?: () => void }) {
   const { login } = useAuth();
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const root = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLFormElement>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shake, setShake] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [phase, setPhase] = useState<Phase>("idle");
+  const busy = phase === "loading" || phase === "closing";
 
   useGSAP(
     () => {
@@ -31,16 +35,35 @@ export function LoginScreen({ onBack }: { onBack?: () => void }) {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (submitting) return;
-    setSubmitting(true);
+    if (phase !== "idle") return;
     setError(null);
+    setPhase("loading");
     const res = await login(email, password);
-    setSubmitting(false);
+
     if (!res.ok) {
+      setPhase("idle");
       setError(res.error || "Incorrect email or password.");
       setShake(true);
       setTimeout(() => setShake(false), 500);
+      return;
     }
+
+    // Success → collapse the input fields inward (GSAP), then enter the app.
+    setPhase("closing");
+    const fields = root.current?.querySelectorAll(".login-field");
+    const tl = gsap.timeline({ onComplete: () => onEnterApp?.() });
+    if (fields && fields.length) {
+      tl.to(fields, {
+        scaleX: 0,
+        opacity: 0,
+        transformOrigin: "center center",
+        duration: 0.5,
+        stagger: 0.09,
+        ease: "power3.inOut",
+      });
+    }
+    tl.to(cardRef.current, { opacity: 0, scale: 0.97, y: -6, duration: 0.35, ease: "power2.in" }, fields?.length ? "-=0.15" : 0);
+    tl.to(root.current, { opacity: 0, duration: 0.35, ease: "power2.in" }, "-=0.2");
   };
 
   const c = isDark
@@ -67,7 +90,11 @@ export function LoginScreen({ onBack }: { onBack?: () => void }) {
     "w-full bg-[#f5f5f5] border border-[#e8e8e8] rounded-xl pl-11 pr-3 py-3 text-sm font-medium text-black placeholder:text-[#aaa] focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-[#ccc] transition-colors";
 
   return (
-    <div ref={root} className={`relative min-h-screen w-full overflow-hidden flex items-center justify-center p-6 ${c.text}`} style={{ background: c.bg, ["--color-white" as string]: "#ffffff", ["--color-black" as string]: "#000000" } as React.CSSProperties}>
+    <div
+      ref={root}
+      className={`relative min-h-screen w-full overflow-hidden flex items-center justify-center p-6 ${c.text}`}
+      style={{ background: c.bg, ["--color-white" as string]: "#ffffff", ["--color-black" as string]: "#000000" } as React.CSSProperties}
+    >
       <AuthTopBar />
 
       {/* Animated background */}
@@ -85,7 +112,7 @@ export function LoginScreen({ onBack }: { onBack?: () => void }) {
         />
       </div>
 
-      {onBack && (
+      {onBack && !busy && (
         <button onClick={onBack} className={`absolute top-[4.5rem] left-5 sm:top-20 z-20 inline-flex items-center gap-1.5 text-sm font-medium transition-colors ${c.back}`}>
           <ArrowLeft size={16} /> Back
         </button>
@@ -103,14 +130,15 @@ export function LoginScreen({ onBack }: { onBack?: () => void }) {
           <p className={`text-sm mt-1 ${c.sub}`}>Sign in to your dashboard</p>
         </div>
 
-        <form onSubmit={submit} className={`backdrop-blur-xl border rounded-2xl p-6 space-y-4 ${c.card} ${shake ? "animate-shake" : ""}`}>
-          <div>
+        <form ref={cardRef} onSubmit={submit} className={`backdrop-blur-xl border rounded-2xl p-6 space-y-4 ${c.card} ${shake ? "animate-shake" : ""}`}>
+          <div className="login-field">
             <label className={`block text-[12px] font-semibold mb-1.5 ${c.label}`}>Email</label>
             <div className="relative">
               <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#aaa] z-10" />
               <input
                 type="text"
                 autoFocus
+                disabled={busy}
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); setError(null); }}
                 placeholder="you@example.com"
@@ -120,12 +148,13 @@ export function LoginScreen({ onBack }: { onBack?: () => void }) {
             </div>
           </div>
 
-          <div>
+          <div className="login-field">
             <label className={`block text-[12px] font-semibold mb-1.5 ${c.label}`}>Password</label>
             <div className="relative">
               <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#aaa] z-10" />
               <input
                 type={show ? "text" : "password"}
+                disabled={busy}
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setError(null); }}
                 placeholder="••••••••"
@@ -143,17 +172,26 @@ export function LoginScreen({ onBack }: { onBack?: () => void }) {
             </div>
           </div>
 
-          {error && <div className={`border text-sm rounded-xl px-4 py-2.5 ${c.err}`}>{error}</div>}
+          {error && <div className={`login-field border text-sm rounded-xl px-4 py-2.5 ${c.err}`}>{error}</div>}
 
           <motion.button
             type="submit"
-            disabled={submitting}
-            whileHover={{ scale: submitting ? 1 : 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className={`group w-full font-bold py-3 rounded-xl flex items-center justify-center gap-2 disabled:opacity-60 ${c.cta}`}
+            disabled={busy}
+            whileHover={{ scale: busy ? 1 : 1.02 }}
+            whileTap={{ scale: busy ? 1 : 0.98 }}
+            className={`group w-full font-bold py-3 rounded-xl flex items-center justify-center gap-2 disabled:cursor-not-allowed ${c.cta}`}
           >
-            {submitting ? "Signing in…" : "Sign In"}
-            {!submitting && <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />}
+            {busy ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                {phase === "closing" ? "Welcome" : "Signing in…"}
+              </>
+            ) : (
+              <>
+                Sign In
+                <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
+              </>
+            )}
           </motion.button>
         </form>
 
