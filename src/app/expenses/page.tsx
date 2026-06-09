@@ -46,7 +46,7 @@ export default function ExpensesPage() {
     let thisMonth = 0, totalSpend = 0, equipmentSpend = 0, packagingSpend = 0;
 
     businessExpenses.forEach((e) => {
-      const val = e.quantity * e.unitCost;
+      const val = e.quantity * e.unitCost + (e.gstAmount ?? 0);
       totalSpend += val;
       const d = new Date(e.date);
       if (d.getMonth() === cm && d.getFullYear() === cy) thisMonth += val;
