@@ -555,10 +555,13 @@ label {
 .dark .bg-\[\#fafafa\] { background-color: #1e1e1e; }
 .dark .hover\:bg-\[\#fafafa\]:hover { background-color: #242424; }
 .dark .bg-\[\#f0f0f0\] { background-color: #2a2a2a; }
-.dark .bg-\[\#e0e0e0\] { background-color: #333333; }
+.dark .bg-\[\#f9f9f9\] { background-color: #1c1c1c; }
+.dark .bg-\[\#eee\] { background-color: #2a2a2a; }
 .dark .hover\:bg-\[\#e0e0e0\]:hover { background-color: #3a3a3a; }
-.dark .bg-\[\#1a1a1a\] { background-color: #d8d8d8; }
+.dark .bg-\[\#ddd\] { background-color: #3a3a3a; }
+.dark .bg-\[\#e0e0e0\] { background-color: #333333; }
 .dark .hover\:bg-\[\#1a1a1a\]:hover { background-color: #e6e6e6; }
+.dark .bg-\[\#1a1a1a\] { background-color: #d8d8d8; }
 
 /* Keep scrim overlays dark even though --color-black is inverted. */
 .dark .bg-black\/30 { background-color: rgba(0, 0, 0, 0.6); }

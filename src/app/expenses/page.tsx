@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useMemo, useEffect } from "react";
 import { useData } from "@/context/DataContext";
+import { useTheme } from "@/context/ThemeContext";
 import { Drawer } from "@/components/ui/Drawer";
 import { CardGroup, StatCard } from "@/components/ui/Card";
 import { ConfirmDelete } from "@/components/ui/ConfirmDelete";
@@ -371,6 +372,8 @@ function ExpenseFormDrawer({
   onSave: (exp: BusinessExpense) => void;
 }) {
   const { businessExpenses } = useData();
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const formRef = useRef<HTMLFormElement>(null);
   const [form, setForm] = useState<Omit<BusinessExpense, "id">>({ ...DEFAULT_FORM });
   const [applyGst, setApplyGst] = useState(true);
@@ -500,8 +503,8 @@ function ExpenseFormDrawer({
           style={{ borderColor: activeMeta.color + "40" }}
         >
           {/* Subtotal row */}
-          <div className="px-4 py-3 flex justify-between items-center" style={{ background: activeMeta.bg }}>
-            <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: activeMeta.color + "99" }}>Subtotal</span>
+          <div className="px-4 py-3 flex justify-between items-center" style={{ background: isDark ? "rgba(255,255,255,0.06)" : activeMeta.bg }}>
+            <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: isDark ? activeMeta.color : activeMeta.color + "99" }}>Subtotal</span>
             <span className="font-semibold" style={{ color: activeMeta.color }}>₹{totalAmount.toLocaleString("en-IN")}</span>
           </div>
 
