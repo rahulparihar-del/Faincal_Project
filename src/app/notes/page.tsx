@@ -184,7 +184,7 @@ export default function NotesPage() {
       <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-4 lg:gap-5">
         {/* ── List pane ── */}
         <div
-          className={`${mobilePane === "editor" ? "hidden" : "flex"} lg:flex flex-col bg-white rounded-2xl border border-[#e8e8e8] shadow-sm overflow-hidden lg:max-h-[calc(100vh-220px)]`}
+          className={`${mobilePane === "editor" ? "hidden" : "flex"} lg:flex flex-col bg-white rounded-2xl border border-[#e8e8e8] shadow-sm overflow-hidden lg:h-[calc(100vh-150px)]`}
         >
           {/* Search */}
           <div className="p-3 border-b border-[#e8e8e8]">
@@ -268,33 +268,34 @@ export default function NotesPage() {
 
         {/* ── Editor pane ── */}
         <div
-          className={`${mobilePane === "list" ? "hidden" : "block"} lg:block bg-white rounded-2xl border border-[#e8e8e8] shadow-sm overflow-hidden`}
+          className={`${mobilePane === "list" ? "hidden" : "block"} lg:block bg-white rounded-2xl border border-[#e8e8e8] shadow-sm relative lg:h-[calc(100vh-150px)] lg:overflow-y-auto`}
         >
           {activeNote ? (
-            <div className="flex flex-col">
-              {/* Title row */}
-              <div className="flex items-center gap-2 px-4 sm:px-7 pt-4">
-                <button
-                  onClick={() => setMobilePane("list")}
-                  className="lg:hidden w-8 h-8 flex items-center justify-center rounded-lg text-[#888] hover:bg-[#f5f5f5] shrink-0"
-                  aria-label="Back to notes list"
-                >
-                  <ChevronLeft size={18} />
-                </button>
+            <div className="relative">
+              {/* Mobile back button */}
+              <button
+                onClick={() => setMobilePane("list")}
+                className="lg:hidden absolute left-3 top-3 z-10 w-8 h-8 flex items-center justify-center rounded-lg text-[#888] hover:bg-[#f5f5f5]"
+                aria-label="Back to notes list"
+              >
+                <ChevronLeft size={18} />
+              </button>
+
+              {/* Notion-style centred page column */}
+              <div className="notion-page notion-shell pt-14 lg:pt-16 pb-32">
                 <input
                   value={activeNote.title}
                   onChange={(e) => handleTitleChange(e.target.value)}
                   placeholder="Untitled"
-                  className="flex-1 text-2xl sm:text-[1.75rem] font-bold text-black bg-transparent border-none focus:outline-none focus:ring-0 p-0 placeholder:text-[#ccc]"
+                  className="notion-title w-full bg-transparent border-none focus:outline-none focus:ring-0 px-[2px] mb-1"
+                />
+                {/* Rich editor — keyed by note id so it re-initialises per note. */}
+                <NoteEditor
+                  key={activeNote.id}
+                  initialContent={activeNote.content}
+                  onChange={handleContentChange}
                 />
               </div>
-
-              {/* Rich editor — keyed by note id so it re-initialises per note. */}
-              <NoteEditor
-                key={activeNote.id}
-                initialContent={activeNote.content}
-                onChange={handleContentChange}
-              />
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-24 gap-4">
