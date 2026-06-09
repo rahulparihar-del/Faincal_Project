@@ -5,11 +5,11 @@ import { useData } from "@/context/DataContext";
 import { Drawer } from "@/components/ui/Drawer";
 import { CardGroup, StatCard } from "@/components/ui/Card";
 import { ConfirmDelete } from "@/components/ui/ConfirmDelete";
-import { BusinessExpense, ExpenseCategory, PaymentMode } from "@/lib/types";
+import { BusinessExpense, ExpenseCategory, PaymentMode, AccountType, TransactionType, Transaction } from "@/lib/types";
 import { gsap } from "gsap";
 import {
   Plus, Edit2, Trash2, Receipt, Monitor, Package,
-  Wrench, Wifi, Megaphone, Truck, FileCode, MoreHorizontal, X
+  Wrench, Wifi, Megaphone, Truck, FileCode, MoreHorizontal, X, Landmark
 } from "lucide-react";
 
 /* ─── Category config ────────────────────────────────────────── */
@@ -33,7 +33,7 @@ function getCategoryMeta(cat: ExpenseCategory) {
 }
 
 export default function ExpensesPage() {
-  const { businessExpenses, setBusinessExpenses } = useData();
+  const { businessExpenses, setBusinessExpenses, setTransactions } = useData();
   const [isDrawerOpen, setDrawerOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -317,6 +317,21 @@ export default function ExpensesPage() {
           } else {
             setBusinessExpenses((prev) => [exp, ...prev]);
           }
+          // Auto-create bank transaction if bank description is provided
+          if (exp.bankDescription?.trim() && !editingId) {
+            const total = exp.quantity * exp.unitCost + (exp.gstAmount ?? 0);
+            const tx: Transaction = {
+              id: `tx-exp-${exp.id}`,
+              date: exp.date,
+              account: exp.bankAccount || "IDFC Current",
+              type: exp.bankType || "Debit",
+              amount: total,
+              category: "Other",
+              description: exp.bankDescription.trim(),
+              utr: exp.bankUtr || "",
+            };
+            setTransactions((prev) => [tx, ...prev]);
+          }
           setDrawerOpen(false);
         }}
       />
@@ -583,6 +598,40 @@ function ExpenseFormDrawer({
             value={form.notes}
             onChange={(e) => setForm({ ...form, notes: e.target.value })}
           />
+        </div>
+
+        {/* ─── Bank Transaction (optional) ─── */}
+        <div className="bg-[#f9f9f9] border border-[#e8e8e8] rounded-xl px-4 py-3 space-y-3">
+          <div className="flex items-center gap-2">
+            <Landmark size={14} className="text-[#888]" />
+            <span className="text-[13px] font-semibold text-black">Bank Transaction</span>
+            <span className="text-[10px] text-[#aaa] ml-auto uppercase tracking-wider">Optional</span>
+          </div>
+          <p className="text-[11px] text-[#888]">Fill these to auto-create a bank transaction entry alongside this expense.</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelCls}>Account</label>
+              <select className={inputCls} value={form.bankAccount || "IDFC Current"} onChange={(e) => setForm({ ...form, bankAccount: e.target.value as AccountType })}>
+                <option value="IDFC Current">IDFC Current</option>
+                <option value="IDFC Savings">IDFC Savings</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Type</label>
+              <select className={inputCls} value={form.bankType || "Debit"} onChange={(e) => setForm({ ...form, bankType: e.target.value as TransactionType })}>
+                <option value="Debit">Debit ↓</option>
+                <option value="Credit">Credit ↑</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className={labelCls}>Description</label>
+            <input type="text" className={inputCls} placeholder="e.g. Packaging bags from Meesho" value={form.bankDescription || ""} onChange={(e) => setForm({ ...form, bankDescription: e.target.value })} />
+          </div>
+          <div>
+            <label className={labelCls}>UTR / Reference No</label>
+            <input type="text" className={`${inputCls} font-mono`} placeholder="Optional" value={form.bankUtr || ""} onChange={(e) => setForm({ ...form, bankUtr: e.target.value })} />
+          </div>
         </div>
 
         <button

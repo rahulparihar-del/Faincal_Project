@@ -34,6 +34,11 @@ export interface BusinessExpense {
   gstAmount: number;
   /** For packaging: which platform is this for (optional) */
   platform?: string;
+  /** Optional bank transaction fields — when filled, a bank transaction is auto-created */
+  bankAccount?: AccountType;
+  bankType?: TransactionType;
+  bankDescription?: string;
+  bankUtr?: string;
 }
 
 export interface EcomSale {

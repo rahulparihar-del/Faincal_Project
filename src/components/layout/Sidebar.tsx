@@ -28,7 +28,6 @@ const NAV_ITEMS = [
   { name: "Meesho Orders", href: "/meesho",        icon: ScanLine,        mobileName: "Meesho" },
   { name: "Wholesale",     href: "/wholesale",     icon: Truck,           mobileName: "Wholesale" },
   { name: "Expenses",      href: "/expenses",      icon: Receipt,         mobileName: "Expenses" },
-  { name: "Bank",          href: "/bank",          icon: Landmark,        mobileName: "Bank" },
   { name: "P&L",           href: "/pl",            icon: BarChart3,       mobileName: "P&L" },
   { name: "My Sites",      href: "/sites",         icon: Globe,           mobileName: "Sites" },
 ];
