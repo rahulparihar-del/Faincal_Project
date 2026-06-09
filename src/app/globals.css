@@ -614,9 +614,26 @@ body {
   line-height: 1.7;
   color: #1a1a1a;
 }
+/* Kill the focus outline/ring on the editable area for every state — the
+   rounded, overflow-hidden card was clipping the default outline into a
+   border that appeared the moment you started typing. */
+.note-content,
 .note-content:focus,
-.note-content .ProseMirror:focus {
-  outline: none;
+.note-content:focus-visible,
+.ProseMirror,
+.ProseMirror:focus,
+.ProseMirror:focus-visible,
+.ProseMirror-focused {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+/* First block sits flush with the top padding — no awkward gap above it. */
+.note-content > :first-child {
+  margin-top: 0;
+}
+.note-content > :last-child {
+  margin-bottom: 0;
 }
 
 /* Headings */
