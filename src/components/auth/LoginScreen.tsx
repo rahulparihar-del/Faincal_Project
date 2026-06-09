@@ -67,7 +67,7 @@ export function LoginScreen({ onBack }: { onBack?: () => void }) {
     "w-full bg-[#f5f5f5] border border-[#e8e8e8] rounded-xl pl-11 pr-3 py-3 text-sm font-medium text-black placeholder:text-[#aaa] focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-[#ccc] transition-colors";
 
   return (
-    <div ref={root} className={`relative min-h-screen w-full overflow-hidden flex items-center justify-center p-6 ${c.text}`} style={{ background: c.bg }}>
+    <div ref={root} className={`relative min-h-screen w-full overflow-hidden flex items-center justify-center p-6 ${c.text}`} style={{ background: c.bg, ["--color-white" as string]: "#ffffff", ["--color-black" as string]: "#000000" } as React.CSSProperties}>
       <AuthTopBar />
 
       {/* Animated background */}

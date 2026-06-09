@@ -57,7 +57,7 @@ export function LandingScreen({ onEnter }: { onEnter: () => void }) {
       };
 
   return (
-    <div ref={root} className={`relative h-screen w-full overflow-hidden flex flex-col items-center justify-center px-6 ${c.text}`} style={{ background: c.bg }}>
+    <div ref={root} className={`relative h-screen w-full overflow-hidden flex flex-col items-center justify-center px-6 ${c.text}`} style={{ background: c.bg, ["--color-white" as string]: "#ffffff", ["--color-black" as string]: "#000000" } as React.CSSProperties}>
       <AuthTopBar onSignIn={onEnter} />
 
       {/* Animated background */}
