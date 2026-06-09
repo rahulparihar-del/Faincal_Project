@@ -1,23 +1,29 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
+import { motion } from "framer-motion";
+import { useGSAP } from "@gsap/react";
+import { gsap } from "gsap";
 import { useAuth } from "@/context/AuthContext";
-import { Lock, Mail, Eye, EyeOff, ArrowRight, TrendingUp, FileText, BarChart3, ShieldCheck } from "lucide-react";
+import { Lock, Mail, Eye, EyeOff, ArrowRight, ArrowLeft, ShieldCheck } from "lucide-react";
 
-const FEATURES = [
-  { icon: TrendingUp, title: "Sales & revenue", desc: "E-commerce and wholesale in one place" },
-  { icon: FileText, title: "Invoices & GST", desc: "Auto-extract bills with confidence scoring" },
-  { icon: BarChart3, title: "P&L reports", desc: "Month-by-month profit, exportable to Excel" },
-];
-
-export function LoginScreen() {
+export function LoginScreen({ onBack }: { onBack?: () => void }) {
   const { login } = useAuth();
+  const root = useRef<HTMLDivElement>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shake, setShake] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  useGSAP(
+    () => {
+      gsap.to(".lorb-a", { x: 50, y: -30, duration: 9, repeat: -1, yoyo: true, ease: "sine.inOut" });
+      gsap.to(".lorb-b", { x: -60, y: 40, duration: 11, repeat: -1, yoyo: true, ease: "sine.inOut" });
+    },
+    { scope: root }
+  );
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,143 +43,115 @@ export function LoginScreen() {
     "w-full bg-[#f5f5f5] border border-[#e8e8e8] rounded-xl pl-11 pr-3 py-3 text-sm font-medium text-black placeholder:text-[#aaa] focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-[#ccc] transition-colors";
 
   return (
-    <div className="min-h-screen w-full grid lg:grid-cols-2 bg-[var(--color-gray-50)]">
-      {/* ── Showcase panel (always dark for a premium feel) ── */}
-      <div className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-[#0a0a0a] text-white p-12">
-        {/* decorative glows + grid */}
-        <div className="pointer-events-none absolute inset-0 opacity-60">
-          <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-white/5 blur-3xl" />
-          <div className="absolute bottom-0 right-0 w-[28rem] h-[28rem] rounded-full bg-white/[0.04] blur-3xl" />
-          <div
-            className="absolute inset-0"
-            style={{
-              backgroundImage:
-                "linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)",
-              backgroundSize: "44px 44px",
-              maskImage: "radial-gradient(ellipse at 30% 20%, black, transparent 75%)",
-              WebkitMaskImage: "radial-gradient(ellipse at 30% 20%, black, transparent 75%)",
-            }}
-          />
-        </div>
-
-        <div className="relative">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 bg-white text-black flex items-center justify-center font-bold rounded-2xl text-lg shadow-[0_4px_16px_rgba(255,255,255,0.15)]">
-              B
-            </div>
-            <span className="font-bold text-xl tracking-tight">BizTrack</span>
-          </div>
-        </div>
-
-        <div className="relative max-w-md">
-          <h2 className="text-4xl font-bold tracking-tight leading-tight">
-            Run your business<br />by the numbers.
-          </h2>
-          <p className="text-white/60 mt-4 text-[15px] leading-relaxed">
-            Sales, purchases, invoices, GST and profit — tracked in one clean dashboard.
-          </p>
-
-          <div className="mt-10 space-y-5">
-            {FEATURES.map((f) => (
-              <div key={f.title} className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
-                  <f.icon size={18} className="text-white" />
-                </div>
-                <div>
-                  <div className="font-semibold text-sm">{f.title}</div>
-                  <div className="text-white/50 text-[13px]">{f.desc}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="relative text-white/40 text-xs">
-          © {new Date().getFullYear()} BizTrack · KiddieKa
-        </div>
+    <div
+      ref={root}
+      className="relative min-h-screen w-full overflow-hidden flex items-center justify-center p-6 bg-[#0a0a0a]"
+    >
+      {/* Animated background */}
+      <div className="pointer-events-none absolute inset-0">
+        <div className="lorb-a absolute -top-20 -left-10 w-[24rem] h-[24rem] rounded-full bg-white/[0.06] blur-3xl" />
+        <div className="lorb-b absolute -bottom-16 -right-8 w-[28rem] h-[28rem] rounded-full bg-indigo-500/[0.10] blur-3xl" />
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)",
+            backgroundSize: "48px 48px",
+            maskImage: "radial-gradient(ellipse at 50% 45%, black, transparent 72%)",
+            WebkitMaskImage: "radial-gradient(ellipse at 50% 45%, black, transparent 72%)",
+          }}
+        />
       </div>
 
-      {/* ── Form panel ── */}
-      <div className="flex items-center justify-center p-6 sm:p-10">
-        <div className="w-full max-w-sm animate-fade-in-up">
-          {/* compact brand for mobile (panel hidden) */}
-          <div className="flex lg:hidden flex-col items-center mb-8">
-            <div className="w-14 h-14 bg-black text-white flex items-center justify-center font-bold rounded-2xl text-xl shadow-[0_4px_16px_rgba(0,0,0,0.2)]">
-              B
+      {onBack && (
+        <button
+          onClick={onBack}
+          className="absolute top-5 left-5 z-20 inline-flex items-center gap-1.5 text-sm font-medium text-white/60 hover:text-white transition-colors"
+        >
+          <ArrowLeft size={16} /> Back
+        </button>
+      )}
+
+      <motion.div
+        initial={{ opacity: 0, y: 24, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        className="relative z-10 w-full max-w-sm"
+      >
+        <div className="flex flex-col items-center mb-7">
+          <div className="w-14 h-14 bg-white text-black flex items-center justify-center font-bold rounded-2xl text-xl shadow-[0_8px_30px_rgba(255,255,255,0.18)]">
+            B
+          </div>
+          <h1 className="mt-4 text-xl font-bold tracking-tight text-white">Welcome back</h1>
+          <p className="text-sm text-white/50 mt-1">Sign in to your dashboard</p>
+        </div>
+
+        <form
+          onSubmit={submit}
+          className={`bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-[0_20px_60px_rgba(0,0,0,0.5)] space-y-4 ${shake ? "animate-shake" : ""}`}
+        >
+          <div>
+            <label className="block text-[12px] font-semibold text-white/70 mb-1.5">Email</label>
+            <div className="relative">
+              <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#aaa] z-10" />
+              <input
+                type="text"
+                autoFocus
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); setError(null); }}
+                placeholder="you@example.com"
+                className={inputCls}
+                style={{ paddingLeft: "2.75rem" }}
+              />
             </div>
-            <h1 className="mt-4 text-2xl font-bold tracking-tight text-black">BizTrack</h1>
           </div>
 
-          <div className="mb-7">
-            <h1 className="text-2xl font-bold tracking-tight text-black">Welcome back</h1>
-            <p className="text-sm text-[#888] mt-1.5">Sign in to your dashboard to continue.</p>
+          <div>
+            <label className="block text-[12px] font-semibold text-white/70 mb-1.5">Password</label>
+            <div className="relative">
+              <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#aaa] z-10" />
+              <input
+                type={show ? "text" : "password"}
+                value={password}
+                onChange={(e) => { setPassword(e.target.value); setError(null); }}
+                placeholder="••••••••"
+                className={inputCls}
+                style={{ paddingLeft: "2.75rem", paddingRight: "2.75rem" }}
+              />
+              <button
+                type="button"
+                onClick={() => setShow((s) => !s)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-lg text-[#888] hover:text-black hover:bg-[#f5f5f5] z-10"
+                aria-label={show ? "Hide password" : "Show password"}
+              >
+                {show ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
           </div>
 
-          <form
-            onSubmit={submit}
-            className={`space-y-4 ${shake ? "animate-shake" : ""}`}
+          {error && (
+            <div className="bg-red-500/15 border border-red-500/30 text-red-300 text-sm rounded-xl px-4 py-2.5">
+              {error}
+            </div>
+          )}
+
+          <motion.button
+            type="submit"
+            disabled={submitting}
+            whileHover={{ scale: submitting ? 1 : 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="group w-full bg-white text-black font-bold py-3 rounded-xl flex items-center justify-center gap-2 disabled:opacity-60 shadow-[0_8px_30px_rgba(255,255,255,0.12)]"
           >
-            <div>
-              <label className="block text-[12px] font-semibold text-[#555] mb-1.5">Email</label>
-              <div className="relative">
-                <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#aaa]" />
-                <input
-                  type="text"
-                  autoFocus
-                  value={email}
-                  onChange={(e) => { setEmail(e.target.value); setError(null); }}
-                  placeholder="you@example.com"
-                  className={inputCls}
-                  style={{ paddingLeft: "2.75rem" }}
-                />
-              </div>
-            </div>
+            {submitting ? "Signing in…" : "Sign In"}
+            {!submitting && <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />}
+          </motion.button>
+        </form>
 
-            <div>
-              <label className="block text-[12px] font-semibold text-[#555] mb-1.5">Password</label>
-              <div className="relative">
-                <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#aaa]" />
-                <input
-                  type={show ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => { setPassword(e.target.value); setError(null); }}
-                  placeholder="••••••••"
-                  className={inputCls}
-                  style={{ paddingLeft: "2.75rem", paddingRight: "2.75rem" }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShow((s) => !s)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-lg text-[#888] hover:text-black hover:bg-[#f5f5f5]"
-                  aria-label={show ? "Hide password" : "Show password"}
-                >
-                  {show ? <EyeOff size={15} /> : <Eye size={15} />}
-                </button>
-              </div>
-            </div>
-
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-2.5">
-                {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={submitting}
-              className="group w-full bg-black text-white font-bold py-3 rounded-xl hover:bg-[#1a1a1a] transition-colors shadow-[0_2px_8px_rgba(0,0,0,0.15)] flex items-center justify-center gap-2 disabled:opacity-60"
-            >
-              {submitting ? "Signing in…" : "Sign In"}
-              {!submitting && <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />}
-            </button>
-          </form>
-
-          <div className="mt-6 flex items-center justify-center gap-1.5 text-[12px] text-[#aaa]">
-            <ShieldCheck size={13} />
-            Protected area · authorized access only
-          </div>
+        <div className="mt-5 flex items-center justify-center gap-1.5 text-[12px] text-white/40">
+          <ShieldCheck size={13} />
+          Protected area · authorized access only
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
