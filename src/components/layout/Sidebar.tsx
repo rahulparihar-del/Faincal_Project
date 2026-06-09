@@ -16,6 +16,7 @@ import {
   ScanLine,
   Receipt,
   Globe,
+  NotebookPen,
 } from "lucide-react";
 import { gsap } from "gsap";
 import { useGSAP } from "@gsap/react";
@@ -30,6 +31,7 @@ const NAV_ITEMS = [
   { name: "Expenses",      href: "/expenses",      icon: Receipt,         mobileName: "Expenses" },
   { name: "P&L",           href: "/pl",            icon: BarChart3,       mobileName: "P&L" },
   { name: "My Sites",      href: "/sites",         icon: Globe,           mobileName: "Sites" },
+  { name: "Notes",         href: "/notes",         icon: NotebookPen,     mobileName: "Notes" },
 ];
 
 /* Section labels keyed by the index of the first item in each group. */
