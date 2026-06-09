@@ -49,6 +49,7 @@ html {
 body {
   background: #f5f5f5;
   color: #1a1a1a;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   /* Prevent overscroll bounce from bubbling to browser chrome on iOS */

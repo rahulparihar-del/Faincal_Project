@@ -240,7 +240,7 @@ export default function Dashboard() {
             }
             icon={TrendingUp}
             variant={metrics.netProfit >= 0 ? "profit" : "loss"}
-            subtitle={metrics.netProfit >= 0 ? "Profitable" : "Loss"}
+            chip={{ label: metrics.netProfit >= 0 ? "Profitable" : "Loss", tone: metrics.netProfit >= 0 ? "up" : "down" }}
           />
         </Link>
         <Link href="/purchases" className="block hover:scale-[1.01] active:scale-[0.99] transition-transform duration-200">
@@ -248,7 +248,8 @@ export default function Dashboard() {
             title="Pending Payments"
             value={<AnimatedCounter value={metrics.pendingPayments} prefix="₹" isCurrency />}
             icon={AlertCircle}
-            variant="loss"
+            variant="warn"
+            chip={metrics.pendingPayments > 0 ? { label: "Due soon", tone: "warn" } : undefined}
             subtitle="Manufacturer dues"
           />
         </Link>

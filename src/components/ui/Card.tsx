@@ -36,36 +36,52 @@ export function Card({ children, className = "", ...props }: { children: React.R
   );
 }
 
-type StatCardVariant = "profit" | "loss" | "neutral";
+type StatCardVariant = "profit" | "loss" | "warn" | "neutral";
 
-const variantStyles: Record<StatCardVariant, { bg: string; icon: string }> = {
-  profit:  { bg: "bg-[var(--color-profit-bg)] border border-[var(--color-profit-border)]",  icon: "text-[var(--color-profit-icon)]" },
-  loss:    { bg: "bg-[var(--color-loss-bg)] border border-[var(--color-loss-border)]",       icon: "text-[var(--color-loss-icon)]" },
-  neutral: { bg: "bg-[#f5f5f5]",                                                              icon: "text-[#666]" },
+const variantStyles: Record<StatCardVariant, string> = {
+  profit:  "bg-green-500/12 text-green-600",
+  loss:    "bg-red-500/12 text-red-600",
+  warn:    "bg-amber-500/15 text-amber-600",
+  neutral: "bg-[#f5f5f5] text-[#666]",
+};
+
+type ChipTone = "up" | "down" | "warn" | "neutral";
+const chipStyles: Record<ChipTone, string> = {
+  up:      "bg-green-500/12 text-green-600",
+  down:    "bg-red-500/12 text-red-600",
+  warn:    "bg-amber-500/15 text-amber-600",
+  neutral: "bg-[#f5f5f5] text-[#888]",
 };
 
 export function StatCard({
-  title, value, subtitle, icon: Icon, variant = "neutral",
+  title, value, subtitle, icon: Icon, variant = "neutral", chip,
 }: {
   title: string;
   value: React.ReactNode;
   subtitle?: string;
   icon?: React.ElementType;
   variant?: StatCardVariant;
+  chip?: { label: string; tone?: ChipTone };
 }) {
-  const { bg, icon } = variantStyles[variant];
   return (
     <Card className="flex flex-col gap-3" role="region" aria-label={title}>
       <div className="flex items-center justify-between">
-        <h3 className="text-[13px] font-medium text-[#888] uppercase tracking-wider">{title}</h3>
+        <h3 className="text-[10.5px] font-semibold text-[#888] uppercase tracking-[0.08em]">{title}</h3>
         {Icon && (
-          <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${bg}`} aria-hidden="true">
-            <Icon size={16} className={icon} />
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${variantStyles[variant]}`} aria-hidden="true">
+            <Icon size={16} />
           </div>
         )}
       </div>
-      <div className="text-[1.75rem] font-bold text-black leading-tight tracking-tight">{value}</div>
-      {subtitle && <p className="text-xs text-[#888]">{subtitle}</p>}
+      <div className="flex items-end justify-between gap-2">
+        <div className="text-[1.75rem] font-bold text-black leading-tight tracking-tight">{value}</div>
+        {chip && (
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold shrink-0 mb-0.5 ${chipStyles[chip.tone ?? "neutral"]}`}>
+            {chip.label}
+          </span>
+        )}
+      </div>
+      {subtitle && <p className="text-[11px] text-[#888]">{subtitle}</p>}
     </Card>
   );
 }

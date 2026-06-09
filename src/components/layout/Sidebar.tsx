@@ -32,6 +32,14 @@ const NAV_ITEMS = [
   { name: "My Sites",      href: "/sites",         icon: Globe,           mobileName: "Sites" },
 ];
 
+/* Section labels keyed by the index of the first item in each group. */
+const SECTION_AT: Record<number, string> = {
+  0: "Overview",
+  1: "Operations",
+  6: "Finance",
+  8: "Tools",
+};
+
 /* ─── Desktop Sidebar ──────────────────────────────────────────────────────── */
 export function Sidebar({
   isMobileOpen,
@@ -108,13 +116,13 @@ export function Sidebar({
           <div className="space-y-0.5">
             {NAV_ITEMS.map((item, index) => {
               const isActive = pathname === item.href;
+              const section = SECTION_AT[index];
               return (
                 <React.Fragment key={item.name}>
-                  {index === 3 && (
-                    <div className="my-2 border-t border-[#e8e8e8] mx-2" />
-                  )}
-                  {index === 9 && (
-                    <div className="my-2 border-t border-[#e8e8e8] mx-2" />
+                  {section && (
+                    <div className="nav-label px-3 pt-4 pb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[#aaa] first:pt-1">
+                      {section}
+                    </div>
                   )}
                   <Link
                     href={item.href}
