@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import { LoginScreen } from "./LoginScreen";
@@ -10,6 +10,15 @@ import { LandingScreen } from "./LandingScreen";
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const { isAuthed, ready } = useAuth();
   const [showLogin, setShowLogin] = useState(false);
+  const wasAuthed = useRef(false);
+
+  // On logout (authed -> not authed), return to the landing screen.
+  useEffect(() => {
+    if (wasAuthed.current && !isAuthed) {
+      setShowLogin(false);
+    }
+    wasAuthed.current = isAuthed;
+  }, [isAuthed]);
 
   if (!ready) {
     return <div className="min-h-screen bg-[#0a0a0a]" />;
