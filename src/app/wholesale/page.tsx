@@ -107,6 +107,12 @@ export default function WholesaleSalesPage() {
     return { orders, collected, outstanding: totalValue - collected };
   }, [wholesaleSales]);
 
+  // Flat list of every invoice, newest first.
+  const sortedSales = useMemo(
+    () => [...wholesaleSales].sort((a, b) => (b.date || "").localeCompare(a.date || "") || (b.billNo || "").localeCompare(a.billNo || "")),
+    [wholesaleSales]
+  );
+
   const retailers = useMemo(() => {
     const map = new Map<string, { key: string; name: string; phone: string; city: string; orders: number; total: number; outstanding: number }>();
     wholesaleSales.forEach((w) => {
@@ -230,6 +236,71 @@ export default function WholesaleSalesPage() {
             <Plus size={16} />
             Add Bill
           </button>
+        </div>
+      </div>
+
+      {/* All Invoices — flat list of every bill entry */}
+      <div className="bg-white border border-[#e8e8e8] rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+        <div className="px-5 py-4 border-b border-[#e8e8e8] bg-[#fafafa] flex items-center justify-between">
+          <h3 className="font-bold text-sm uppercase tracking-wider text-[#555]">All Invoices</h3>
+          <span className="text-xs font-semibold text-[#888]">{wholesaleSales.length} entries</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm whitespace-nowrap">
+            <thead className="bg-white border-b border-[#e8e8e8]">
+              <tr>
+                <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider">Bill No</th>
+                <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider">Date</th>
+                <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider">Buyer</th>
+                <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-right">Amount</th>
+                <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-center">Status</th>
+                <th className="px-5 py-3.5 text-[12px] font-semibold text-[#888] uppercase tracking-wider text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#f0f0f0]">
+              {sortedSales.map((sale) => {
+                const total = wholesaleTotal(sale);
+                const balance = total - sale.paymentReceived;
+                const status = balance <= 0 ? "Paid" : sale.paymentReceived > 0 ? "Partial" : "Pending";
+                const statusStyle =
+                  status === "Paid"
+                    ? { background: "var(--color-profit-bg)", color: "var(--color-profit)", border: "1px solid var(--color-profit-border)" }
+                    : status === "Pending"
+                    ? { background: "var(--color-loss-bg)", color: "var(--color-loss)", border: "1px solid var(--color-loss-border)" }
+                    : { background: "#f0f0f0", color: "#666", border: "1px solid #e0e0e0" };
+                return (
+                  <tr key={sale.id} id={`ws-row-${sale.id}`} className="hover:bg-[#fafafa] transition-colors relative">
+                    <td className="px-5 py-3.5 font-semibold text-black">{sale.billNo || "—"}</td>
+                    <td className="px-5 py-3.5 text-[#888]">{sale.date}</td>
+                    <td className="px-5 py-3.5 text-black">{sale.retailerName}</td>
+                    <td className="px-5 py-3.5 text-right font-bold text-black">₹{total.toLocaleString("en-IN")}</td>
+                    <td className="px-5 py-3.5 text-center">
+                      <span className="px-2.5 py-1 rounded-lg text-xs font-bold" style={statusStyle}>{status}</span>
+                    </td>
+                    <td className="px-5 py-3.5 text-right">
+                      <button
+                        onClick={() => setDeletingId(sale.id)}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg text-[#888] hover:text-black hover:bg-[#f5f5f5] transition-colors"
+                        aria-label="Delete invoice"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                      <ConfirmDelete
+                        isOpen={deletingId === sale.id}
+                        onConfirm={() => handleDeleteOrder(sale.id)}
+                        onCancel={() => setDeletingId(null)}
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
+              {wholesaleSales.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-5 py-12 text-center text-[#888]">No invoices yet. Add a bill above.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
