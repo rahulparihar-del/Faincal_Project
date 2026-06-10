@@ -153,3 +153,33 @@ begin
   execute 'drop policy if exists "anon_full_access" on public.notes;';
   execute 'create policy "anon_full_access" on public.notes for all to anon, authenticated using (true) with check (true);';
 end $$;
+
+-- ---------- Catalog: platforms + products ----------
+create table if not exists public.platforms (
+  id          text primary key,
+  data        jsonb not null,
+  created_at  timestamptz not null default now()
+);
+
+create table if not exists public.products (
+  id          text primary key,
+  data        jsonb not null,
+  created_at  timestamptz not null default now()
+);
+
+alter table public.platforms enable row level security;
+alter table public.products  enable row level security;
+
+do $$
+declare
+  t text;
+begin
+  foreach t in array array['platforms','products']
+  loop
+    execute format('drop policy if exists "anon_full_access" on public.%I;', t);
+    execute format(
+      'create policy "anon_full_access" on public.%I for all to anon, authenticated using (true) with check (true);',
+      t
+    );
+  end loop;
+end $$;

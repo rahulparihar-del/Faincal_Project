@@ -17,6 +17,7 @@ const TAB_NAMES: Record<string, string> = {
   "/bank": "Bank Transactions",
   "/pl": "P&L Report",
   "/sites": "My Sites",
+  "/catalog": "Catalog",
   "/notes": "Notes",
 };
 

@@ -17,6 +17,7 @@ import {
   Receipt,
   Globe,
   NotebookPen,
+  Boxes,
 } from "lucide-react";
 import { gsap } from "gsap";
 import { useGSAP } from "@gsap/react";
@@ -31,6 +32,7 @@ const NAV_ITEMS = [
   { name: "Expenses",      href: "/expenses",      icon: Receipt,         mobileName: "Expenses" },
   { name: "P&L",           href: "/pl",            icon: BarChart3,       mobileName: "P&L" },
   { name: "My Sites",      href: "/sites",         icon: Globe,           mobileName: "Sites" },
+  { name: "Catalog",       href: "/catalog",       icon: Boxes,           mobileName: "Catalog" },
   { name: "Notes",         href: "/notes",         icon: NotebookPen,     mobileName: "Notes" },
 ];
 
