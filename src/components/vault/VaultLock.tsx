@@ -30,6 +30,14 @@ export function VaultLock({
   const [working, setWorking] = useState(false);
   const [phase, setPhase] = useState<"create" | "confirm">("create");
   const firstPin = useRef("");
+  // Guards so the async check isn't re-triggered by re-renders / its own state.
+  const runningRef = useRef(false);
+  const completedRef = useRef(false);
+  // Keep latest callbacks without putting them in effect deps (avoids re-runs).
+  const verifyRef = useRef(verify);
+  const onUnlockRef = useRef(onUnlock);
+  verifyRef.current = verify;
+  onUnlockRef.current = onUnlock;
 
   const busy = working || success;
 
@@ -45,56 +53,59 @@ export function VaultLock({
 
   // Handle a fully-entered PIN.
   useEffect(() => {
-    if (pin.length < LEN || busy) return;
-    let cancelled = false;
+    if (pin.length < LEN) return;
+    if (runningRef.current || completedRef.current) return;
+    runningRef.current = true;
 
     (async () => {
-      if (mode === "setup") {
-        if (phase === "create") {
-          firstPin.current = pin;
-          setPin("");
-          setPhase("confirm");
+      try {
+        if (mode === "setup") {
+          if (phase === "create") {
+            firstPin.current = pin;
+            setPin("");
+            setPhase("confirm");
+            return;
+          }
+          // confirm
+          if (pin !== firstPin.current) {
+            setError("PINs didn't match. Start again.");
+            setPhase("create");
+            firstPin.current = "";
+            setPin("");
+            return;
+          }
+          setWorking(true);
+          const ok = await verifyRef.current(pin);
+          setWorking(false);
+          if (ok) {
+            completedRef.current = true;
+            setSuccess(true);
+            setTimeout(() => onUnlockRef.current(), 650);
+          } else {
+            setError("Couldn't set up the vault. Try again.");
+            setPin("");
+            setPhase("create");
+          }
           return;
         }
-        // confirm
-        if (pin !== firstPin.current) {
-          setError("PINs didn't match. Start again.");
-          setPhase("create");
-          firstPin.current = "";
-          setPin("");
-          return;
-        }
+
+        // unlock
         setWorking(true);
-        const ok = await verify(pin);
-        if (cancelled) return;
+        const ok = await verifyRef.current(pin);
         setWorking(false);
         if (ok) {
+          completedRef.current = true;
           setSuccess(true);
-          setTimeout(onUnlock, 650);
+          setTimeout(() => onUnlockRef.current(), 650);
         } else {
-          setError("Couldn't set up the vault. Try again.");
-          setPin("");
-          setPhase("create");
+          setError("Wrong PIN. Try again.");
+          setTimeout(() => setPin(""), 450);
         }
-        return;
-      }
-
-      // unlock
-      setWorking(true);
-      const ok = await verify(pin);
-      if (cancelled) return;
-      setWorking(false);
-      if (ok) {
-        setSuccess(true);
-        setTimeout(onUnlock, 650);
-      } else {
-        setError("Wrong PIN. Try again.");
-        setTimeout(() => setPin(""), 450);
+      } finally {
+        runningRef.current = false;
       }
     })();
-
-    return () => { cancelled = true; };
-  }, [pin, busy, mode, phase, verify, onUnlock]);
+  }, [pin, mode, phase]);
 
   // Hardware keyboard support.
   useEffect(() => {
