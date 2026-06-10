@@ -153,6 +153,7 @@ function StashCard({
 /* ─── Page ──────────────────────────────────────────────────── */
 export default function VaultPage() {
   const [locked, setLocked] = useState(true);
+  const [autoLocked, setAutoLocked] = useState(false);
   const [items, setItems] = useSupabaseTable<StashItem>("vault_items", STORAGE_KEY, []);
 
   const [url, setUrl] = useState("");
@@ -169,6 +170,7 @@ export default function VaultPage() {
 
   const unlock = () => {
     try { sessionStorage.setItem(SESSION_KEY, "1"); } catch { /* ignore */ }
+    setAutoLocked(false);
     setLocked(false);
   };
 
@@ -176,6 +178,36 @@ export default function VaultPage() {
     try { sessionStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
     setLocked(true);
   };
+
+  // Auto-lock after 1 minute of inactivity (only while unlocked).
+  useEffect(() => {
+    if (locked) return;
+    const TIMEOUT = 60_000; // 1 minute
+    let timer: ReturnType<typeof setTimeout>;
+    const doAutoLock = () => {
+      try { sessionStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
+      setAutoLocked(true);
+      setLocked(true);
+    };
+    const reset = () => {
+      clearTimeout(timer);
+      timer = setTimeout(doAutoLock, TIMEOUT);
+    };
+    const events: (keyof WindowEventMap)[] = ["mousemove", "mousedown", "keydown", "touchstart", "scroll", "click"];
+    events.forEach((e) => window.addEventListener(e, reset, { passive: true }));
+    reset();
+    return () => {
+      clearTimeout(timer);
+      events.forEach((e) => window.removeEventListener(e, reset));
+    };
+  }, [locked]);
+
+  // Auto-dismiss the "locked" toast after a few seconds.
+  useEffect(() => {
+    if (!autoLocked) return;
+    const t = setTimeout(() => setAutoLocked(false), 4500);
+    return () => clearTimeout(t);
+  }, [autoLocked]);
 
   const add = () => {
     const cleanUrl = normalizeUrl(url);
@@ -203,9 +235,26 @@ export default function VaultPage() {
 
   return (
     <div>
+      {/* Auto-lock notification */}
+      <AnimatePresence>
+        {autoLocked && (
+          <motion.div
+            initial={{ opacity: 0, y: -16, x: "-50%" }}
+            animate={{ opacity: 1, y: 0, x: "-50%" }}
+            exit={{ opacity: 0, y: -16, x: "-50%" }}
+            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed top-20 left-1/2 z-[60] flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-black text-white shadow-[0_8px_32px_rgba(0,0,0,0.25)]"
+            role="status"
+          >
+            <Lock size={15} className="text-amber-300" />
+            <span className="text-sm font-semibold">Vault locked after 1 min of inactivity</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence mode="wait">
         {locked ? (
-          <VaultLock key="lock" onUnlock={unlock} />
+          <VaultLock key="lock" onUnlock={unlock} notice={autoLocked ? "Locked due to inactivity" : undefined} />
         ) : (
           <motion.div
             key="content"

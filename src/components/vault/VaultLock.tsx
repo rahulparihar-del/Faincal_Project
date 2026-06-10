@@ -7,7 +7,7 @@ import { LockKeyhole, Delete, ShieldCheck } from "lucide-react";
 const PIN = "1900";
 const LEN = PIN.length;
 
-export function VaultLock({ onUnlock }: { onUnlock: () => void }) {
+export function VaultLock({ onUnlock, notice }: { onUnlock: () => void; notice?: string }) {
   const [pin, setPin] = useState("");
   const [error, setError] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -69,7 +69,7 @@ export function VaultLock({ onUnlock }: { onUnlock: () => void }) {
 
       <h2 className="text-xl font-bold text-black tracking-tight">Private Vault</h2>
       <p className="text-sm text-[#888] mt-1 mb-7">
-        {success ? "Unlocking…" : "Enter your PIN to continue"}
+        {success ? "Unlocking…" : notice ? notice : "Enter your PIN to continue"}
       </p>
 
       {/* PIN dots */}
