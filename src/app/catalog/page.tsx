@@ -21,6 +21,7 @@ interface Platform {
   id: string;
   name: string;
   url: string;
+  status: string; // "onboarded" | "in_process" | "rejected"
   createdAt: string;
 }
 
@@ -34,6 +35,21 @@ interface Product {
 
 const PLATFORM_KEY = "biztrack_platforms";
 const PRODUCT_KEY = "biztrack_products";
+
+/* Onboarding statuses for a seller account on a platform. */
+const STATUSES = [
+  { id: "onboarded", label: "Onboarded", dot: "bg-green-500", chip: "bg-green-500/12 text-green-600 border-green-500/25" },
+  { id: "in_process", label: "In Process", dot: "bg-amber-500", chip: "bg-amber-500/12 text-amber-600 border-amber-500/25" },
+  { id: "rejected", label: "On Hold", dot: "bg-red-500", chip: "bg-red-500/12 text-red-600 border-red-500/25" },
+] as const;
+
+const DEFAULT_STATUS = "in_process";
+function statusOf(p: Platform): string {
+  return p.status || DEFAULT_STATUS;
+}
+function statusMeta(id: string) {
+  return STATUSES.find((s) => s.id === id) ?? STATUSES[1];
+}
 
 /* Common product types the user sells — quick-add suggestions. */
 const PRODUCT_SUGGESTIONS = [
@@ -181,12 +197,65 @@ function ProductsDropdown({
   );
 }
 
+/* ─── Status badge with picker ──────────────────────────────── */
+function StatusBadge({
+  status,
+  onChange,
+}: {
+  status: string;
+  onChange: (status: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const meta = statusMeta(status);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold transition-colors ${meta.chip}`}
+      >
+        <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} />
+        {meta.label}
+        <ChevronDown size={11} className="opacity-60" />
+      </button>
+      {open && (
+        <div className="absolute z-30 right-0 mt-1.5 w-40 bg-white border border-[#e8e8e8] rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.12)] p-1.5">
+          {STATUSES.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => { onChange(s.id); setOpen(false); }}
+              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[#f5f5f5] transition-colors text-left ${
+                s.id === status ? "font-semibold" : ""
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full ${s.dot}`} />
+              <span className="text-sm text-black flex-1">{s.label}</span>
+              {s.id === status && <Check size={13} className="text-black" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Platform Card ─────────────────────────────────────────── */
 function PlatformCard({
   platform,
   products,
   onDelete,
   onRename,
+  onSetStatus,
   onToggleProduct,
   onCreateProduct,
 }: {
@@ -194,6 +263,7 @@ function PlatformCard({
   products: Product[];
   onDelete: (id: string) => void;
   onRename: (id: string, name: string) => void;
+  onSetStatus: (id: string, status: string) => void;
   onToggleProduct: (productId: string, platformId: string) => void;
   onCreateProduct: (name: string, platformId: string) => void;
 }) {
@@ -258,9 +328,7 @@ function PlatformCard({
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span className="text-[10px] font-semibold text-[#888] bg-[#f5f5f5] px-2 py-1 rounded-full whitespace-nowrap">
-            {listed.length} listed
-          </span>
+          <StatusBadge status={statusOf(platform)} onChange={(s) => onSetStatus(platform.id, s)} />
           <button
             onClick={() => onDelete(platform.id)}
             className="w-7 h-7 flex items-center justify-center rounded-lg text-[#ccc] hover:text-red-500 hover:bg-red-50 transition-colors"
@@ -273,6 +341,9 @@ function PlatformCard({
 
       {/* Listed products + manage dropdown */}
       <div className="border-t border-[#f3f3f3] pt-3 flex flex-wrap items-center gap-1.5">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-[#bbb] mr-1">
+          {listed.length} listed
+        </span>
         {listed.map((p) => (
           <span
             key={p.id}
@@ -306,6 +377,7 @@ export default function CatalogPage() {
 
   const [pfName, setPfName] = useState("");
   const [pfUrl, setPfUrl] = useState("");
+  const [filter, setFilter] = useState<string>("all");
 
   /* Platforms */
   const addPlatform = () => {
@@ -316,6 +388,7 @@ export default function CatalogPage() {
       id: `pf-${Date.now()}`,
       name,
       url: url || "",
+      status: DEFAULT_STATUS,
       createdAt: new Date().toISOString(),
     };
     setPlatforms((prev) => [platform, ...prev]);
@@ -334,6 +407,9 @@ export default function CatalogPage() {
 
   const renamePlatform = (id: string, name: string) =>
     setPlatforms((prev) => prev.map((p) => (p.id === id ? { ...p, name } : p)));
+
+  const setPlatformStatus = (id: string, status: string) =>
+    setPlatforms((prev) => prev.map((p) => (p.id === id ? { ...p, status } : p)));
 
   /* Products */
   const createProduct = (name: string, platformId: string) => {
@@ -375,13 +451,17 @@ export default function CatalogPage() {
       )
     );
 
+  const onboardedCount = platforms.filter((p) => statusOf(p) === "onboarded").length;
+  const inProcessCount = platforms.filter((p) => statusOf(p) === "in_process").length;
+  const visiblePlatforms = filter === "all" ? platforms : platforms.filter((p) => statusOf(p) === filter);
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
         <h2 className="text-2xl font-bold text-black tracking-tight">Catalog</h2>
         <p className="text-sm text-[#888] mt-1">
-          {platforms.length} platform{platforms.length !== 1 ? "s" : ""} · {products.length} product
+          {onboardedCount} onboarded · {inProcessCount} in process · {products.length} product
           {products.length !== 1 ? "s" : ""}
         </p>
       </div>
@@ -391,6 +471,33 @@ export default function CatalogPage() {
         <Store size={16} />
         <h3 className="text-sm font-bold uppercase tracking-wider">Platforms · where you&apos;re registered</h3>
       </div>
+
+      {/* Status filter tabs */}
+      {platforms.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          {([
+            { id: "all", label: "All", count: platforms.length },
+            ...STATUSES.map((s) => ({
+              id: s.id,
+              label: s.label,
+              count: platforms.filter((p) => statusOf(p) === s.id).length,
+            })),
+          ]).map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setFilter(tab.id)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-colors ${
+                filter === tab.id
+                  ? "bg-black text-white border-black"
+                  : "bg-white text-[#666] border-[#e8e8e8] hover:border-[#bbb]"
+              }`}
+            >
+              {tab.label}
+              <span className={`text-[10px] ${filter === tab.id ? "text-white/70" : "text-[#aaa]"}`}>{tab.count}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Add platform */}
       <div className="bg-white rounded-2xl border border-[#e8e8e8] shadow-sm p-4 flex flex-col sm:flex-row gap-2">
@@ -430,19 +537,26 @@ export default function CatalogPage() {
 
       {/* Platform grid */}
       {platforms.length > 0 ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          {platforms.map((pf) => (
-            <PlatformCard
-              key={pf.id}
-              platform={pf}
-              products={products}
-              onDelete={deletePlatform}
-              onRename={renamePlatform}
-              onToggleProduct={toggleProduct}
-              onCreateProduct={createProduct}
-            />
-          ))}
-        </div>
+        visiblePlatforms.length > 0 ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            {visiblePlatforms.map((pf) => (
+              <PlatformCard
+                key={pf.id}
+                platform={pf}
+                products={products}
+                onDelete={deletePlatform}
+                onRename={renamePlatform}
+                onSetStatus={setPlatformStatus}
+                onToggleProduct={toggleProduct}
+                onCreateProduct={createProduct}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12 text-sm text-[#888]">
+            No platforms with this status.
+          </div>
+        )
       ) : (
         <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
           <div className="w-16 h-16 rounded-2xl bg-[#f5f5f5] flex items-center justify-center">
