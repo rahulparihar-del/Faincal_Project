@@ -435,14 +435,14 @@ export default function InventoryPage() {
                       <td key={p} className="px-0.5 py-1.5 text-center">
                         {quickSale ? (
                           <button onClick={() => cellSale(s, p)} disabled={val <= 0}
-                            className={`w-11 h-7 mx-auto rounded-md border text-[13px] font-medium transition-colors ${val <= 0 ? "text-[#ccc] border-[#f0f0f0] cursor-not-allowed" : "text-black border-[#e8e8e8] hover:bg-[#f0f0f0]"}`}>
+                            className={`inv-cell w-11 h-7 mx-auto rounded-md border text-[13px] font-medium transition-colors ${val <= 0 ? "text-[#ccc] border-[#f0f0f0] cursor-not-allowed" : "text-black border-[#e8e8e8] hover:bg-[#f0f0f0]"}`}>
                             {val}
                           </button>
                         ) : (
                           <input type="number" inputMode="numeric" value={val} min={0}
                             onChange={(e) => setQty(s, p, parseInt(e.target.value, 10))}
                             onFocus={(e) => e.target.select()}
-                            className={`w-11 h-7 mx-auto text-center rounded-md border text-[13px] focus:outline-none focus:border-black focus:ring-1 focus:ring-black/20 transition-all ${NUM_INPUT} ${val === 0 ? "text-[#ccc] border-[#f0f0f0]" : "text-black border-[#e8e8e8]"}`} />
+                            className={`inv-cell w-11 h-7 mx-auto text-center rounded-md border text-[13px] focus:outline-none focus:border-black focus:ring-1 focus:ring-black/20 transition-all ${NUM_INPUT} ${val === 0 ? "text-[#ccc] border-[#f0f0f0]" : "text-black border-[#e8e8e8]"}`} />
                         )}
                       </td>
                     );
