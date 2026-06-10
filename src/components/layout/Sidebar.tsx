@@ -19,6 +19,7 @@ import {
   NotebookPen,
   Boxes,
   LockKeyhole,
+  Package,
 } from "lucide-react";
 import { gsap } from "gsap";
 import { useGSAP } from "@gsap/react";
@@ -32,6 +33,7 @@ const NAV_ITEMS = [
   { name: "Wholesale",     href: "/wholesale",     icon: Truck,           mobileName: "Wholesale" },
   { name: "Expenses",      href: "/expenses",      icon: Receipt,         mobileName: "Expenses" },
   { name: "P&L",           href: "/pl",            icon: BarChart3,       mobileName: "P&L" },
+  { name: "Stock Inventory", href: "/inventory",   icon: Package,         mobileName: "Stock" },
   { name: "My Sites",      href: "/sites",         icon: Globe,           mobileName: "Sites" },
   { name: "Catalog",       href: "/catalog",       icon: Boxes,           mobileName: "Catalog" },
   { name: "Notes",         href: "/notes",         icon: NotebookPen,     mobileName: "Notes" },
@@ -43,7 +45,8 @@ const SECTION_AT: Record<number, string> = {
   0: "Overview",
   1: "Operations",
   6: "Finance",
-  8: "Tools",
+  8: "Inventory",
+  9: "Tools",
 };
 
 /* ─── Desktop Sidebar ──────────────────────────────────────────────────────── */

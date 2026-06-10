@@ -198,3 +198,18 @@ begin
   execute 'drop policy if exists "anon_full_access" on public.vault_items;';
   execute 'create policy "anon_full_access" on public.vault_items for all to anon, authenticated using (true) with check (true);';
 end $$;
+
+-- ---------- Inventory (stock matrix per category) ----------
+create table if not exists public.inventory_categories (
+  id          text primary key,
+  data        jsonb not null,
+  created_at  timestamptz not null default now()
+);
+
+alter table public.inventory_categories enable row level security;
+
+do $$
+begin
+  execute 'drop policy if exists "anon_full_access" on public.inventory_categories;';
+  execute 'create policy "anon_full_access" on public.inventory_categories for all to anon, authenticated using (true) with check (true);';
+end $$;
