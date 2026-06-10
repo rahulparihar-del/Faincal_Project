@@ -42,11 +42,9 @@ export default function EcomSales() {
   const filteredSales = useMemo(() => {
     return ecomSales.filter((s) => {
       if (platformFilter !== "All" && s.platform !== platformFilter) return false;
-      if (dateFrom && s.date < dateFrom) return false;
-      if (dateTo && s.date > dateTo) return false;
       return true;
     });
-  }, [ecomSales, platformFilter, dateFrom, dateTo]);
+  }, [ecomSales, platformFilter]);
 
   // Per-platform breakdown (net + count) for the filter pills.
   const platformStats = useMemo(() => {
