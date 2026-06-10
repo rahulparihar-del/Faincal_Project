@@ -14,8 +14,8 @@ import {
   Plus,
   X,
   AlertTriangle,
-  RefreshCw,
   Check,
+  RefreshCw,
 } from "lucide-react";
 
 /* ─── Types ─────────────────────────────────────────────────── */
@@ -37,29 +37,18 @@ interface LogEntry {
 const STORAGE_KEY = "biztrack_inventory";
 const SEED_FLAG = "biztrack_inventory_seeded";
 
-/* ─── Seed data (from the provided sheets) ──────────────────── */
-function buildCat(
-  id: string,
-  name: string,
-  prints: string[],
-  sizes: string[],
-  rows: number[][],
-  order: number
-): InventoryCategory {
+/* ─── Seed data (quantities from the supplied stock sheets) ─── */
+function buildCat(id: string, name: string, prints: string[], sizes: string[], rows: number[][], order: number): InventoryCategory {
   const qty: Record<string, Record<string, number>> = {};
   sizes.forEach((s, i) => {
     qty[s] = {};
-    prints.forEach((p, j) => {
-      qty[s][p] = rows[i]?.[j] ?? 0;
-    });
+    prints.forEach((p, j) => { qty[s][p] = rows[i]?.[j] ?? 0; });
   });
   return { id, name, prints, sizes, qty, order };
 }
 
 const DEFAULT_CATEGORIES: InventoryCategory[] = [
-  buildCat(
-    "cat-jabla",
-    "Jabla",
+  buildCat("cat-jabla", "Jabla",
     ["Bear", "Owl", "Dino", "Mashroom", "Multi-Orange", "Elephant", "Car", "Unicorn", "Avacoda", "Flower", "Strawberry", "Icecream"],
     ["0-3", "3-6", "6-9", "9-12"],
     [
@@ -67,24 +56,16 @@ const DEFAULT_CATEGORIES: InventoryCategory[] = [
       [1, 2, 0, 1, 25, 1, 0, 41, 25, 25, 25, 25],
       [0, 0, 0, 0, 42, 0, 0, 45, 40, 41, 41, 41],
       [1, 1, 0, 2, 38, 0, 0, 40, 41, 36, 38, 37],
-    ],
-    0
-  ),
-  buildCat(
-    "cat-frock",
-    "Frock",
+    ], 0),
+  buildCat("cat-frock", "Frock",
     ["Strawberry", "Dino", "Icecream", "Multi-Orange", "Bear", "Unicorn", "Mashroom", "Car", "Elephant", "Owl", "Toucan", "Flower"],
     ["0-3", "3-6", "6-12"],
     [
       [6, 7, 7, 5, 5, 17, 17, 12, 3, 6, 0, 0],
       [8, 4, 0, 5, 0, 6, 16, 0, 3, 3, 7, 4],
       [0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 0],
-    ],
-    1
-  ),
-  buildCat(
-    "cat-coord",
-    "Co-ord Set",
+    ], 1),
+  buildCat("cat-coord", "Co-ord Set",
     ["Mashroom", "Car", "Flower", "Toucan", "Icecream", "Bear", "Strawberry", "Dino", "Unicorn", "Avocado", "Elephant"],
     ["0-3", "3-6", "6-9", "9-12", "12-18", "18-24"],
     [
@@ -94,12 +75,8 @@ const DEFAULT_CATEGORIES: InventoryCategory[] = [
       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       [8, 0, 6, 4, 0, 0, 3, 0, 1, 0, 7],
       [10, 0, 3, 0, 0, 0, 0, 0, 0, 0, 6],
-    ],
-    2
-  ),
-  buildCat(
-    "cat-nightsuit",
-    "Night Suit",
+    ], 2),
+  buildCat("cat-nightsuit", "Night Suit",
     ["Dino", "Car", "Bear", "Owl", "Unicorn", "Mashroom", "Multi-Orange", "Elephant"],
     ["0-3", "3-6", "6-9", "9-12", "12-18", "18-24"],
     [
@@ -109,9 +86,7 @@ const DEFAULT_CATEGORIES: InventoryCategory[] = [
       [0, 0, 0, 1, 0, 0, 0, 0],
       [0, 1, 0, 0, 0, 1, 0, 0],
       [0, 1, 0, 0, 0, 0, 0, 1],
-    ],
-    3
-  ),
+    ], 3),
   buildCat("cat-hooded", "Hooded Towel", ["Plain"], ["Standard"], [[18]], 4),
 ];
 
@@ -136,6 +111,8 @@ function slug(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
+const NUM_INPUT = "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
+
 export default function InventoryPage() {
   const [cats, setCats, isReady] = useSupabaseTable<InventoryCategory>("inventory_categories", STORAGE_KEY, []);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -148,7 +125,6 @@ export default function InventoryPage() {
   const [showLog, setShowLog] = useState(false);
   const [parseOpen, setParseOpen] = useState(false);
 
-  // Seed default data once if the table is empty.
   useEffect(() => {
     if (!isReady) return;
     let seeded = false;
@@ -173,24 +149,18 @@ export default function InventoryPage() {
 
   const pushLog = (text: string) =>
     setLog((prev) => [{ id: `lg-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`, text, at: new Date().toISOString() }, ...prev].slice(0, 50));
-
-  const touchSaved = () => setSavedAt(new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+  const touchSaved = () => setSavedAt(new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }));
 
   /* ── Mutations ── */
   const updateCat = (id: string, fn: (c: InventoryCategory) => InventoryCategory) => {
     setCats((prev) => prev.map((c) => (c.id === id ? fn(c) : c)));
     touchSaved();
   };
-
   const setQty = (size: string, print: string, value: number) => {
     if (!active) return;
     const v = Math.max(0, Math.floor(value || 0));
-    updateCat(active.id, (c) => ({
-      ...c,
-      qty: { ...c.qty, [size]: { ...(c.qty[size] || {}), [print]: v } },
-    }));
+    updateCat(active.id, (c) => ({ ...c, qty: { ...c.qty, [size]: { ...(c.qty[size] || {}), [print]: v } } }));
   };
-
   const cellSale = (size: string, print: string) => {
     if (!active) return;
     const cur = active.qty[size]?.[print] ?? 0;
@@ -198,7 +168,6 @@ export default function InventoryPage() {
     setQty(size, print, cur - 1);
     pushLog(`Sold 1 ${active.name} · ${size} · ${print}`);
   };
-
   const addPrint = () => {
     if (!active) return;
     const name = newPrint.trim();
@@ -211,7 +180,6 @@ export default function InventoryPage() {
     pushLog(`Added print "${name}" to ${active.name}`);
     setNewPrint("");
   };
-
   const addSize = () => {
     if (!active) return;
     const name = newSize.trim();
@@ -224,75 +192,59 @@ export default function InventoryPage() {
     pushLog(`Added size "${name}" to ${active.name}`);
     setNewSize("");
   };
-
   const removePrint = (print: string) => {
     if (!active) return;
     updateCat(active.id, (c) => {
       const qty: Record<string, Record<string, number>> = {};
-      for (const s of c.sizes) {
-        const { [print]: _drop, ...rest } = c.qty[s] || {};
-        void _drop;
-        qty[s] = rest;
-      }
+      for (const s of c.sizes) { const { [print]: _d, ...rest } = c.qty[s] || {}; void _d; qty[s] = rest; }
       return { ...c, prints: c.prints.filter((p) => p !== print), qty };
     });
   };
-
   const removeSize = (size: string) => {
     if (!active) return;
     updateCat(active.id, (c) => {
-      const { [size]: _drop, ...rest } = c.qty;
-      void _drop;
+      const { [size]: _d, ...rest } = c.qty; void _d;
       return { ...c, sizes: c.sizes.filter((s) => s !== size), qty: rest };
     });
   };
 
-  /* ── Search filter (prints + sizes) ── */
+  /* ── Search filter ── */
   const q = search.trim().toLowerCase();
-  const visiblePrints = active ? active.prints.filter((p) => !q || p.toLowerCase().includes(q)) : [];
-  const visibleSizes = active ? active.sizes.filter((s) => !q || s.toLowerCase().includes(q) || active.prints.some((p) => p.toLowerCase().includes(q))) : [];
+  const matchPrints = active ? active.prints.filter((p) => p.toLowerCase().includes(q)) : [];
+  const matchSizes = active ? active.sizes.filter((s) => s.toLowerCase().includes(q)) : [];
+  const visiblePrints = active ? (q ? (matchPrints.length ? matchPrints : active.prints) : active.prints) : [];
+  const visibleSizes = active ? (q && matchSizes.length && !matchPrints.length ? matchSizes : active.sizes) : [];
 
   /* ── Exports ── */
   const buildSummaryText = () => {
-    const lines = [`*Prints Inventory* — ${grandTotal} pcs total`, ""];
+    const lines = [`Prints Inventory — ${grandTotal} pcs total`, ""];
     for (const c of ordered) {
-      lines.push(`*${c.name}* — ${catTotal(c)}`);
-      for (const p of c.prints) {
-        const t = colTotal(c, p);
-        if (t > 0) lines.push(`  • ${p}: ${t}`);
-      }
+      lines.push(`${c.name} — ${catTotal(c)}`);
+      for (const p of c.prints) { const t = colTotal(c, p); if (t > 0) lines.push(`  - ${p}: ${t}`); }
       lines.push("");
     }
     return lines.join("\n");
   };
-
-  const shareWhatsApp = () => {
-    const text = encodeURIComponent(buildSummaryText());
-    window.open(`https://wa.me/?text=${text}`, "_blank", "noopener,noreferrer");
-  };
-
+  const shareWhatsApp = () => window.open(`https://wa.me/?text=${encodeURIComponent(buildSummaryText())}`, "_blank", "noopener,noreferrer");
   const exportPdf = () => {
     if (!active) return;
     const win = window.open("", "_blank", "width=900,height=700");
     if (!win) return;
-    const rows = active.sizes
-      .map((s) => `<tr><td>${s}</td>${active.prints.map((p) => `<td style="text-align:center">${active.qty[s]?.[p] ?? 0}</td>`).join("")}<td style="text-align:right;font-weight:700">${rowTotal(active, s)}</td></tr>`)
-      .join("");
     const head = `<tr><th style="text-align:left">Size</th>${active.prints.map((p) => `<th>${p}</th>`).join("")}<th style="text-align:right">Total</th></tr>`;
+    const rows = active.sizes.map((s) => `<tr><td>${s}</td>${active.prints.map((p) => `<td style="text-align:center">${active.qty[s]?.[p] ?? 0}</td>`).join("")}<td style="text-align:right;font-weight:700">${rowTotal(active, s)}</td></tr>`).join("");
     const foot = `<tr style="font-weight:700"><td>TOTAL</td>${active.prints.map((p) => `<td style="text-align:center">${colTotal(active, p)}</td>`).join("")}<td style="text-align:right">${catTotal(active)}</td></tr>`;
-    win.document.write(`<html><head><title>${active.name} Inventory</title><style>body{font-family:-apple-system,Arial,sans-serif;padding:24px;color:#222}h1{font-size:20px}table{border-collapse:collapse;width:100%;margin-top:12px;font-size:13px}th,td{border:1px solid #ddd;padding:6px 8px}thead{background:#f5f5f5}</style></head><body><h1>${active.name} Inventory — ${catTotal(active)} pcs</h1><table><thead>${head}</thead><tbody>${rows}${foot}</tbody></table></body></html>`);
+    win.document.write(`<html><head><title>${active.name} Inventory</title><style>body{font-family:-apple-system,Arial,sans-serif;padding:24px;color:#111}h1{font-size:20px}table{border-collapse:collapse;width:100%;margin-top:12px;font-size:13px}th,td{border:1px solid #ddd;padding:6px 8px}thead{background:#f3f3f3}</style></head><body><h1>${active.name} — ${catTotal(active)} pcs</h1><table><thead>${head}</thead><tbody>${rows}${foot}</tbody></table></body></html>`);
     win.document.close();
     setTimeout(() => win.print(), 300);
   };
 
-  /* ── AI / Bulk parse ── */
+  /* ── Parse "sold 2 jabla 3-6 bear" lines ── */
   const applyParse = (raw: string) => {
     const lines = raw.split(/\n+/).map((l) => l.trim()).filter(Boolean);
     let applied = 0;
     setCats((prev) => {
       const next = prev.map((c) => ({ ...c, qty: { ...c.qty } }));
       for (const line of lines) {
-        // "sold 2 jabla 3-6 bear"  /  "2 jabla 3-6 bear"
         const m = line.match(/(?:sold\s+)?(\d+)\s+([a-z][a-z\- ]*?)\s+([\d]+-[\d]+|standard)\s+([a-z][a-z\-]*)/i);
         if (!m) continue;
         const [, qtyStr, catName, sizeName, printName] = m;
@@ -302,8 +254,7 @@ export default function InventoryPage() {
         const size = c.sizes.find((s) => slug(s) === slug(sizeName));
         const print = c.prints.find((p) => slug(p) === slug(printName));
         if (!size || !print) continue;
-        const cur = c.qty[size]?.[print] ?? 0;
-        c.qty[size] = { ...(c.qty[size] || {}), [print]: Math.max(0, cur - dec) };
+        c.qty[size] = { ...(c.qty[size] || {}), [print]: Math.max(0, (c.qty[size]?.[print] ?? 0) - dec) };
         applied++;
         pushLog(`Sold ${dec} ${c.name} · ${size} · ${print}`);
       }
@@ -313,195 +264,162 @@ export default function InventoryPage() {
     return applied;
   };
 
+  const Tool = ({ icon, label, onClick, active: on }: { icon: React.ReactNode; label: string; onClick: () => void; active?: boolean }) => (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-1.5 h-9 px-3 rounded-lg text-[13px] font-semibold transition-colors ${
+        on ? "bg-black text-white" : "bg-white border border-[#e8e8e8] text-[#555] hover:bg-[#f5f5f5]"
+      }`}
+    >
+      {icon}{label}
+    </button>
+  );
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h2 className="text-2xl font-bold text-black tracking-tight">Prints Inventory</h2>
-        <div className="flex items-center gap-3 text-[11px]">
-          <span className="flex items-center gap-1.5 text-[#888] bg-[#f5f5f5] px-2.5 py-1 rounded-full font-medium">
-            <RefreshCw size={11} /> Sync
-          </span>
-          {savedAt && <span className="flex items-center gap-1 text-green-600 font-medium"><Check size={12} /> Saved · {savedAt}</span>}
-          <span className="flex items-center gap-1.5 text-[#aaa] font-medium"><span className="w-1.5 h-1.5 rounded-full bg-green-500" /> Live</span>
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-black text-white flex items-center justify-center"><Package size={17} /></div>
+          <div>
+            <h2 className="text-xl font-bold text-black tracking-tight leading-none">Stock Inventory</h2>
+            <p className="text-[11px] text-[#999] mt-1">{grandTotal.toLocaleString("en-IN")} pcs across {ordered.length} categories</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 text-[11px] text-[#999]">
+          {savedAt && <span className="flex items-center gap-1"><Check size={12} /> Saved · {savedAt}</span>}
+          <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-black" /> Synced</span>
         </div>
       </div>
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <div className="col-span-2 sm:col-span-1 lg:col-span-2 bg-white rounded-2xl border border-[#e8e8e8] shadow-sm p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-[#999] flex items-center gap-1.5"><Package size={12} /> Grand Total</p>
-          <p className="text-3xl font-bold text-black mt-1">{grandTotal.toLocaleString("en-IN")} <span className="text-sm font-medium text-[#aaa]">pcs</span></p>
+      {/* Category selector (doubles as totals) */}
+      <div className="flex items-stretch gap-2 flex-wrap">
+        <div className="bg-black text-white rounded-xl px-4 py-2.5 flex flex-col justify-center min-w-[120px]">
+          <span className="text-[10px] uppercase tracking-[0.14em] text-white/55">Grand Total</span>
+          <span className="text-xl font-bold leading-tight">{grandTotal.toLocaleString("en-IN")}<span className="text-[11px] font-medium text-white/55 ml-1">pcs</span></span>
         </div>
-        {ordered.map((c) => (
-          <button
-            key={c.id}
-            onClick={() => setActiveId(c.id)}
-            className={`text-left bg-white rounded-2xl border shadow-sm p-4 transition-all ${
-              activeId === c.id ? "border-black ring-2 ring-black/10" : "border-[#e8e8e8] hover:border-[#ccc]"
-            }`}
-          >
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-[#999] truncate">{c.name}</p>
-            <p className="text-2xl font-bold text-black mt-1">{catTotal(c)}</p>
-          </button>
-        ))}
+        {ordered.map((c) => {
+          const on = c.id === activeId;
+          return (
+            <button
+              key={c.id}
+              onClick={() => setActiveId(c.id)}
+              className={`rounded-xl px-4 py-2.5 flex flex-col justify-center min-w-[104px] text-left border transition-all ${
+                on ? "bg-white border-black ring-1 ring-black" : "bg-white border-[#e8e8e8] hover:border-[#ccc]"
+              }`}
+            >
+              <span className="text-[10px] uppercase tracking-[0.12em] text-[#999] truncate">{c.name}</span>
+              <span className="text-xl font-bold text-black leading-tight">{catTotal(c)}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Toolbar */}
       <div className="flex items-center gap-2 flex-wrap">
-        <div className="flex-1 min-w-[200px] flex items-center gap-2 bg-[#f8f8f8] border border-[#e8e8e8] rounded-xl px-3 py-2.5 focus-within:border-black focus-within:ring-2 focus-within:ring-black/10 transition-all">
+        <div className="flex-1 min-w-[180px] flex items-center gap-2 bg-[#f8f8f8] border border-[#e8e8e8] rounded-lg px-3 h-9 focus-within:border-black transition-all">
           <Search size={15} className="text-[#bbb] shrink-0" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search size or print…"
-            className="flex-1 bg-transparent text-sm text-black placeholder:text-[#bbb] focus:outline-none border-none p-0 min-w-0"
-          />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search size or print…"
+            className="flex-1 bg-transparent text-sm text-black placeholder:text-[#bbb] focus:outline-none border-none p-0 min-w-0" />
           {oos > 0 && (
-            <span className="flex items-center gap-1 text-[11px] font-semibold text-red-500 bg-red-50 px-2 py-0.5 rounded-full whitespace-nowrap">
-              <AlertTriangle size={11} /> {oos} out of stock
+            <span className="flex items-center gap-1 text-[11px] font-semibold text-[#666] bg-[#ececec] px-2 py-0.5 rounded-full whitespace-nowrap">
+              <AlertTriangle size={11} /> {oos} empty
             </span>
           )}
         </div>
-        <button onClick={() => setQuickSale((v) => !v)} className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors ${quickSale ? "bg-orange-500 text-white" : "bg-orange-500/90 text-white hover:bg-orange-500"}`}>
-          <Zap size={14} /> Quick Sale
-        </button>
-        <button onClick={() => setParseOpen(true)} className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-sm font-semibold bg-white border border-[#e8e8e8] text-[#555] hover:bg-[#f5f5f5] transition-colors">
-          <Sparkles size={14} /> AI Parse
-        </button>
-        <button onClick={() => setParseOpen(true)} className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-sm font-semibold bg-white border border-[#e8e8e8] text-[#555] hover:bg-[#f5f5f5] transition-colors">
-          <ClipboardPaste size={14} /> Bulk Paste
-        </button>
-        <button onClick={() => setShowLog(true)} className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-sm font-semibold bg-white border border-[#e8e8e8] text-[#555] hover:bg-[#f5f5f5] transition-colors">
-          <History size={14} /> Log
-        </button>
-        <button onClick={exportPdf} className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-sm font-semibold bg-white border border-[#e8e8e8] text-[#555] hover:bg-[#f5f5f5] transition-colors">
-          <FileDown size={14} /> PDF
-        </button>
-        <button onClick={shareWhatsApp} className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-sm font-semibold bg-green-500 text-white hover:bg-green-600 transition-colors">
-          <Share2 size={14} /> WhatsApp
-        </button>
+        <Tool icon={<Zap size={14} />} label="Quick Sale" onClick={() => setQuickSale((v) => !v)} active={quickSale} />
+        <Tool icon={<Sparkles size={14} />} label="AI Parse" onClick={() => setParseOpen(true)} />
+        <Tool icon={<ClipboardPaste size={14} />} label="Bulk Paste" onClick={() => setParseOpen(true)} />
+        <Tool icon={<History size={14} />} label="Log" onClick={() => setShowLog(true)} />
+        <Tool icon={<FileDown size={14} />} label="PDF" onClick={exportPdf} />
+        <Tool icon={<Share2 size={14} />} label="WhatsApp" onClick={shareWhatsApp} />
       </div>
 
-      {/* Tip */}
-      <div className="text-[12px] text-[#8a6d3b] bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
-        <strong>Tip:</strong> Use <strong>Quick Sale</strong> to tap-deduct after each sale, <strong>AI Parse</strong> to paste sentences like &quot;sold 2 jabla 3-6 bear&quot;, or <strong>Bulk Paste</strong> for multiple lines.
-      </div>
-
-      {/* Category tabs */}
-      <div className="flex items-center gap-1.5 flex-wrap border-b border-[#e8e8e8] pb-px">
-        {ordered.map((c) => (
-          <button
-            key={c.id}
-            onClick={() => setActiveId(c.id)}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-t-lg text-sm font-semibold transition-colors border-b-2 -mb-px ${
-              activeId === c.id ? "border-black text-black" : "border-transparent text-[#888] hover:text-black"
-            }`}
-          >
-            {c.name} <span className="text-[11px] text-[#aaa]">{catTotal(c)}</span>
-          </button>
-        ))}
-      </div>
+      {quickSale && (
+        <div className="text-[12px] text-[#555] bg-[#f5f5f5] border border-[#e8e8e8] rounded-lg px-3 py-2">
+          <strong>Quick Sale on</strong> — tap any cell to deduct 1 from stock.
+        </div>
+      )}
 
       {active && (
-        <>
+        <div className="bg-white rounded-2xl border border-[#e8e8e8] shadow-sm overflow-hidden">
           {/* Add print / size */}
-          <div className="bg-white rounded-2xl border border-[#e8e8e8] shadow-sm p-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch gap-2 p-3 border-b border-[#f0f0f0]">
             <div className="flex items-center gap-1.5 flex-1">
-              <input
-                value={newPrint}
-                onChange={(e) => setNewPrint(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") addPrint(); }}
+              <input value={newPrint} onChange={(e) => setNewPrint(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addPrint(); }}
                 placeholder={`New print for ${active.name}`}
-                className="flex-1 bg-[#f8f8f8] border border-[#e8e8e8] rounded-lg px-3 py-2 text-sm text-black placeholder:text-[#bbb] focus:outline-none focus:border-black transition-all min-w-0"
-              />
-              <button onClick={addPrint} className="flex items-center gap-1 px-3 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 shrink-0"><Plus size={14} /> Print</button>
+                className="flex-1 bg-[#f8f8f8] border border-[#e8e8e8] rounded-lg px-3 h-9 text-sm text-black placeholder:text-[#bbb] focus:outline-none focus:border-black transition-all min-w-0" />
+              <button onClick={addPrint} className="flex items-center gap-1 px-3 h-9 rounded-lg bg-black text-white text-[13px] font-semibold hover:bg-[#222] shrink-0"><Plus size={14} /> Print</button>
             </div>
             <div className="flex items-center gap-1.5 flex-1">
-              <input
-                value={newSize}
-                onChange={(e) => setNewSize(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") addSize(); }}
+              <input value={newSize} onChange={(e) => setNewSize(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addSize(); }}
                 placeholder="New size (e.g. 24-30)"
-                className="flex-1 bg-[#f8f8f8] border border-[#e8e8e8] rounded-lg px-3 py-2 text-sm text-black placeholder:text-[#bbb] focus:outline-none focus:border-black transition-all min-w-0"
-              />
-              <button onClick={addSize} className="flex items-center gap-1 px-3 py-2 rounded-lg bg-black text-white text-sm font-semibold hover:bg-[#222] shrink-0"><Plus size={14} /> Size</button>
+                className="flex-1 bg-[#f8f8f8] border border-[#e8e8e8] rounded-lg px-3 h-9 text-sm text-black placeholder:text-[#bbb] focus:outline-none focus:border-black transition-all min-w-0" />
+              <button onClick={addSize} className="flex items-center gap-1 px-3 h-9 rounded-lg bg-white border border-black text-black text-[13px] font-semibold hover:bg-[#f5f5f5] shrink-0"><Plus size={14} /> Size</button>
             </div>
-            <p className="hidden lg:block text-[11px] text-[#bbb] whitespace-nowrap">New prints/sizes save instantly.</p>
           </div>
 
-          {/* Matrix */}
-          <div className="bg-white rounded-2xl border border-[#e8e8e8] shadow-sm overflow-x-auto">
-            <table className="w-full text-sm border-collapse">
-              <thead>
-                <tr className="border-b border-[#e8e8e8]">
-                  <th className="text-left font-semibold text-[#888] px-4 py-3 sticky left-0 bg-white z-10">Size</th>
-                  {visiblePrints.map((p) => (
-                    <th key={p} className="font-semibold text-[#666] px-3 py-3 text-center whitespace-nowrap group">
-                      <span className="inline-flex items-center gap-1">
-                        {p}
-                        <button onClick={() => removePrint(p)} className="opacity-0 group-hover:opacity-100 text-[#ccc] hover:text-red-500 transition-all" title={`Remove ${p}`}><X size={11} /></button>
-                      </span>
-                    </th>
-                  ))}
-                  <th className="font-semibold text-[#888] px-4 py-3 text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleSizes.map((s) => (
-                  <tr key={s} className="border-b border-[#f3f3f3] group hover:bg-[#fafafa]">
-                    <td className="px-4 py-2 font-medium text-black sticky left-0 bg-white group-hover:bg-[#fafafa] z-10 whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1.5">
-                        {s}
-                        <button onClick={() => removeSize(s)} className="opacity-0 group-hover:opacity-100 text-[#ccc] hover:text-red-500 transition-all" title={`Remove ${s}`}><X size={11} /></button>
-                      </span>
-                    </td>
-                    {visiblePrints.map((p) => {
-                      const val = active.qty[s]?.[p] ?? 0;
-                      return (
-                        <td key={p} className="px-2 py-2 text-center">
-                          {quickSale ? (
-                            <button
-                              onClick={() => cellSale(s, p)}
-                              disabled={val <= 0}
-                              className={`w-14 h-8 rounded-lg text-sm font-medium border transition-colors ${val <= 0 ? "text-red-400 border-[#f0f0f0] cursor-not-allowed" : "text-black border-[#e8e8e8] hover:bg-orange-50 hover:border-orange-300"}`}
-                              title="Tap to sell 1"
-                            >
-                              {val}
-                            </button>
-                          ) : (
-                            <input
-                              type="number"
-                              value={val}
-                              min={0}
-                              onChange={(e) => setQty(s, p, parseInt(e.target.value, 10))}
-                              onFocus={(e) => e.target.select()}
-                              className={`w-14 h-8 text-center rounded-lg border text-sm focus:outline-none focus:border-black focus:ring-2 focus:ring-black/10 transition-all ${val === 0 ? "text-red-400 border-[#f0f0f0]" : "text-black border-[#e8e8e8]"}`}
-                            />
-                          )}
-                        </td>
-                      );
-                    })}
-                    <td className="px-4 py-2 text-right font-bold text-black">{rowTotal(active, s)}</td>
-                  </tr>
+          {/* Matrix — table-fixed so it always fits the width (no horizontal scroll) */}
+          <table className="w-full table-fixed border-collapse">
+            <thead>
+              <tr className="border-b border-[#e8e8e8]">
+                <th className="w-[56px] text-left text-[11px] font-semibold uppercase tracking-wider text-[#999] px-3 py-2.5">Size</th>
+                {visiblePrints.map((p) => (
+                  <th key={p} className="text-[10.5px] font-semibold text-[#777] px-1 py-2.5 text-center leading-tight align-bottom group">
+                    <span className="inline-flex items-center gap-0.5 break-words">
+                      {p}
+                      <button onClick={() => removePrint(p)} className="opacity-0 group-hover:opacity-100 text-[#ccc] hover:text-black transition-all shrink-0"><X size={10} /></button>
+                    </span>
+                  </th>
                 ))}
-                {/* Totals row */}
-                <tr className="bg-[#fafafa]">
-                  <td className="px-4 py-3 font-bold text-black sticky left-0 bg-[#fafafa] z-10">TOTAL</td>
-                  {visiblePrints.map((p) => (
-                    <td key={p} className="px-2 py-3 text-center font-bold text-black">{colTotal(active, p)}</td>
-                  ))}
-                  <td className="px-4 py-3 text-right font-bold text-black">{catTotal(active)}</td>
+                <th className="w-[52px] text-right text-[11px] font-semibold uppercase tracking-wider text-[#999] px-3 py-2.5">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleSizes.map((s) => (
+                <tr key={s} className="border-b border-[#f3f3f3] group hover:bg-[#fafafa]">
+                  <td className="px-3 py-1.5 text-[13px] font-medium text-black whitespace-nowrap">
+                    <span className="inline-flex items-center gap-1">
+                      {s}
+                      <button onClick={() => removeSize(s)} className="opacity-0 group-hover:opacity-100 text-[#ccc] hover:text-black transition-all"><X size={10} /></button>
+                    </span>
+                  </td>
+                  {visiblePrints.map((p) => {
+                    const val = active.qty[s]?.[p] ?? 0;
+                    return (
+                      <td key={p} className="px-0.5 py-1.5 text-center">
+                        {quickSale ? (
+                          <button onClick={() => cellSale(s, p)} disabled={val <= 0}
+                            className={`w-11 h-7 mx-auto rounded-md border text-[13px] font-medium transition-colors ${val <= 0 ? "text-[#ccc] border-[#f0f0f0] cursor-not-allowed" : "text-black border-[#e8e8e8] hover:bg-[#f0f0f0]"}`}>
+                            {val}
+                          </button>
+                        ) : (
+                          <input type="number" inputMode="numeric" value={val} min={0}
+                            onChange={(e) => setQty(s, p, parseInt(e.target.value, 10))}
+                            onFocus={(e) => e.target.select()}
+                            className={`w-11 h-7 mx-auto text-center rounded-md border text-[13px] focus:outline-none focus:border-black focus:ring-1 focus:ring-black/20 transition-all ${NUM_INPUT} ${val === 0 ? "text-[#ccc] border-[#f0f0f0]" : "text-black border-[#e8e8e8]"}`} />
+                        )}
+                      </td>
+                    );
+                  })}
+                  <td className="px-3 py-1.5 text-right text-[13px] font-bold text-black">{rowTotal(active, s)}</td>
                 </tr>
-              </tbody>
-            </table>
-          </div>
-        </>
+              ))}
+              <tr className="bg-[#fafafa]">
+                <td className="px-3 py-2.5 text-[11px] font-bold uppercase tracking-wider text-black">Total</td>
+                {visiblePrints.map((p) => (
+                  <td key={p} className="px-0.5 py-2.5 text-center text-[13px] font-bold text-black">{colTotal(active, p)}</td>
+                ))}
+                <td className="px-3 py-2.5 text-right text-[13px] font-bold text-black">{catTotal(active)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       )}
 
       {!isReady && <div className="py-20 text-center text-[#999]"><RefreshCw size={22} className="animate-spin inline" /></div>}
 
-      {/* Log dropdown */}
+      {/* Log */}
       {showLog && (
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 px-4" onClick={() => setShowLog(false)}>
           <div className="absolute inset-0 bg-black/30" />
@@ -540,7 +458,7 @@ function ParseModal({ onClose, onApply }: { onClose: () => void; onApply: (raw: 
 
   const run = () => {
     const n = onApply(text);
-    setResult(n > 0 ? `Applied ${n} update${n !== 1 ? "s" : ""}.` : "No matching lines found. Use: sold 2 jabla 3-6 bear");
+    setResult(n > 0 ? `Applied ${n} update${n !== 1 ? "s" : ""}.` : "No matching lines. Format: sold 2 jabla 3-6 bear");
     if (n > 0) setText("");
   };
 
@@ -553,19 +471,14 @@ function ParseModal({ onClose, onApply }: { onClose: () => void; onApply: (raw: 
           <button onClick={onClose} className="text-[#999] hover:text-black"><X size={18} /></button>
         </div>
         <div className="p-4 space-y-3">
-          <p className="text-[13px] text-[#666]">One per line. Each line deducts stock:</p>
-          <textarea
-            ref={ref}
-            value={text}
-            onChange={(e) => { setText(e.target.value); setResult(null); }}
-            rows={6}
+          <p className="text-[13px] text-[#666]">One per line — each line deducts stock:</p>
+          <textarea ref={ref} value={text} onChange={(e) => { setText(e.target.value); setResult(null); }} rows={6}
             placeholder={"sold 2 jabla 3-6 bear\nsold 1 frock 0-3 unicorn\n3 night suit 0-3 owl"}
-            className="w-full bg-[#f8f8f8] border border-[#e8e8e8] rounded-xl px-3 py-2.5 text-sm text-black placeholder:text-[#bbb] focus:outline-none focus:border-black focus:ring-2 focus:ring-black/10 transition-all resize-y font-mono"
-          />
-          {result && <p className={`text-sm font-medium ${result.startsWith("Applied") ? "text-green-600" : "text-red-500"}`}>{result}</p>}
+            className="w-full bg-[#f8f8f8] border border-[#e8e8e8] rounded-xl px-3 py-2.5 text-sm text-black placeholder:text-[#bbb] focus:outline-none focus:border-black focus:ring-1 focus:ring-black/20 transition-all resize-y font-mono" />
+          {result && <p className={`text-sm font-medium ${result.startsWith("Applied") ? "text-black" : "text-[#888]"}`}>{result}</p>}
           <div className="flex justify-end gap-2">
-            <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold text-[#555] hover:bg-[#f5f5f5]">Close</button>
-            <button onClick={run} disabled={!text.trim()} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-black text-white text-sm font-semibold disabled:bg-[#ddd]"><Check size={14} /> Apply</button>
+            <button onClick={onClose} className="px-4 h-9 rounded-lg text-sm font-semibold text-[#555] hover:bg-[#f5f5f5]">Close</button>
+            <button onClick={run} disabled={!text.trim()} className="flex items-center gap-1.5 px-4 h-9 rounded-lg bg-black text-white text-sm font-semibold disabled:bg-[#ddd]"><Check size={14} /> Apply</button>
           </div>
         </div>
       </div>
