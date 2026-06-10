@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useSupabaseTable } from "@/lib/hooks/useSupabaseTable";
 import {
   Package,
@@ -35,7 +36,6 @@ interface LogEntry {
 }
 
 const STORAGE_KEY = "biztrack_inventory";
-const SEED_FLAG = "biztrack_inventory_seeded";
 
 /* ─── Seed data (quantities from the supplied stock sheets) ─── */
 function buildCat(id: string, name: string, prints: string[], sizes: string[], rows: number[][], order: number): InventoryCategory {
@@ -124,14 +124,19 @@ export default function InventoryPage() {
   const [newSize, setNewSize] = useState("");
   const [showLog, setShowLog] = useState(false);
   const [parseOpen, setParseOpen] = useState(false);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [toast, setToast] = useState(false);
+  const seededRef = useRef(false);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Seed default data once if the table is empty. Persists to Supabase only —
+  // nothing is written to localStorage.
   useEffect(() => {
-    if (!isReady) return;
-    let seeded = false;
-    try { seeded = localStorage.getItem(SEED_FLAG) === "1"; } catch { /* ignore */ }
-    if (cats.length === 0 && !seeded) {
+    if (!isReady || seededRef.current) return;
+    if (cats.length === 0) {
+      seededRef.current = true;
       setCats(DEFAULT_CATEGORIES);
-      try { localStorage.setItem(SEED_FLAG, "1"); } catch { /* ignore */ }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isReady]);
@@ -149,7 +154,26 @@ export default function InventoryPage() {
 
   const pushLog = (text: string) =>
     setLog((prev) => [{ id: `lg-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`, text, at: new Date().toISOString() }, ...prev].slice(0, 50));
-  const touchSaved = () => setSavedAt(new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }));
+
+  // Each edit persists to Supabase immediately (via setCats). This drives the
+  // "Saving… → Saved" status + toast: it debounces so a burst of edits shows one
+  // confirmation once typing settles.
+  const touchSaved = () => {
+    setSaveState("saving");
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      setSaveState("saved");
+      setSavedAt(new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }));
+      setToast(true);
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+      toastTimer.current = setTimeout(() => setToast(false), 2200);
+    }, 500);
+  };
+
+  useEffect(() => () => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+  }, []);
 
   /* ── Mutations ── */
   const updateCat = (id: string, fn: (c: InventoryCategory) => InventoryCategory) => {
@@ -277,6 +301,23 @@ export default function InventoryPage() {
 
   return (
     <div className="space-y-4">
+      {/* Auto-save toast */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -16, x: "-50%" }}
+            animate={{ opacity: 1, y: 0, x: "-50%" }}
+            exit={{ opacity: 0, y: -16, x: "-50%" }}
+            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed top-20 left-1/2 z-[60] flex items-center gap-2 px-4 py-2.5 rounded-xl bg-black text-white shadow-[0_8px_32px_rgba(0,0,0,0.25)]"
+            role="status"
+          >
+            <Check size={15} />
+            <span className="text-sm font-semibold">Changes saved to database</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2.5">
@@ -287,8 +328,12 @@ export default function InventoryPage() {
           </div>
         </div>
         <div className="flex items-center gap-3 text-[11px] text-[#999]">
-          {savedAt && <span className="flex items-center gap-1"><Check size={12} /> Saved · {savedAt}</span>}
-          <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-black" /> Synced</span>
+          {saveState === "saving" ? (
+            <span className="flex items-center gap-1.5 text-black font-medium"><RefreshCw size={12} className="animate-spin" /> Saving…</span>
+          ) : savedAt ? (
+            <span className="flex items-center gap-1 text-[#666] font-medium"><Check size={12} /> Saved · {savedAt}</span>
+          ) : null}
+          <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-black" /> Auto-sync</span>
         </div>
       </div>
 
