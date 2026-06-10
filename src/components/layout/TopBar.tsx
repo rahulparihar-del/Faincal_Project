@@ -19,6 +19,7 @@ const TAB_NAMES: Record<string, string> = {
   "/sites": "My Sites",
   "/catalog": "Catalog",
   "/notes": "Notes",
+  "/vault": "Vault",
 };
 
 const STATUS_CONFIG: Record<

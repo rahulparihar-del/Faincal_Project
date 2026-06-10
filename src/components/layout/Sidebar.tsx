@@ -18,6 +18,7 @@ import {
   Globe,
   NotebookPen,
   Boxes,
+  LockKeyhole,
 } from "lucide-react";
 import { gsap } from "gsap";
 import { useGSAP } from "@gsap/react";
@@ -34,6 +35,7 @@ const NAV_ITEMS = [
   { name: "My Sites",      href: "/sites",         icon: Globe,           mobileName: "Sites" },
   { name: "Catalog",       href: "/catalog",       icon: Boxes,           mobileName: "Catalog" },
   { name: "Notes",         href: "/notes",         icon: NotebookPen,     mobileName: "Notes" },
+  { name: "Vault",         href: "/vault",         icon: LockKeyhole,     mobileName: "Vault" },
 ];
 
 /* Section labels keyed by the index of the first item in each group. */

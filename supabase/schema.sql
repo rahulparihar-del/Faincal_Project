@@ -183,3 +183,18 @@ begin
     );
   end loop;
 end $$;
+
+-- ---------- Vault (private saved links + context, PIN-locked in UI) ----------
+create table if not exists public.vault_items (
+  id          text primary key,
+  data        jsonb not null,
+  created_at  timestamptz not null default now()
+);
+
+alter table public.vault_items enable row level security;
+
+do $$
+begin
+  execute 'drop policy if exists "anon_full_access" on public.vault_items;';
+  execute 'create policy "anon_full_access" on public.vault_items for all to anon, authenticated using (true) with check (true);';
+end $$;
