@@ -3,10 +3,11 @@
 import React, { useState, useMemo } from "react";
 import { useData } from "@/context/DataContext";
 import { CardGroup, StatCard } from "@/components/ui/Card";
+import { AnimatedCounter } from "@/components/ui/AnimatedCounter";
 import { ConfirmDelete } from "@/components/ui/ConfirmDelete";
 import { EcomSale, Platform } from "@/lib/types";
 import { gsap } from "gsap";
-import { Plus, Trash2, ShoppingBag, TrendingUp, Receipt, PackageX, Filter } from "lucide-react";
+import { Plus, Trash2, ShoppingBag, TrendingUp, PackageX, Filter } from "lucide-react";
 
 const PLATFORMS: Platform[] = ["Amazon", "Flipkart", "Meesho", "Other"];
 
@@ -48,6 +49,18 @@ export default function EcomSales() {
       return true;
     });
   }, [ecomSales, platformFilter, dateFrom, dateTo]);
+
+  // Per-platform breakdown (net + count) for the filter pills.
+  const platformStats = useMemo(() => {
+    const map: Record<string, { net: number; count: number }> = {};
+    PLATFORMS.forEach((p) => { map[p] = { net: 0, count: 0 }; });
+    ecomSales.forEach((s) => {
+      if (!map[s.platform]) map[s.platform] = { net: 0, count: 0 };
+      map[s.platform].net += s.isRTO ? -s.rtoLossAmount : s.netPayout;
+      map[s.platform].count += 1;
+    });
+    return map;
+  }, [ecomSales]);
 
   const handleAdd = () => {
     const amount = Number(draftAmount);
@@ -102,25 +115,46 @@ export default function EcomSales() {
       </div>
 
       <CardGroup cols="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-        <StatCard title="Gross Revenue" value={`₹${stats.gross.toLocaleString("en-IN")}`} icon={ShoppingBag} variant="profit" />
-        <StatCard title="Net Payout" value={`₹${stats.net.toLocaleString("en-IN")}`} icon={TrendingUp} variant={stats.net >= 0 ? "profit" : "loss"} />
-        <StatCard title="RTO Losses" value={`₹${stats.returns.toLocaleString("en-IN")}`} icon={PackageX} variant="loss" />
+        <StatCard title="Gross Revenue" value={<AnimatedCounter value={stats.gross} prefix="₹" decimals={stats.gross % 1 === 0 ? 0 : 2} />} icon={ShoppingBag} variant="profit" />
+        <StatCard title="Net Payout" value={<AnimatedCounter value={stats.net} prefix="₹" decimals={stats.net % 1 === 0 ? 0 : 2} />} icon={TrendingUp} variant={stats.net >= 0 ? "profit" : "loss"} />
+        <StatCard title="RTO Losses" value={<AnimatedCounter value={stats.returns} prefix="₹" decimals={stats.returns % 1 === 0 ? 0 : 2} />} icon={PackageX} variant="loss" />
       </CardGroup>
 
       {/* Filter Bar */}
-      <div className="bg-white rounded-2xl border border-[#e8e8e8] p-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-        <Filter size={16} className="text-[#888] shrink-0 mt-1 sm:mt-0" />
-        <select
-          value={platformFilter}
-          onChange={(e) => setPlatformFilter(e.target.value as Platform | "All")}
-          className="bg-[#f5f5f5] border-0 rounded-lg px-3 py-2 text-sm font-medium text-black focus:outline-none focus:ring-2 focus:ring-black/10"
-        >
-          <option value="All">All Platforms</option>
-          {PLATFORMS.map((p) => (
-            <option key={p} value={p}>{p}</option>
-          ))}
-        </select>
-        <div className="flex items-center gap-2">
+      <div className="bg-white rounded-2xl border border-[#e8e8e8] p-4 flex flex-col gap-3 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+        {/* Platform pills — each shows that platform's net total + count and filters on click */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Filter size={16} className="text-[#888] shrink-0" />
+          <button
+            onClick={() => setPlatformFilter("All")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-semibold border transition-colors ${
+              platformFilter === "All" ? "bg-black text-white border-black" : "bg-white text-[#666] border-[#e8e8e8] hover:border-[#bbb]"
+            }`}
+          >
+            All Platforms
+            <span className={`text-[11px] ${platformFilter === "All" ? "text-white/70" : "text-[#aaa]"}`}>{ecomSales.length}</span>
+          </button>
+          {PLATFORMS.map((p) => {
+            const on = platformFilter === p;
+            const ps = platformStats[p] || { net: 0, count: 0 };
+            return (
+              <button
+                key={p}
+                onClick={() => setPlatformFilter(on ? "All" : p)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-semibold border transition-colors ${
+                  on ? "bg-black text-white border-black" : "bg-white text-[#666] border-[#e8e8e8] hover:border-[#bbb]"
+                }`}
+              >
+                {p}
+                <span className={`text-[11px] ${on ? "text-white/70" : "text-[#aaa]"}`}>
+                  ₹{ps.net.toLocaleString("en-IN", { maximumFractionDigits: 0 })} · {ps.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        {/* Date range */}
+        <div className="flex items-center gap-2 flex-wrap">
           <input
             type="date"
             value={dateFrom}
@@ -134,15 +168,15 @@ export default function EcomSales() {
             onChange={(e) => setDateTo(e.target.value)}
             className="bg-[#f5f5f5] border-0 rounded-lg px-3 py-2 text-sm font-medium text-black focus:outline-none focus:ring-2 focus:ring-black/10"
           />
+          {(platformFilter !== "All" || dateFrom || dateTo) && (
+            <button
+              onClick={() => { setPlatformFilter("All"); setDateFrom(""); setDateTo(""); }}
+              className="text-xs font-bold text-[#888] hover:text-black transition-colors ml-1"
+            >
+              Clear
+            </button>
+          )}
         </div>
-        {(platformFilter !== "All" || dateFrom || dateTo) && (
-          <button
-            onClick={() => { setPlatformFilter("All"); setDateFrom(""); setDateTo(""); }}
-            className="text-xs font-bold text-[#888] hover:text-black transition-colors"
-          >
-            Clear
-          </button>
-        )}
       </div>
 
       {/* ── Mobile: stacked add form ── */}
