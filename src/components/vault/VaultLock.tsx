@@ -1,51 +1,127 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
 import { LockKeyhole, Delete, ShieldCheck } from "lucide-react";
 
-const PIN = "1900";
-const LEN = PIN.length;
+const LEN = 4;
 
-export function VaultLock({ onUnlock, notice }: { onUnlock: () => void; notice?: string }) {
+/**
+ * Lock screen with a numeric keypad.
+ * - mode "setup": user picks a PIN (entered twice to confirm) — used the first
+ *   time the vault is created.
+ * - mode "unlock": user enters the PIN; `verify` decrypts the stored verifier
+ *   to confirm correctness (async).
+ */
+export function VaultLock({
+  mode,
+  verify,
+  onUnlock,
+  notice,
+}: {
+  mode: "setup" | "unlock";
+  verify: (pin: string) => Promise<boolean>;
+  onUnlock: () => void;
+  notice?: string;
+}) {
   const [pin, setPin] = useState("");
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [working, setWorking] = useState(false);
+  const [phase, setPhase] = useState<"create" | "confirm">("create");
+  const firstPin = useRef("");
+
+  const busy = working || success;
 
   const press = useCallback((d: string) => {
-    setError(false);
+    setError(null);
     setPin((p) => (p.length >= LEN ? p : p + d));
   }, []);
 
   const back = useCallback(() => {
-    setError(false);
+    setError(null);
     setPin((p) => p.slice(0, -1));
   }, []);
 
-  // Validate once the PIN is fully entered.
+  // Handle a fully-entered PIN.
   useEffect(() => {
-    if (pin.length < LEN) return;
-    if (pin === PIN) {
-      setSuccess(true);
-      const t = setTimeout(onUnlock, 650);
-      return () => clearTimeout(t);
-    }
-    setError(true);
-    const t = setTimeout(() => setPin(""), 500);
-    return () => clearTimeout(t);
-  }, [pin, onUnlock]);
+    if (pin.length < LEN || busy) return;
+    let cancelled = false;
 
-  // Hardware / desktop keyboard support.
+    (async () => {
+      if (mode === "setup") {
+        if (phase === "create") {
+          firstPin.current = pin;
+          setPin("");
+          setPhase("confirm");
+          return;
+        }
+        // confirm
+        if (pin !== firstPin.current) {
+          setError("PINs didn't match. Start again.");
+          setPhase("create");
+          firstPin.current = "";
+          setPin("");
+          return;
+        }
+        setWorking(true);
+        const ok = await verify(pin);
+        if (cancelled) return;
+        setWorking(false);
+        if (ok) {
+          setSuccess(true);
+          setTimeout(onUnlock, 650);
+        } else {
+          setError("Couldn't set up the vault. Try again.");
+          setPin("");
+          setPhase("create");
+        }
+        return;
+      }
+
+      // unlock
+      setWorking(true);
+      const ok = await verify(pin);
+      if (cancelled) return;
+      setWorking(false);
+      if (ok) {
+        setSuccess(true);
+        setTimeout(onUnlock, 650);
+      } else {
+        setError("Wrong PIN. Try again.");
+        setTimeout(() => setPin(""), 450);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [pin, busy, mode, phase, verify, onUnlock]);
+
+  // Hardware keyboard support.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (busy) return;
       if (e.key >= "0" && e.key <= "9") press(e.key);
       else if (e.key === "Backspace") back();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [press, back]);
+  }, [press, back, busy]);
 
   const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
+
+  const subtitle = success
+    ? mode === "setup" ? "Securing…" : "Unlocking…"
+    : working
+    ? "Checking…"
+    : error
+    ? error
+    : mode === "setup"
+    ? phase === "create"
+      ? "Create a PIN to protect your Vault"
+      : "Re-enter your PIN to confirm"
+    : notice
+    ? notice
+    : "Enter your PIN to continue";
 
   return (
     <motion.div
@@ -55,9 +131,8 @@ export function VaultLock({ onUnlock, notice }: { onUnlock: () => void; notice?:
       transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
       className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] select-none"
     >
-      {/* Lock badge */}
       <motion.div
-        animate={success ? { scale: [1, 1.15, 1], rotate: [0, 0, 0] } : {}}
+        animate={success ? { scale: [1, 1.15, 1] } : {}}
         transition={{ duration: 0.5 }}
         className={`w-20 h-20 rounded-3xl flex items-center justify-center mb-6 transition-colors duration-300 ${
           success ? "bg-green-500 text-white" : "bg-black text-white"
@@ -67,9 +142,11 @@ export function VaultLock({ onUnlock, notice }: { onUnlock: () => void; notice?:
         {success ? <ShieldCheck size={34} /> : <LockKeyhole size={32} />}
       </motion.div>
 
-      <h2 className="text-xl font-bold text-black tracking-tight">Private Vault</h2>
-      <p className="text-sm text-[#888] mt-1 mb-7">
-        {success ? "Unlocking…" : notice ? notice : "Enter your PIN to continue"}
+      <h2 className="text-xl font-bold text-black tracking-tight">
+        {mode === "setup" ? "Set up your Vault" : "Private Vault"}
+      </h2>
+      <p className={`text-sm mt-1 mb-7 ${error ? "text-red-500 font-medium" : "text-[#888]"}`}>
+        {subtitle}
       </p>
 
       {/* PIN dots */}
@@ -103,8 +180,8 @@ export function VaultLock({ onUnlock, notice }: { onUnlock: () => void; notice?:
           <button
             key={k}
             onClick={() => press(k)}
-            disabled={success}
-            className="h-16 rounded-2xl bg-white border border-[#e8e8e8] text-2xl font-semibold text-black hover:bg-[#f5f5f5] active:scale-95 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
+            disabled={busy}
+            className="h-16 rounded-2xl bg-white border border-[#e8e8e8] text-2xl font-semibold text-black hover:bg-[#f5f5f5] active:scale-95 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.04)] disabled:opacity-50"
           >
             {k}
           </button>
@@ -112,15 +189,15 @@ export function VaultLock({ onUnlock, notice }: { onUnlock: () => void; notice?:
         <span />
         <button
           onClick={() => press("0")}
-          disabled={success}
-          className="h-16 rounded-2xl bg-white border border-[#e8e8e8] text-2xl font-semibold text-black hover:bg-[#f5f5f5] active:scale-95 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
+          disabled={busy}
+          className="h-16 rounded-2xl bg-white border border-[#e8e8e8] text-2xl font-semibold text-black hover:bg-[#f5f5f5] active:scale-95 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.04)] disabled:opacity-50"
         >
           0
         </button>
         <button
           onClick={back}
-          disabled={success}
-          className="h-16 rounded-2xl flex items-center justify-center text-[#888] hover:bg-[#f5f5f5] active:scale-95 transition-all"
+          disabled={busy}
+          className="h-16 rounded-2xl flex items-center justify-center text-[#888] hover:bg-[#f5f5f5] active:scale-95 transition-all disabled:opacity-50"
           aria-label="Delete"
         >
           <Delete size={24} />

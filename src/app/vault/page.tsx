@@ -1,9 +1,17 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSupabaseTable } from "@/lib/hooks/useSupabaseTable";
 import { VaultLock } from "@/components/vault/VaultLock";
+import {
+  bytesToB64,
+  b64ToBytes,
+  randomBytes,
+  deriveKey,
+  encryptJSON,
+  decryptJSON,
+} from "@/lib/vault/crypto";
 import {
   Bookmark,
   Plus,
@@ -16,20 +24,35 @@ import {
   Lock,
   Play,
   CircleCheckBig,
+  Loader2,
 } from "lucide-react";
 
 /* ─── Types ─────────────────────────────────────────────────── */
+// Decrypted, in-memory shape used for display.
 interface StashItem {
   id: string;
   title: string;
   url: string;
-  context: string; // what was happening / where to resume
+  context: string;
   watched: boolean;
   createdAt: string;
 }
 
+// Persisted shape (Supabase). Sensitive fields live encrypted inside `enc`.
+// The meta record (id === META_ID) holds the salt + verifier instead.
+interface VaultRecord {
+  id: string;
+  enc?: string;        // base64(iv|ciphertext) of { title, url, context }
+  watched?: boolean;
+  createdAt?: string;
+  salt?: string;       // meta only
+  check?: string;      // meta only — encrypted verifier
+}
+
 const STORAGE_KEY = "biztrack_vault";
 const SESSION_KEY = "biztrack_vault_unlocked";
+const META_ID = "__vault_meta__";
+const MAGIC = "biztrack-vault-v1";
 
 /* ─── Helpers ───────────────────────────────────────────────── */
 function normalizeUrl(input: string): string {
@@ -37,20 +60,13 @@ function normalizeUrl(input: string): string {
   if (!url) return "";
   return url.match(/^https?:\/\//i) ? url : "https://" + url;
 }
-
 function hostnameOf(url: string): string {
-  try {
-    return new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return "";
-  }
+  try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return ""; }
 }
-
 function faviconOf(url: string): string {
   const h = hostnameOf(url);
   return h ? `https://www.google.com/s2/favicons?domain=${h}&sz=64` : "";
 }
-
 function timeAgo(iso: string): string {
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return "";
@@ -154,19 +170,80 @@ function StashCard({
 export default function VaultPage() {
   const [locked, setLocked] = useState(true);
   const [autoLocked, setAutoLocked] = useState(false);
-  const [items, setItems] = useSupabaseTable<StashItem>("vault_items", STORAGE_KEY, []);
+  const [records, setRecords, isReady] = useSupabaseTable<VaultRecord>("vault_items", STORAGE_KEY, []);
+
+  // Decrypted items (only in memory while unlocked).
+  const [stash, setStash] = useState<StashItem[]>([]);
+  const keyRef = useRef<CryptoKey | null>(null);
 
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
   const [context, setContext] = useState("");
   const [showWatched, setShowWatched] = useState(true);
 
-  // Stay unlocked while navigating within this browser session.
-  useEffect(() => {
-    if (typeof window !== "undefined" && sessionStorage.getItem(SESSION_KEY) === "1") {
-      setLocked(false);
+  const hasMeta = records.some((r) => r.id === META_ID);
+  const mode: "setup" | "unlock" = hasMeta ? "unlock" : "setup";
+
+  /* Clear all decrypted material from memory. */
+  const wipe = () => {
+    keyRef.current = null;
+    setStash([]);
+  };
+
+  /* Decrypt every item record with the given key. */
+  const decryptAll = async (recs: VaultRecord[], key: CryptoKey): Promise<StashItem[]> => {
+    const out: StashItem[] = [];
+    for (const r of recs) {
+      if (r.id === META_ID || !r.enc) continue;
+      try {
+        const payload = await decryptJSON<{ title: string; url: string; context: string }>(key, r.enc);
+        out.push({
+          id: r.id,
+          title: payload.title || "",
+          url: payload.url || "",
+          context: payload.context || "",
+          watched: !!r.watched,
+          createdAt: r.createdAt || new Date(0).toISOString(),
+        });
+      } catch {
+        /* skip records that don't decrypt */
+      }
     }
-  }, []);
+    out.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return out;
+  };
+
+  /* Verify PIN (and set up the vault on first run). Returns success. */
+  const verify = async (pin: string): Promise<boolean> => {
+    try {
+      const metaRec = records.find((r) => r.id === META_ID);
+
+      if (!metaRec || !metaRec.salt || !metaRec.check) {
+        // First-time setup: create salt + verifier under the chosen PIN.
+        const salt = randomBytes(16);
+        const key = await deriveKey(pin, salt);
+        const check = await encryptJSON(key, MAGIC);
+        const meta: VaultRecord = { id: META_ID, salt: bytesToB64(salt), check };
+        keyRef.current = key;
+        const items = records.filter((r) => r.id !== META_ID && r.enc);
+        setRecords([meta, ...items]);
+        setStash(await decryptAll(items, key));
+        return true;
+      }
+
+      // Unlock: derive key and decrypt the verifier to confirm the PIN.
+      const salt = b64ToBytes(metaRec.salt);
+      const key = await deriveKey(pin, salt);
+      const value = await decryptJSON<string>(key, metaRec.check); // throws on wrong PIN
+      if (value !== MAGIC) return false;
+      keyRef.current = key;
+      const items = records.filter((r) => r.id !== META_ID && r.enc);
+      setStash(await decryptAll(items, key));
+      return true;
+    } catch {
+      return false;
+    }
+  };
 
   const unlock = () => {
     try { sessionStorage.setItem(SESSION_KEY, "1"); } catch { /* ignore */ }
@@ -176,16 +253,23 @@ export default function VaultPage() {
 
   const lock = () => {
     try { sessionStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
+    wipe();
     setLocked(true);
   };
+
+  // Re-lock on a hard reload — the session flag only survives in-app navigation,
+  // and we still require the PIN again to re-derive the key (data stays encrypted).
+  // (We intentionally do NOT auto-unlock from the session flag, since the key
+  //  cannot be restored without the PIN.)
 
   // Auto-lock after 1 minute of inactivity (only while unlocked).
   useEffect(() => {
     if (locked) return;
-    const TIMEOUT = 60_000; // 1 minute
+    const TIMEOUT = 60_000;
     let timer: ReturnType<typeof setTimeout>;
     const doAutoLock = () => {
       try { sessionStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
+      wipe();
       setAutoLocked(true);
       setLocked(true);
     };
@@ -202,36 +286,41 @@ export default function VaultPage() {
     };
   }, [locked]);
 
-  // Auto-dismiss the "locked" toast after a few seconds.
   useEffect(() => {
     if (!autoLocked) return;
     const t = setTimeout(() => setAutoLocked(false), 4500);
     return () => clearTimeout(t);
   }, [autoLocked]);
 
-  const add = () => {
+  /* Mutations */
+  const add = async () => {
+    const key = keyRef.current;
+    if (!key) return;
     const cleanUrl = normalizeUrl(url);
     if (!cleanUrl && !title.trim() && !context.trim()) return;
-    const item: StashItem = {
-      id: `st-${Date.now()}`,
-      title: title.trim(),
-      url: cleanUrl,
-      context: context.trim(),
-      watched: false,
-      createdAt: new Date().toISOString(),
-    };
-    setItems((prev) => [item, ...prev]);
+    const id = `st-${Date.now()}`;
+    const createdAt = new Date().toISOString();
+    const enc = await encryptJSON(key, { title: title.trim(), url: cleanUrl, context: context.trim() });
+    const rec: VaultRecord = { id, enc, watched: false, createdAt };
+    setRecords((prev) => [rec, ...prev]);
+    setStash((prev) => [{ id, title: title.trim(), url: cleanUrl, context: context.trim(), watched: false, createdAt }, ...prev]);
     setUrl("");
     setTitle("");
     setContext("");
   };
 
-  const remove = (id: string) => setItems((prev) => prev.filter((i) => i.id !== id));
-  const toggleWatched = (id: string) =>
-    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, watched: !i.watched } : i)));
+  const remove = (id: string) => {
+    setRecords((prev) => prev.filter((r) => r.id !== id));
+    setStash((prev) => prev.filter((i) => i.id !== id));
+  };
 
-  const visible = items.filter((i) => (showWatched ? true : !i.watched));
-  const pendingCount = items.filter((i) => !i.watched).length;
+  const toggleWatched = (id: string) => {
+    setRecords((prev) => prev.map((r) => (r.id === id ? { ...r, watched: !r.watched } : r)));
+    setStash((prev) => prev.map((i) => (i.id === id ? { ...i, watched: !i.watched } : i)));
+  };
+
+  const visible = stash.filter((i) => (showWatched ? true : !i.watched));
+  const pendingCount = stash.filter((i) => !i.watched).length;
 
   return (
     <div>
@@ -254,7 +343,25 @@ export default function VaultPage() {
 
       <AnimatePresence mode="wait">
         {locked ? (
-          <VaultLock key="lock" onUnlock={unlock} notice={autoLocked ? "Locked due to inactivity" : undefined} />
+          !isReady ? (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex items-center justify-center min-h-[calc(100vh-200px)] text-[#999]"
+            >
+              <Loader2 className="animate-spin" size={24} />
+            </motion.div>
+          ) : (
+            <VaultLock
+              key="lock"
+              mode={mode}
+              verify={verify}
+              onUnlock={unlock}
+              notice={autoLocked ? "Locked due to inactivity" : undefined}
+            />
+          )
         ) : (
           <motion.div
             key="content"
@@ -266,11 +373,9 @@ export default function VaultPage() {
             {/* Header */}
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div>
-                <h2 className="text-2xl font-bold text-black tracking-tight flex items-center gap-2">
-                  Vault
-                </h2>
+                <h2 className="text-2xl font-bold text-black tracking-tight">Vault</h2>
                 <p className="text-sm text-[#888] mt-1">
-                  {pendingCount} to revisit · {items.length} saved
+                  {pendingCount} to revisit · {stash.length} saved · encrypted
                 </p>
               </div>
               <button
@@ -324,7 +429,7 @@ export default function VaultPage() {
             </div>
 
             {/* Filter toggle */}
-            {items.some((i) => i.watched) && (
+            {stash.some((i) => i.watched) && (
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowWatched((v) => !v)}
@@ -354,7 +459,7 @@ export default function VaultPage() {
                 <div>
                   <h3 className="font-semibold text-black">Nothing saved yet</h3>
                   <p className="text-sm text-[#888] mt-1 max-w-xs">
-                    Paste a link and jot down where you left off — come back anytime to pick up the context.
+                    Paste a link and jot down where you left off — everything here is encrypted with your PIN.
                   </p>
                 </div>
               </div>
