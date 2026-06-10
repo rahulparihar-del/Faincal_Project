@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useData } from "@/context/DataContext";
 import { Drawer } from "@/components/ui/Drawer";
 import { CardGroup, StatCard } from "@/components/ui/Card";
@@ -9,6 +9,51 @@ import { WholesaleSale, PaymentMode } from "@/lib/types";
 import { wholesaleTotal } from "@/lib/wholesale";
 import { gsap } from "gsap";
 import { Plus, Trash2, Eye, ShoppingCart, IndianRupee, AlertTriangle } from "lucide-react";
+
+/* ─── Tax-invoice seed data (added once, matched by bill no) ─── */
+type SeedRow = [billNo: string, date: string, buyer: string, total: number, paid: boolean];
+const WHOLESALE_SEED_ROWS: SeedRow[] = [
+  ["WHL/2026-27/0028", "2026-06-09", "WEEBERRY", 1440, false],
+  ["WHL/2026-27/0027", "2026-06-03", "Tanisha Fashion", 5985, false],
+  ["WHL/2026-27/0026", "2026-05-31", "K Creation Kids Wear", 9090, false],
+  ["WHL/2026-27/0025", "2026-05-28", "New Good Luck", 1080, false],
+  ["WHL/2026-27/0024", "2026-05-24", "Just Kids", 2220, false],
+  ["WHL/2026-27/0023", "2026-05-21", "Smart Kid's", 1440, false],
+  ["WHL/2026-27/0022", "2026-05-17", "K Creation Kids Wear", 12470, false],
+  ["WHL/2026-27/0021", "2026-05-16", "New Good Luck", 2160, false],
+  ["WHL/2026-27/0020", "2026-05-15", "Good Luck Kids and Co", 2340, false],
+  ["WHL/2026-27/0019", "2026-05-15", "Just Kids", 2130, false],
+  ["WHL/2026-27/0018", "2026-05-06", "Little Champs", 8100, false],
+  ["WHL/2026-27/0017", "2026-05-06", "Amar Womens And Kids", 1350, false],
+  ["WHL/2026-27/0016", "2026-05-02", "Kids City", 16465, false],
+  ["WHL/2026-27/0015", "2026-05-02", "Kids Zone", 7300, false],
+  ["WHL/2026-27/0014", "2026-04-20", "Amar Womens And Kids", 4860, false],
+  ["WHL/2026-27/0013", "2026-04-19", "RASPBERRY FASHION", 600, false],
+  ["WHL/2026-27/0012", "2026-04-19", "Good Luck Kids and Co", 2250, true],
+  ["WHL/2026-27/0011", "2026-04-17", "Amar Womens And Kids", 2220, false],
+  ["WHL/2026-27/0010", "2026-04-17", "Ammy", 635, false],
+  ["WHL/2026-27/0009", "2026-04-16", "K Creation Kids Wear", 12240, false],
+  ["WHL/2026-27/0008", "2026-04-17", "Dwarka Kids & Ladies", 2520, false],
+  ["WHL/2026-27/0007", "2026-04-17", "Shree Balaji Collection", 12600, false],
+  ["WHL/2026-27/0006", "2026-04-15", "Kids Zone", 4560, false],
+  ["WHL/2026-27/0005", "2026-04-15", "Just Kids", 3420, false],
+  ["WHL/2026-27/0004", "2026-04-15", "Naughty Kids", 15720, true],
+  ["WHL/2026-27/0003", "2026-04-14", "Ravi Parihar", 335, false],
+  ["WHL/2026-27/0002", "2026-04-13", "Shree Gopal Kabra", 1200, true],
+  ["WHL/2026-27/0001", "2026-04-03", "Kids City", 720, true],
+];
+const WHOLESALE_SEED: WholesaleSale[] = WHOLESALE_SEED_ROWS.map(([billNo, date, buyer, total, paid]) => ({
+  id: `ws-${billNo.replace(/[^0-9]/g, "")}`,
+  date,
+  billNo,
+  retailerName: buyer,
+  phone: "",
+  city: "",
+  billAmount: total,
+  receivedDate: paid ? date : "",
+  paymentReceived: paid ? total : 0,
+  paymentMode: "UPI" as PaymentMode,
+}));
 
 /**
  * Stable identity for a retailer. Prefers the phone number (so two shops with
@@ -21,9 +66,23 @@ function getRetailerKey(w: { phone: string; retailerName: string }): string {
 }
 
 export default function WholesaleSalesPage() {
-  const { wholesaleSales, setWholesaleSales } = useData();
+  const { wholesaleSales, setWholesaleSales, isReady } = useData();
   const [selectedRetailer, setSelectedRetailer] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const seededRef = useRef(false);
+
+  // Add the tax-invoice data once. Matched by bill no so it never duplicates;
+  // if any of these bills already exist we leave the data untouched.
+  useEffect(() => {
+    if (!isReady || seededRef.current) return;
+    seededRef.current = true;
+    const existing = new Set(wholesaleSales.map((w) => w.billNo));
+    const anyPresent = WHOLESALE_SEED.some((s) => existing.has(s.billNo));
+    if (!anyPresent) {
+      setWholesaleSales((prev) => [...WHOLESALE_SEED, ...prev]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isReady]);
 
   // Inline "add bill" form state
   const today = new Date().toISOString().split("T")[0];
