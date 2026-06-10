@@ -24,8 +24,6 @@ export default function EcomSales() {
 
   // Filters
   const [platformFilter, setPlatformFilter] = useState<Platform | "All">("All");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
 
   const stats = useMemo(() => {
     let gross = 0, returns = 0, net = 0;
@@ -152,25 +150,9 @@ export default function EcomSales() {
               </button>
             );
           })}
-        </div>
-        {/* Date range */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <input
-            type="date"
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-            className="bg-[#f5f5f5] border-0 rounded-lg px-3 py-2 text-sm font-medium text-black focus:outline-none focus:ring-2 focus:ring-black/10"
-          />
-          <span className="text-[#888] text-sm">to</span>
-          <input
-            type="date"
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-            className="bg-[#f5f5f5] border-0 rounded-lg px-3 py-2 text-sm font-medium text-black focus:outline-none focus:ring-2 focus:ring-black/10"
-          />
-          {(platformFilter !== "All" || dateFrom || dateTo) && (
+          {platformFilter !== "All" && (
             <button
-              onClick={() => { setPlatformFilter("All"); setDateFrom(""); setDateTo(""); }}
+              onClick={() => setPlatformFilter("All")}
               className="text-xs font-bold text-[#888] hover:text-black transition-colors ml-1"
             >
               Clear
