@@ -139,21 +139,6 @@ begin
   execute 'create policy "anon_full_access" on public.site_bookmarks for all to anon, authenticated using (true) with check (true);';
 end $$;
 
--- ---------- Notes (Notion-style rich notes) ----------
-create table if not exists public.notes (
-  id          text primary key,
-  data        jsonb not null,
-  created_at  timestamptz not null default now()
-);
-
-alter table public.notes enable row level security;
-
-do $$
-begin
-  execute 'drop policy if exists "anon_full_access" on public.notes;';
-  execute 'create policy "anon_full_access" on public.notes for all to anon, authenticated using (true) with check (true);';
-end $$;
-
 -- ---------- Catalog: platforms + products ----------
 create table if not exists public.platforms (
   id          text primary key,
@@ -212,4 +197,19 @@ do $$
 begin
   execute 'drop policy if exists "anon_full_access" on public.inventory_categories;';
   execute 'create policy "anon_full_access" on public.inventory_categories for all to anon, authenticated using (true) with check (true);';
+end $$;
+
+-- ---------- Branding & packaging enquiries (boxes, tags, labels) ----------
+create table if not exists public.branding_enquiries (
+  id          text primary key,
+  data        jsonb not null,
+  created_at  timestamptz not null default now()
+);
+
+alter table public.branding_enquiries enable row level security;
+
+do $$
+begin
+  execute 'drop policy if exists "anon_full_access" on public.branding_enquiries;';
+  execute 'create policy "anon_full_access" on public.branding_enquiries for all to anon, authenticated using (true) with check (true);';
 end $$;

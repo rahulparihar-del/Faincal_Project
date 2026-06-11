@@ -19,7 +19,7 @@ const TAB_NAMES: Record<string, string> = {
   "/inventory": "Prints Inventory",
   "/sites": "My Sites",
   "/catalog": "Catalog",
-  "/notes": "Notes",
+  "/branding": "Branding & Packaging",
   "/vault": "Vault",
 };
 

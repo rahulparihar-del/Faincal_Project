@@ -16,10 +16,10 @@ import {
   ScanLine,
   Receipt,
   Globe,
-  NotebookPen,
   Boxes,
   LockKeyhole,
   Package,
+  Stamp,
 } from "lucide-react";
 import { gsap } from "gsap";
 import { useGSAP } from "@gsap/react";
@@ -36,7 +36,7 @@ const NAV_ITEMS = [
   { name: "Stock Inventory", href: "/inventory",   icon: Package,         mobileName: "Stock" },
   { name: "My Sites",      href: "/sites",         icon: Globe,           mobileName: "Sites" },
   { name: "Catalog",       href: "/catalog",       icon: Boxes,           mobileName: "Catalog" },
-  { name: "Notes",         href: "/notes",         icon: NotebookPen,     mobileName: "Notes" },
+  { name: "Branding",      href: "/branding",      icon: Stamp,           mobileName: "Branding" },
   { name: "Vault",         href: "/vault",         icon: LockKeyhole,     mobileName: "Vault" },
 ];
 
