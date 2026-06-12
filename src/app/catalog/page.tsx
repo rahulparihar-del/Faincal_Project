@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useSupabaseTable } from "@/lib/hooks/useSupabaseTable";
 import {
   Store,
@@ -14,6 +14,7 @@ import {
   Pencil,
   Globe,
   ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 /* ─── Types ─────────────────────────────────────────────────── */
@@ -22,6 +23,7 @@ interface Platform {
   name: string;
   url: string;
   status: string; // "onboarded" | "in_process" | "rejected"
+  order?: number; // manual sort position (lower = higher up)
   createdAt: string;
 }
 
@@ -258,6 +260,9 @@ function PlatformCard({
   onSetStatus,
   onToggleProduct,
   onCreateProduct,
+  onMove,
+  canUp,
+  canDown,
 }: {
   platform: Platform;
   products: Product[];
@@ -266,6 +271,9 @@ function PlatformCard({
   onSetStatus: (id: string, status: string) => void;
   onToggleProduct: (productId: string, platformId: string) => void;
   onCreateProduct: (name: string, platformId: string) => void;
+  onMove: (id: string, dir: "up" | "down") => void;
+  canUp: boolean;
+  canDown: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(platform.name);
@@ -328,6 +336,24 @@ function PlatformCard({
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-col">
+            <button
+              onClick={() => onMove(platform.id, "up")}
+              disabled={!canUp}
+              className="w-6 h-5 flex items-center justify-center rounded text-[#bbb] hover:text-black hover:bg-[#f5f5f5] disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+              title="Move up"
+            >
+              <ChevronUp size={14} />
+            </button>
+            <button
+              onClick={() => onMove(platform.id, "down")}
+              disabled={!canDown}
+              className="w-6 h-5 flex items-center justify-center rounded text-[#bbb] hover:text-black hover:bg-[#f5f5f5] disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+              title="Move down"
+            >
+              <ChevronDown size={14} />
+            </button>
+          </div>
           <StatusBadge status={statusOf(platform)} onChange={(s) => onSetStatus(platform.id, s)} />
           <button
             onClick={() => onDelete(platform.id)}
@@ -372,28 +398,75 @@ function PlatformCard({
 
 /* ─── Page ──────────────────────────────────────────────────── */
 export default function CatalogPage() {
-  const [platforms, setPlatforms] = useSupabaseTable<Platform>("platforms", PLATFORM_KEY, []);
+  const [platforms, setPlatforms, platformsReady] = useSupabaseTable<Platform>("platforms", PLATFORM_KEY, []);
   const [products, setProducts] = useSupabaseTable<Product>("products", PRODUCT_KEY, []);
 
   const [pfName, setPfName] = useState("");
   const [pfUrl, setPfUrl] = useState("");
   const [filter, setFilter] = useState<string>("all");
+  const normRef = useRef(false);
+
+  // One-time: give every platform a numeric `order` (preserving current
+  // newest-first layout) so move up/down has a stable basis. Persists to DB.
+  useEffect(() => {
+    if (!platformsReady || normRef.current) return;
+    normRef.current = true;
+    if (platforms.length > 0 && platforms.some((p) => typeof p.order !== "number")) {
+      const sorted = [...platforms].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+      const orderMap = new Map(sorted.map((p, i) => [p.id, i]));
+      setPlatforms((prev) => prev.map((p) => ({ ...p, order: orderMap.get(p.id) ?? 0 })));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [platformsReady]);
+
+  // Platforms sorted by their saved order (lower = higher up).
+  const sortedPlatforms = useMemo(() => {
+    return [...platforms].sort((a, b) => {
+      const ao = a.order, bo = b.order;
+      const aHas = typeof ao === "number", bHas = typeof bo === "number";
+      if (aHas && bHas) return ao - bo;
+      if (aHas) return -1;
+      if (bHas) return 1;
+      return (b.createdAt || "").localeCompare(a.createdAt || "");
+    });
+  }, [platforms]);
 
   /* Platforms */
   const addPlatform = () => {
     const url = normalizeUrl(pfUrl);
     const name = pfName.trim() || (url ? hostnameOf(url) : "");
     if (!name) return;
+    const minOrder = platforms.reduce((m, p) => (typeof p.order === "number" ? Math.min(m, p.order) : m), 0);
     const platform: Platform = {
       id: `pf-${Date.now()}`,
       name,
       url: url || "",
       status: DEFAULT_STATUS,
+      order: minOrder - 1,
       createdAt: new Date().toISOString(),
     };
     setPlatforms((prev) => [platform, ...prev]);
     setPfName("");
     setPfUrl("");
+  };
+
+  // Move a platform up/down by swapping its order with the adjacent visible one.
+  const movePlatform = (id: string, dir: "up" | "down") => {
+    const list = visiblePlatforms;
+    const idx = list.findIndex((p) => p.id === id);
+    const j = dir === "up" ? idx - 1 : idx + 1;
+    if (idx < 0 || j < 0 || j >= list.length) return;
+    const a = list[idx];
+    const b = list[j];
+    const ao = typeof a.order === "number" ? a.order : idx;
+    const bo = typeof b.order === "number" ? b.order : j;
+    setPlatforms((prev) =>
+      prev.map((p) => {
+        if (p.id === a.id) return { ...p, order: bo };
+        if (p.id === b.id) return { ...p, order: ao };
+        return p;
+      })
+    );
   };
 
   const deletePlatform = (id: string) => {
@@ -453,7 +526,7 @@ export default function CatalogPage() {
 
   const onboardedCount = platforms.filter((p) => statusOf(p) === "onboarded").length;
   const inProcessCount = platforms.filter((p) => statusOf(p) === "in_process").length;
-  const visiblePlatforms = filter === "all" ? platforms : platforms.filter((p) => statusOf(p) === filter);
+  const visiblePlatforms = filter === "all" ? sortedPlatforms : sortedPlatforms.filter((p) => statusOf(p) === filter);
 
   return (
     <div className="space-y-6">
@@ -539,7 +612,7 @@ export default function CatalogPage() {
       {platforms.length > 0 ? (
         visiblePlatforms.length > 0 ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            {visiblePlatforms.map((pf) => (
+            {visiblePlatforms.map((pf, i) => (
               <PlatformCard
                 key={pf.id}
                 platform={pf}
@@ -549,6 +622,9 @@ export default function CatalogPage() {
                 onSetStatus={setPlatformStatus}
                 onToggleProduct={toggleProduct}
                 onCreateProduct={createProduct}
+                onMove={movePlatform}
+                canUp={i > 0}
+                canDown={i < visiblePlatforms.length - 1}
               />
             ))}
           </div>
