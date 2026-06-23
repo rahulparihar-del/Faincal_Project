@@ -355,6 +355,7 @@ export interface ExtractedOrder {
 
 async function extractFromPdf(
   file: File,
+  useAi: boolean,
   onProgress: (msg: string, pct: number) => void
 ): Promise<ExtractedOrder[]> {
   onProgress("Loading PDF…", 5);
@@ -365,11 +366,10 @@ async function extractFromPdf(
   const pdf = await pdfjs.getDocument({ data: buffer }).promise;
   const total = pdf.numPages;
 
-  const shippingPages: (ShippingData & { pageNo: number })[] = [];
-  const invoicePages:  (InvoiceData  & { pageNo: number })[] = [];
+  const pageTexts: { pageNo: number; text: string; type: "shipping" | "invoice" | "unknown" }[] = [];
 
   for (let i = 1; i <= total; i++) {
-    onProgress(`Reading page ${i}/${total}…`, 5 + Math.round((i / total) * 65));
+    onProgress(`Reading page ${i}/${total}…`, 5 + Math.round((i / total) * 35));
     const page = await pdf.getPage(i);
 
     // ── Try text extraction first ──
@@ -381,17 +381,100 @@ async function extractFromPdf(
     const hasEnoughText = text.replace(/\s/g, "").length > 80;
     if (!hasEnoughText) {
       try {
-        onProgress(`Page ${i}: scanning image…`, 5 + Math.round((i / total) * 65));
+        onProgress(`Page ${i}: scanning image…`, 5 + Math.round((i / total) * 35));
         const canvas = await renderPageToCanvas(page);
-        text = await ocrCanvas(canvas, (s) => onProgress(s, 5 + Math.round((i / total) * 65)));
+        text = await ocrCanvas(canvas, (s) => onProgress(s, 5 + Math.round((i / total) * 35)));
       } catch {
         // OCR failed, continue with empty text
       }
     }
 
-    const type = classifyPage(text);
-    if (type === "invoice")  invoicePages.push({ ...parseInvoice(text), pageNo: i });
-    else if (type === "shipping") shippingPages.push({ ...parseShippingLabel(text), pageNo: i });
+    pageTexts.push({ pageNo: i, text, type: classifyPage(text) });
+  }
+
+  const shippingPages: (ShippingData & { pageNo: number })[] = [];
+  const invoicePages:  (InvoiceData  & { pageNo: number })[] = [];
+
+  // Parse page content (with Claude AI if enabled, or local regex)
+  const parsePage = async (item: typeof pageTexts[0], index: number) => {
+    if (!useAi || item.type === "unknown") {
+      return {
+        index,
+        data: item.type === "invoice" ? parseInvoice(item.text) : item.type === "shipping" ? parseShippingLabel(item.text) : null,
+        type: item.type
+      };
+    }
+
+    try {
+      const res = await fetch("/api/parse-orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: item.text })
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const parsed = await res.json();
+      if (parsed.error) throw new Error(parsed.error);
+      return { index, data: parsed, type: parsed.type };
+    } catch (e) {
+      console.error(`AI parsing failed for page ${item.pageNo}, falling back to regex:`, e);
+      const fallbackData = item.type === "invoice" ? parseInvoice(item.text) : item.type === "shipping" ? parseShippingLabel(item.text) : null;
+      return { index, data: fallbackData, type: item.type };
+    }
+  };
+
+  const concurrencyLimit = 4;
+  const chunks: { pageNo: number; text: string; type: "shipping" | "invoice" | "unknown" }[][] = [];
+  for (let i = 0; i < pageTexts.length; i += concurrencyLimit) {
+    chunks.push(pageTexts.slice(i, i + concurrencyLimit));
+  }
+
+  const finalParsed: any[] = [];
+  for (let c = 0; c < chunks.length; c++) {
+    const chunk = chunks[c];
+    const chunkIndexStart = c * concurrencyLimit;
+    onProgress(`AI scanning pages ${chunkIndexStart + 1} to ${Math.min(chunkIndexStart + concurrencyLimit, total)}…`, 40 + Math.round((c / chunks.length) * 40));
+
+    const chunkResults = await Promise.all(
+      chunk.map((item, idx) => parsePage(item, chunkIndexStart + idx))
+    );
+    finalParsed.push(...chunkResults);
+  }
+
+  for (const item of finalParsed) {
+    const pageNo = pageTexts[item.index].pageNo;
+    if (item.type === "invoice") {
+      invoicePages.push({
+        orderNo: item.data?.orderNo || "",
+        invoiceNo: item.data?.invoiceNo || "",
+        customerName: item.data?.customerName || "",
+        customerAddress: item.data?.customerAddress || "",
+        customerCity: item.data?.customerCity || "",
+        customerPincode: item.data?.customerPincode || "",
+        productName: item.data?.productName || "",
+        size: item.data?.size || "",
+        grossAmount: Number(item.data?.grossAmount) || 0,
+        discount: Number(item.data?.discount) || 0,
+        tax: Number(item.data?.tax) || 0,
+        total: Number(item.data?.total) || 0,
+        pageNo
+      });
+    } else if (item.type === "shipping") {
+      shippingPages.push({
+        orderNo: item.data?.orderNo || "",
+        customerName: item.data?.customerName || "",
+        customerAddress: item.data?.customerAddress || "",
+        customerCity: item.data?.customerCity || "",
+        customerPincode: item.data?.customerPincode || "",
+        sku: item.data?.sku || "",
+        size: item.data?.size || "",
+        color: item.data?.color || "",
+        qty: Number(item.data?.qty) || 1,
+        paymentType: item.data?.paymentType === "COD" ? "COD" : "Prepaid",
+        courier: item.data?.courier || "",
+        codAmount: Number(item.data?.codAmount) || 0,
+        pageNo
+      });
+    }
   }
 
   onProgress("Matching orders…", 80);
@@ -658,6 +741,7 @@ type AppState = "idle" | "processing" | "reviewing";
 export default function MeeshoOrders() {
   const { meeshoOrders, setMeeshoOrders } = useData();
   const [appState, setAppState]           = useState<AppState>("idle");
+  const [useAi, setUseAi]                 = useState(true);
   const [progressMsg, setProgressMsg]     = useState("");
   const [progressPct, setProgressPct]     = useState(0);
   const [extracted, setExtracted]         = useState<ExtractedOrder[]>([]);
@@ -696,7 +780,7 @@ export default function MeeshoOrders() {
     setProgressPct(0);
     setProgressMsg("Starting…");
     try {
-      const orders = await extractFromPdf(file, (msg, pct) => { setProgressMsg(msg); setProgressPct(pct); });
+      const orders = await extractFromPdf(file, useAi, (msg, pct) => { setProgressMsg(msg); setProgressPct(pct); });
       if (orders.length === 0) { setError("No orders found. Make sure this is a Meesho shipping PDF."); setAppState("idle"); return; }
       setExtracted(orders);
       setAppState("reviewing");
@@ -705,7 +789,7 @@ export default function MeeshoOrders() {
       setError("Failed to process PDF. Please try again.");
       setAppState("idle");
     }
-  }, []);
+  }, [useAi]);
 
   const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault(); setIsDragging(false);
@@ -745,6 +829,33 @@ export default function MeeshoOrders() {
         <input ref={fileInputRef} type="file" accept=".pdf,application/pdf" className="hidden"
           onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
       </div>
+
+      {/* AI Toggle Bar */}
+      {appState !== "reviewing" && (
+        <div className="flex items-center justify-between bg-gradient-to-r from-violet-50/50 to-indigo-50/50 border border-violet-100 rounded-2xl px-4 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 bg-violet-600/10 rounded-xl flex items-center justify-center shrink-0">
+              <Sparkles size={16} className="text-violet-600" />
+            </div>
+            <div>
+              <div className="font-bold text-xs text-slate-800 flex items-center gap-1.5 flex-wrap">
+                Claude AI Order Parser
+                <span className="bg-violet-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider scale-90">High Accuracy</span>
+              </div>
+              <div className="text-[10px] text-slate-500 mt-0.5">Scans names, items, prices, discounts, and addresses with near 100% accuracy using Claude 3.5 Sonnet.</div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setUseAi(!useAi)}
+            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${useAi ? 'bg-violet-600' : 'bg-slate-200'}`}
+          >
+            <span
+              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${useAi ? 'translate-x-5' : 'translate-x-0'}`}
+            />
+          </button>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
