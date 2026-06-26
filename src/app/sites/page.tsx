@@ -15,7 +15,11 @@ import {
   Star,
   StarOff,
   AlertCircle,
+  Settings,
+  Copy,
+  CheckCircle2,
 } from "lucide-react";
+import { Modal } from "@/components/ui/Modal";
 
 /* ─── Types ─────────────────────────────────────────────────── */
 interface SiteBookmark {
@@ -29,6 +33,9 @@ interface SiteBookmark {
   pinned: boolean;
   addedAt: string;
   category: string;
+  gtmId?: string;
+  googleTagId?: string;
+  notes?: string;
 }
 
 const STORAGE_KEY = "biztrack_site_bookmarks";
@@ -69,6 +76,7 @@ function SiteCard({
   onTogglePin,
   onRefresh,
   onEditTitle,
+  onOpenDetails,
   refreshingId,
 }: {
   site: SiteBookmark;
@@ -76,6 +84,7 @@ function SiteCard({
   onTogglePin: (id: string) => void;
   onRefresh: (id: string) => void;
   onEditTitle: (id: string, title: string) => void;
+  onOpenDetails: (site: SiteBookmark) => void;
   refreshingId: string | null;
 }) {
   const [editing, setEditing] = useState(false);
@@ -103,7 +112,7 @@ function SiteCard({
 
       {/* OG / Hero image — falls back to favicon tile if URL errors */}
       {site.ogImage && !ogImgError ? (
-        <div className="relative h-32 overflow-hidden bg-[#f5f5f5] shrink-0" onClick={handleOpen}>
+        <div className="relative h-32 overflow-hidden bg-[#f5f5f5] shrink-0" onClick={() => onOpenDetails(site)}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={site.ogImage}
@@ -116,7 +125,7 @@ function SiteCard({
       ) : (
         <div
           className="h-32 flex items-center justify-center bg-gradient-to-br from-[#f8f8f8] to-[#f0f0f0] shrink-0 cursor-pointer"
-          onClick={handleOpen}
+          onClick={() => onOpenDetails(site)}
         >
           <div className="w-14 h-14 rounded-2xl bg-white shadow-sm flex items-center justify-center border border-[#e8e8e8]">
             <FaviconImg src={site.favicon} hostname={site.hostname} size={32} />
@@ -134,7 +143,7 @@ function SiteCard({
           )}
           <div className="flex-1 min-w-0">
             {editing ? (
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                 <input
                   ref={inputRef}
                   value={draft}
@@ -149,8 +158,8 @@ function SiteCard({
             ) : (
               <div className="flex items-center gap-1 group/title">
                 <h3
-                  className="font-semibold text-sm text-black leading-snug line-clamp-1 flex-1 cursor-pointer"
-                  onClick={handleOpen}
+                  className="font-semibold text-sm text-black leading-snug line-clamp-1 flex-1 cursor-pointer hover:underline"
+                  onClick={() => onOpenDetails(site)}
                 >
                   {site.title}
                 </h3>
@@ -162,12 +171,12 @@ function SiteCard({
                 </button>
               </div>
             )}
-            <p className="text-[11px] text-[#aaa] mt-0.5 truncate">{site.hostname}</p>
+            <p className="text-[11px] text-[#aaa] mt-0.5 truncate" onClick={() => onOpenDetails(site)}>{site.hostname}</p>
           </div>
         </div>
 
         {site.description && (
-          <p className="text-[12px] text-[#888] leading-relaxed line-clamp-2">{site.description}</p>
+          <p className="text-[12px] text-[#888] leading-relaxed line-clamp-2" onClick={() => onOpenDetails(site)}>{site.description}</p>
         )}
       </div>
 
@@ -179,7 +188,7 @@ function SiteCard({
         </span>
 
         {/* Actions */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
           <button
             onClick={() => onTogglePin(site.id)}
             className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${
@@ -190,6 +199,13 @@ function SiteCard({
             title={site.pinned ? "Unpin" : "Pin to top"}
           >
             {site.pinned ? <Star size={13} fill="currentColor" /> : <StarOff size={13} />}
+          </button>
+          <button
+            onClick={() => onOpenDetails(site)}
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-[#ccc] hover:text-[#555] hover:bg-gray-50 transition-colors"
+            title="Tracking & Notes"
+          >
+            <Settings size={13} />
           </button>
           <button
             onClick={() => onRefresh(site.id)}
@@ -315,6 +331,46 @@ export default function MySitesPage() {
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  /* Details Modal States */
+  const [detailSite, setDetailSite] = useState<SiteBookmark | null>(null);
+  const [gtmDraft, setGtmDraft] = useState("");
+  const [tagDraft, setTagDraft] = useState("");
+  const [notesDraft, setNotesDraft] = useState("");
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (detailSite) {
+      setGtmDraft(detailSite.gtmId || "");
+      setTagDraft(detailSite.googleTagId || "");
+      setNotesDraft(detailSite.notes || "");
+      setCopiedField(null);
+    }
+  }, [detailSite]);
+
+  const handleCopyText = (text: string, fieldName: string) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedField(fieldName);
+    setTimeout(() => setCopiedField(null), 1500);
+  };
+
+  const handleSaveDetails = () => {
+    if (!detailSite) return;
+    setBookmarks((prev) =>
+      prev.map((b) =>
+        b.id === detailSite.id
+          ? {
+              ...b,
+              gtmId: gtmDraft.trim(),
+              googleTagId: tagDraft.trim(),
+              notes: notesDraft,
+            }
+          : b
+      )
+    );
+    setDetailSite(null);
+  };
+
   /* Fetch metadata */
   const fetchMeta = useCallback(async (url: string): Promise<Omit<SiteBookmark, "id" | "pinned" | "addedAt" | "category">> => {
     const res = await fetch(`/api/fetch-site-meta?url=${encodeURIComponent(url)}`);
@@ -437,6 +493,7 @@ export default function MySitesPage() {
               onTogglePin={handleTogglePin}
               onRefresh={handleRefresh}
               onEditTitle={handleEditTitle}
+              onOpenDetails={setDetailSite}
               refreshingId={refreshingId}
             />
           ))}
@@ -468,6 +525,124 @@ export default function MySitesPage() {
           </div>
         </div>
       ) : null}
+
+      {/* Details Modal */}
+      {detailSite && (
+        <Modal
+          isOpen={!!detailSite}
+          onClose={() => setDetailSite(null)}
+          title="Website Details & Tracking"
+          maxWidth="max-w-lg"
+        >
+          <div className="space-y-4 text-left">
+            {/* Domain and Visit Button */}
+            <div className="flex items-center justify-between p-3.5 rounded-xl bg-[#f8f8f8] dark:bg-[#1e1e1e] border border-[#e8e8e8] dark:border-[#2a2a2a]">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-white dark:bg-[#181818] border border-[#e8e8e8] dark:border-[#2a2a2a] flex items-center justify-center shrink-0 shadow-sm">
+                  <FaviconImg src={detailSite.favicon} hostname={detailSite.hostname} size={22} />
+                </div>
+                <div className="min-w-0">
+                  <h4 className="text-sm font-bold text-black dark:text-white truncate">{detailSite.title}</h4>
+                  <p className="text-xs text-[#888] dark:text-[#aaa] truncate">{detailSite.hostname}</p>
+                </div>
+              </div>
+              <a
+                href={detailSite.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-xs font-bold text-black dark:text-white bg-white dark:bg-[#252525] border border-[#e8e8e8] dark:border-[#2a2a2a] px-3 py-2 rounded-xl hover:bg-[#f5f5f5] dark:hover:bg-[#303030] transition-colors shrink-0 shadow-sm"
+              >
+                <span>Visit Site</span>
+                <ExternalLink size={12} />
+              </a>
+            </div>
+
+            {/* Google Tag Manager */}
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center">
+                <label className="text-xs font-bold text-black dark:text-white">Google Tag Manager (GTM) ID</label>
+                <span className="text-[10px] text-[#aaa] font-medium">e.g. GTM-XXXXXXX</span>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={gtmDraft}
+                  onChange={(e) => setGtmDraft(e.target.value)}
+                  placeholder="GTM-XXXXXXX"
+                  className="flex-1 text-sm bg-[#f8f8f8] dark:bg-[#1c1c1c] border border-[#e8e8e8] dark:border-[#2a2a2a] rounded-xl px-3 py-2.5 text-black dark:text-white placeholder:text-[#bbb] focus:outline-none focus:border-black dark:focus:border-white focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10 transition-all font-mono"
+                />
+                {gtmDraft.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => handleCopyText(gtmDraft.trim(), "gtm")}
+                    className="px-3 bg-white dark:bg-[#252525] border border-[#e8e8e8] dark:border-[#2a2a2a] hover:bg-[#f5f5f5] dark:hover:bg-[#303030] rounded-xl text-black dark:text-white flex items-center justify-center transition-colors shadow-sm shrink-0 min-w-[42px]"
+                    title="Copy GTM ID"
+                  >
+                    {copiedField === "gtm" ? <CheckCircle2 size={15} className="text-emerald-500" /> : <Copy size={14} />}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Google Tag / Measurement ID */}
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center">
+                <label className="text-xs font-bold text-black dark:text-white">Google Tag ID / Measurement ID</label>
+                <span className="text-[10px] text-[#aaa] font-medium">e.g. G-XXXXXXX</span>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={tagDraft}
+                  onChange={(e) => setTagDraft(e.target.value)}
+                  placeholder="G-XXXXXXX or AW-XXXXXXX"
+                  className="flex-1 text-sm bg-[#f8f8f8] dark:bg-[#1c1c1c] border border-[#e8e8e8] dark:border-[#2a2a2a] rounded-xl px-3 py-2.5 text-black dark:text-white placeholder:text-[#bbb] focus:outline-none focus:border-black dark:focus:border-white focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10 transition-all font-mono"
+                />
+                {tagDraft.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => handleCopyText(tagDraft.trim(), "tag")}
+                    className="px-3 bg-white dark:bg-[#252525] border border-[#e8e8e8] dark:border-[#2a2a2a] hover:bg-[#f5f5f5] dark:hover:bg-[#303030] rounded-xl text-black dark:text-white flex items-center justify-center transition-colors shadow-sm shrink-0 min-w-[42px]"
+                    title="Copy Tag ID"
+                  >
+                    {copiedField === "tag" ? <CheckCircle2 size={15} className="text-emerald-500" /> : <Copy size={14} />}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Additional Details & Notes */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-black dark:text-white">Additional Details & Notes</label>
+              <textarea
+                value={notesDraft}
+                onChange={(e) => setNotesDraft(e.target.value)}
+                placeholder="Paste code snippets, API keys, or custom configuration guidelines here so you never forget them..."
+                rows={5}
+                className="w-full text-sm bg-[#f8f8f8] dark:bg-[#1c1c1c] border border-[#e8e8e8] dark:border-[#2a2a2a] rounded-xl px-3 py-2.5 text-black dark:text-white placeholder:text-[#bbb] focus:outline-none focus:border-black dark:focus:border-white focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10 transition-all resize-none font-sans"
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-2 pt-4 border-t border-[#e8e8e8] dark:border-[#2a2a2a] mt-6">
+              <button
+                type="button"
+                onClick={() => setDetailSite(null)}
+                className="px-4 py-2.5 text-xs font-bold text-black dark:text-white bg-white dark:bg-[#252525] border border-[#e8e8e8] dark:border-[#2a2a2a] hover:bg-[#f5f5f5] dark:hover:bg-[#303030] rounded-xl transition-all shadow-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveDetails}
+                className="px-4 py-2.5 text-xs font-bold text-white dark:text-black bg-black dark:bg-white hover:bg-black/90 dark:hover:bg-white/95 rounded-xl transition-all shadow-sm"
+              >
+                Save Details
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

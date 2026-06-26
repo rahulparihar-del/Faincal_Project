@@ -357,7 +357,11 @@ async function extractFromPdf(
   file: File,
   useAi: boolean,
   onProgress: (msg: string, pct: number) => void
-): Promise<ExtractedOrder[]> {
+): Promise<{
+  orders: ExtractedOrder[];
+  aiFailed: boolean;
+  errorMsg?: string;
+}> {
   onProgress("Loading PDF…", 5);
   const pdfjs: typeof import("pdfjs-dist") = await import("pdfjs-dist");
   pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -366,7 +370,16 @@ async function extractFromPdf(
   const pdf = await pdfjs.getDocument({ data: buffer }).promise;
   const total = pdf.numPages;
 
-  const pageTexts: { pageNo: number; text: string; type: "shipping" | "invoice" | "unknown" }[] = [];
+  let aiFailed = false;
+  let errorMsg = "";
+
+  const pageTexts: {
+    pageNo: number;
+    text: string;
+    image?: string;
+    isImage: boolean;
+    type: "shipping" | "invoice" | "unknown";
+  }[] = [];
 
   for (let i = 1; i <= total; i++) {
     onProgress(`Reading page ${i}/${total}…`, 5 + Math.round((i / total) * 35));
@@ -377,163 +390,187 @@ async function extractFromPdf(
     const rawItems = content.items as Array<{ str: string; transform: number[] }>;
     let text = posToText(extractPosItems(rawItems));
 
-    // ── If page has too little text → it's likely an image, OCR it ──
+    // ── If page has too little text → it's an image, render to base64 ──
     const hasEnoughText = text.replace(/\s/g, "").length > 80;
     if (!hasEnoughText) {
       try {
-        onProgress(`Page ${i}: scanning image…`, 5 + Math.round((i / total) * 35));
+        onProgress(`Page ${i}: rendering image…`, 5 + Math.round((i / total) * 35));
         const canvas = await renderPageToCanvas(page);
-        text = await ocrCanvas(canvas, (s) => onProgress(s, 5 + Math.round((i / total) * 35)));
-      } catch {
-        // OCR failed, continue with empty text
+        const base64 = canvas.toDataURL("image/jpeg", 0.85);
+        pageTexts.push({
+          pageNo: i,
+          text: "",
+          image: base64,
+          isImage: true,
+          type: "shipping" // assume shipping for image pages like barcode labels
+        });
+      } catch (err) {
+        console.error("Rendering page to canvas failed:", err);
+        pageTexts.push({ pageNo: i, text: "", isImage: false, type: "unknown" });
+      }
+    } else {
+      pageTexts.push({
+        pageNo: i,
+        text,
+        isImage: false,
+        type: classifyPage(text)
+      });
+    }
+  }
+
+  // Helper local fallback matching logic (in case AI fails or is disabled)
+  const localParseBatch = async (batch: typeof pageTexts) => {
+    const shippingPages: (ShippingData & { pageNo: number })[] = [];
+    const invoicePages:  (InvoiceData  & { pageNo: number })[] = [];
+
+    for (const item of batch) {
+      let textToParse = item.text;
+      let computedType = item.type;
+
+      if (item.isImage) {
+        try {
+          const page = await pdf.getPage(item.pageNo);
+          const canvas = await renderPageToCanvas(page);
+          textToParse = await ocrCanvas(canvas);
+          computedType = classifyPage(textToParse);
+        } catch {
+          textToParse = "";
+        }
+      }
+
+      if (computedType === "invoice") {
+        invoicePages.push({ ...parseInvoice(textToParse), pageNo: item.pageNo });
+      } else if (computedType === "shipping") {
+        shippingPages.push({ ...parseShippingLabel(textToParse), pageNo: item.pageNo });
       }
     }
 
-    pageTexts.push({ pageNo: i, text, type: classifyPage(text) });
-  }
+    const norm = (s: string) => s.replace(/_\d+$/, "").trim();
+    const batchOrders: ExtractedOrder[] = [];
+    const usedInvoices = new Set<number>();
 
-  const shippingPages: (ShippingData & { pageNo: number })[] = [];
-  const invoicePages:  (InvoiceData  & { pageNo: number })[] = [];
+    for (const ship of shippingPages) {
+      const shipNo = norm(ship.orderNo);
+      const inv = invoicePages.find(iv =>
+        !usedInvoices.has(iv.pageNo) &&
+        (shipNo && norm(iv.orderNo) === shipNo || !shipNo)
+      ) ?? invoicePages.find(iv => !usedInvoices.has(iv.pageNo));
 
-  // Parse page content (with Claude AI if enabled, or local regex)
-  const parsePage = async (item: typeof pageTexts[0], index: number) => {
-    if (!useAi || item.type === "unknown") {
-      return {
-        index,
-        data: item.type === "invoice" ? parseInvoice(item.text) : item.type === "shipping" ? parseShippingLabel(item.text) : null,
-        type: item.type
-      };
+      if (inv) usedInvoices.add(inv.pageNo);
+
+      batchOrders.push({
+        orderNo:         ship.orderNo || inv?.orderNo || "",
+        invoiceNo:       inv?.invoiceNo || "",
+        customerName:    ship.customerName || inv?.customerName || "",
+        customerAddress: ship.customerAddress || inv?.customerAddress || "",
+        customerCity:    ship.customerCity   || inv?.customerCity   || "",
+        customerPincode: ship.customerPincode|| inv?.customerPincode|| "",
+        sku:             ship.sku,
+        productName:     inv?.productName || "",
+        size:            ship.size || inv?.size || "",
+        color:           ship.color,
+        qty:             ship.qty,
+        grossAmount:     inv?.grossAmount || 0,
+        discount:        inv?.discount    || 0,
+        tax:             inv?.tax         || 0,
+        sellingPrice:    inv?.total       || (ship.paymentType === "COD" ? ship.codAmount : 0),
+        paymentType:     ship.paymentType,
+        courier:         ship.courier,
+        pageNos: [ship.pageNo, ...(inv ? [inv.pageNo] : [])],
+      });
     }
 
+    // Unmatched invoices
+    for (const inv of invoicePages) {
+      if (!usedInvoices.has(inv.pageNo)) {
+        batchOrders.push({
+          orderNo: inv.orderNo, invoiceNo: inv.invoiceNo,
+          customerName: inv.customerName, customerAddress: inv.customerAddress,
+          customerCity: inv.customerCity, customerPincode: inv.customerPincode,
+          sku: "", productName: inv.productName, size: inv.size,
+          color: "", qty: 1,
+          grossAmount: inv.grossAmount, discount: inv.discount, tax: inv.tax,
+          sellingPrice: inv.total, paymentType: "Prepaid", courier: "",
+          pageNos: [inv.pageNo],
+        });
+      }
+    }
+
+    return batchOrders;
+  };
+
+  if (!useAi) {
+    onProgress("Scanning locally...", 60);
+    return { orders: await localParseBatch(pageTexts), aiFailed: false };
+  }
+
+  // Batch pages for the Claude API (10 pages per batch to fit context & rate limits securely)
+  const batchSize = 10;
+  const batches: (typeof pageTexts)[] = [];
+  for (let i = 0; i < pageTexts.length; i += batchSize) {
+    batches.push(pageTexts.slice(i, i + batchSize));
+  }
+
+  const processBatch = async (batch: typeof pageTexts, batchIndex: number) => {
     try {
+      const pageStart = batch[0].pageNo;
+      const pageEnd = batch[batch.length - 1].pageNo;
+      onProgress(`Scanning pages ${pageStart} to ${pageEnd} using Claude AI…`, 40 + Math.round((batchIndex / batches.length) * 50));
+
       const res = await fetch("/api/parse-orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: item.text })
+        body: JSON.stringify({
+          pages: batch.map(p => ({
+            pageNo: p.pageNo,
+            text: p.text || undefined,
+            image: p.image || undefined
+          }))
+        })
       });
+
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const parsed = await res.json();
-      if (parsed.error) throw new Error(parsed.error);
-      return { index, data: parsed, type: parsed.type };
-    } catch (e) {
-      console.error(`AI parsing failed for page ${item.pageNo}, falling back to regex:`, e);
-      const fallbackData = item.type === "invoice" ? parseInvoice(item.text) : item.type === "shipping" ? parseShippingLabel(item.text) : null;
-      return { index, data: fallbackData, type: item.type };
+      const orders = await res.json();
+      if (orders.error) throw new Error(orders.error);
+      return orders as ExtractedOrder[];
+    } catch (e: any) {
+      console.error(`AI scanning failed for batch starting at page ${batch[0].pageNo}, falling back to local:`, e);
+      aiFailed = true;
+      errorMsg = e.message || String(e);
+      return await localParseBatch(batch);
     }
   };
 
-  const concurrencyLimit = 4;
-  const chunks: { pageNo: number; text: string; type: "shipping" | "invoice" | "unknown" }[][] = [];
-  for (let i = 0; i < pageTexts.length; i += concurrencyLimit) {
-    chunks.push(pageTexts.slice(i, i + concurrencyLimit));
+  const parsedOrders: ExtractedOrder[] = [];
+  for (let b = 0; b < batches.length; b++) {
+    const orders = await processBatch(batches[b], b);
+    parsedOrders.push(...orders);
   }
 
-  const finalParsed: any[] = [];
-  for (let c = 0; c < chunks.length; c++) {
-    const chunk = chunks[c];
-    const chunkIndexStart = c * concurrencyLimit;
-    onProgress(`AI scanning pages ${chunkIndexStart + 1} to ${Math.min(chunkIndexStart + concurrencyLimit, total)}…`, 40 + Math.round((c / chunks.length) * 40));
-
-    const chunkResults = await Promise.all(
-      chunk.map((item, idx) => parsePage(item, chunkIndexStart + idx))
-    );
-    finalParsed.push(...chunkResults);
-  }
-
-  for (const item of finalParsed) {
-    const pageNo = pageTexts[item.index].pageNo;
-    if (item.type === "invoice") {
-      invoicePages.push({
-        orderNo: item.data?.orderNo || "",
-        invoiceNo: item.data?.invoiceNo || "",
-        customerName: item.data?.customerName || "",
-        customerAddress: item.data?.customerAddress || "",
-        customerCity: item.data?.customerCity || "",
-        customerPincode: item.data?.customerPincode || "",
-        productName: item.data?.productName || "",
-        size: item.data?.size || "",
-        grossAmount: Number(item.data?.grossAmount) || 0,
-        discount: Number(item.data?.discount) || 0,
-        tax: Number(item.data?.tax) || 0,
-        total: Number(item.data?.total) || 0,
-        pageNo
-      });
-    } else if (item.type === "shipping") {
-      shippingPages.push({
-        orderNo: item.data?.orderNo || "",
-        customerName: item.data?.customerName || "",
-        customerAddress: item.data?.customerAddress || "",
-        customerCity: item.data?.customerCity || "",
-        customerPincode: item.data?.customerPincode || "",
-        sku: item.data?.sku || "",
-        size: item.data?.size || "",
-        color: item.data?.color || "",
-        qty: Number(item.data?.qty) || 1,
-        paymentType: item.data?.paymentType === "COD" ? "COD" : "Prepaid",
-        courier: item.data?.courier || "",
-        codAmount: Number(item.data?.codAmount) || 0,
-        pageNo
-      });
-    }
-  }
-
-  onProgress("Matching orders…", 80);
-
-  const norm = (s: string) => s.replace(/_\d+$/, "").trim();
-  const orders: ExtractedOrder[] = [];
-  const usedInvoices = new Set<number>();
-
-  for (const ship of shippingPages) {
-    const shipNo = norm(ship.orderNo);
-
-    // Match invoice by order number, or take the next unmatched one (sequential PDF)
-    const inv = invoicePages.find(iv =>
-      !usedInvoices.has(iv.pageNo) &&
-      (shipNo && norm(iv.orderNo) === shipNo || !shipNo)
-    ) ?? invoicePages.find(iv => !usedInvoices.has(iv.pageNo));
-
-    if (inv) usedInvoices.add(inv.pageNo);
-
-    orders.push({
-      orderNo:         ship.orderNo || inv?.orderNo || "",
-      invoiceNo:       inv?.invoiceNo || "",
-      customerName:    ship.customerName || inv?.customerName || "",
-      customerAddress: ship.customerAddress || inv?.customerAddress || "",
-      customerCity:    ship.customerCity   || inv?.customerCity   || "",
-      customerPincode: ship.customerPincode|| inv?.customerPincode|| "",
-      sku:             ship.sku,
-      productName:     inv?.productName || "",
-      size:            ship.size || inv?.size || "",
-      color:           ship.color,
-      qty:             ship.qty,
-      grossAmount:     inv?.grossAmount || 0,
-      discount:        inv?.discount    || 0,
-      tax:             inv?.tax         || 0,
-      sellingPrice:    inv?.total       || (ship.paymentType === "COD" ? ship.codAmount : 0),
-      paymentType:     ship.paymentType,
-      courier:         ship.courier,
-      pageNos: [ship.pageNo, ...(inv ? [inv.pageNo] : [])],
-    });
-  }
-
-  // Unmatched invoices (no shipping label found)
-  for (const inv of invoicePages) {
-    if (!usedInvoices.has(inv.pageNo)) {
-      orders.push({
-        orderNo: inv.orderNo, invoiceNo: inv.invoiceNo,
-        customerName: inv.customerName, customerAddress: inv.customerAddress,
-        customerCity: inv.customerCity, customerPincode: inv.customerPincode,
-        sku: "", productName: inv.productName, size: inv.size,
-        color: "", qty: 1,
-        grossAmount: inv.grossAmount, discount: inv.discount, tax: inv.tax,
-        sellingPrice: inv.total, paymentType: "Prepaid", courier: "",
-        pageNos: [inv.pageNo],
-      });
-    }
-  }
+  // Sanitize extracted results to prevent typed schema mismatches
+  const sanitizedOrders = parsedOrders.map(o => ({
+    orderNo:         String(o?.orderNo || "").trim(),
+    invoiceNo:       String(o?.invoiceNo || "").trim(),
+    customerName:    String(o?.customerName || "").trim(),
+    customerAddress: String(o?.customerAddress || "").trim(),
+    customerCity:    String(o?.customerCity || "").trim(),
+    customerPincode: String(o?.customerPincode || "").trim(),
+    sku:             String(o?.sku || "").trim(),
+    productName:     String(o?.productName || "").trim(),
+    size:            String(o?.size || "").trim(),
+    color:           String(o?.color || "").trim(),
+    qty:             Number(o?.qty) || 1,
+    grossAmount:     Number(o?.grossAmount) || 0,
+    discount:        Number(o?.discount) || 0,
+    tax:             Number(o?.tax) || 0,
+    sellingPrice:    Number(o?.sellingPrice) || 0,
+    paymentType:     o?.paymentType === "COD" ? ("COD" as const) : ("Prepaid" as const),
+    courier:         String(o?.courier || "").trim(),
+    pageNos:         Array.isArray(o?.pageNos) ? o.pageNos.map(Number) : [],
+  }));
 
   onProgress("Done!", 100);
-  return orders;
+  return { orders: sanitizedOrders, aiFailed, errorMsg };
 }
 
 // ─── Review Table ──────────────────────────────────────────────────────────────
@@ -544,21 +581,22 @@ function ReviewTable({ orders, onUpdate, onRemove, onSave, onReset }: {
   onSave: () => void;
   onReset: () => void;
 }) {
-  const cell = "w-full bg-transparent border-0 border-b border-transparent hover:border-[#ddd] focus:border-[#999] focus:outline-none text-xs text-black py-0.5 font-medium placeholder-[#ccc] min-w-0 transition-colors";
+  const cell = "w-full bg-slate-50 dark:bg-[#1a1a1a] border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 focus:border-slate-500 focus:outline-none text-xs text-slate-800 dark:text-slate-100 py-1.5 px-2 rounded-lg font-medium placeholder-slate-400 dark:placeholder-slate-600 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
+  const selectCell = "bg-slate-50 dark:bg-[#1a1a1a] border border-slate-200 dark:border-slate-800 text-[10px] font-bold cursor-pointer focus:outline-none py-1.5 px-2 rounded-lg text-slate-800 dark:text-slate-100 transition-colors";
   const totalRevenue  = orders.reduce((s, o) => s + o.sellingPrice, 0);
   const totalDiscount = orders.reduce((s, o) => s + o.discount, 0);
 
   return (
     <div className="space-y-4">
-      <div className="bg-gradient-to-r from-[#f0fdf4] to-[#eff6ff] border border-[#bbf7d0] rounded-2xl px-5 py-3 flex flex-wrap items-center gap-4">
+      <div className="bg-gradient-to-r from-emerald-50 to-blue-50 dark:from-emerald-950/20 dark:to-blue-950/20 border border-emerald-100 dark:border-emerald-900/40 rounded-2xl px-5 py-3 flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-2">
-          <Sparkles size={14} className="text-green-600" />
-          <span className="text-sm font-bold text-green-700">{orders.length} orders extracted</span>
+          <Sparkles size={14} className="text-emerald-600 dark:text-emerald-400" />
+          <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400">{orders.length} orders extracted</span>
         </div>
-        <span className="text-xs text-[#555]">Revenue: <strong>₹{totalRevenue.toLocaleString("en-IN")}</strong></span>
-        <span className="text-xs text-[#555]">Discount: <strong>₹{totalDiscount.toLocaleString("en-IN")}</strong></span>
+        <span className="text-xs text-slate-600 dark:text-slate-300">Revenue: <strong>₹{totalRevenue.toLocaleString("en-IN")}</strong></span>
+        <span className="text-xs text-slate-600 dark:text-slate-300">Discount: <strong>₹{totalDiscount.toLocaleString("en-IN")}</strong></span>
         <div className="ml-auto flex gap-2">
-          <button onClick={onReset} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-[#666] border border-[#e8e8e8] bg-white hover:bg-[#f5f5f5] transition-colors">
+          <button onClick={onReset} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
             <RotateCcw size={12} /> Reset
           </button>
           <button onClick={onSave} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-black hover:bg-[#1a1a1a] transition-colors">
@@ -567,75 +605,75 @@ function ReviewTable({ orders, onUpdate, onRemove, onSave, onReset }: {
         </div>
       </div>
 
-      <div className="bg-white border border-[#e8e8e8] rounded-2xl overflow-hidden shadow-sm">
+      <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs whitespace-nowrap">
-            <thead className="bg-[#fafafa] border-b border-[#e8e8e8]">
+            <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
               <tr>
                 {["#","Customer","Order No.","SKU","Product Name","Size","Qty","Gross ₹","Disc ₹","Total ₹","Payment","Courier",""].map(h => (
-                  <th key={h} className="px-3 py-3 text-[10px] font-semibold text-[#888] uppercase tracking-wider">{h}</th>
+                  <th key={h} className="px-3 py-3 text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{h}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#f5f5f5]">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {orders.map((o, idx) => (
-                <tr key={idx} className="hover:bg-[#fafafa] transition-colors group">
+                <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition-colors group">
                   <td className="px-3 py-2.5 text-[#bbb] font-bold text-[10px]">{idx + 1}</td>
 
-                  <td className="px-3 py-2.5 min-w-[140px]">
+                  <td className="px-3 py-2.5 min-w-[150px]">
                     <input className={cell} value={o.customerName} onChange={e => onUpdate(idx, "customerName", e.target.value)} placeholder="Customer name" />
                     {(o.customerCity || o.customerPincode) && (
-                      <div className="text-[10px] text-[#bbb] mt-0.5">{[o.customerCity, o.customerPincode].filter(Boolean).join(" ")}</div>
+                      <div className="text-[10px] text-[#bbb] mt-0.5 px-1">{[o.customerCity, o.customerPincode].filter(Boolean).join(" ")}</div>
                     )}
                   </td>
 
                   <td className="px-3 py-2.5 min-w-[130px]">
-                    <div className="font-mono text-[10px] text-[#666] truncate max-w-[130px]" title={o.orderNo}>{o.orderNo || "—"}</div>
-                    {o.invoiceNo && <div className="text-[10px] text-[#bbb]">Inv: {o.invoiceNo}</div>}
+                    <div className="font-mono text-[10px] text-[#666] truncate max-w-[130px] px-1" title={o.orderNo}>{o.orderNo || "—"}</div>
+                    {o.invoiceNo && <div className="text-[10px] text-[#bbb] px-1">Inv: {o.invoiceNo}</div>}
                   </td>
 
-                  <td className="px-3 py-2.5 min-w-[100px]">
+                  <td className="px-3 py-2.5 min-w-[110px]">
                     <input className={`${cell} font-mono`} value={o.sku} onChange={e => onUpdate(idx, "sku", e.target.value)} placeholder="SKU" />
                   </td>
 
-                  <td className="px-3 py-2.5 min-w-[180px]">
+                  <td className="px-3 py-2.5 min-w-[200px]">
                     <input className={cell} value={o.productName} onChange={e => onUpdate(idx, "productName", e.target.value)} placeholder="Product name" />
                   </td>
 
-                  <td className="px-3 py-2.5 min-w-[90px]">
+                  <td className="px-3 py-2.5 min-w-[100px]">
                     <input className={cell} value={o.size} onChange={e => onUpdate(idx, "size", e.target.value)} placeholder="e.g. 3-4 Yrs" />
                   </td>
 
-                  <td className="px-3 py-2.5 w-12 text-center">
+                  <td className="px-3 py-2.5 w-16 text-center">
                     <input type="number" min={1} className={`${cell} text-center`} value={o.qty} onChange={e => onUpdate(idx, "qty", Number(e.target.value))} />
                   </td>
 
-                  <td className="px-3 py-2.5 w-20 text-right">
+                  <td className="px-3 py-2.5 w-24 text-right">
                     <input type="number" min={0} className={`${cell} text-right`} value={o.grossAmount || ""} onChange={e => onUpdate(idx, "grossAmount", Number(e.target.value))} placeholder="0" />
                   </td>
 
-                  <td className="px-3 py-2.5 w-20 text-right">
+                  <td className="px-3 py-2.5 w-24 text-right">
                     <input type="number" min={0} className={`${cell} text-right text-red-500`} value={o.discount || ""} onChange={e => onUpdate(idx, "discount", Number(e.target.value))} placeholder="0" />
                   </td>
 
-                  <td className="px-3 py-2.5 w-20 text-right">
+                  <td className="px-3 py-2.5 w-24 text-right">
                     <input type="number" min={0} className={`${cell} text-right font-bold`} value={o.sellingPrice || ""} onChange={e => onUpdate(idx, "sellingPrice", Number(e.target.value))} placeholder="0" />
                   </td>
 
-                  <td className="px-3 py-2.5">
-                    <select className="bg-transparent border-0 text-[10px] font-bold cursor-pointer focus:outline-none"
-                      value={o.paymentType} onChange={e => onUpdate(idx, "paymentType", e.target.value)}>
+                  <td className="px-3 py-2.5 min-w-[110px]">
+                    <select className={selectCell}
+                      value={o.paymentType} onChange={e => onUpdate(idx, "paymentType", e.target.value as any)}>
                       <option value="Prepaid">Prepaid</option>
                       <option value="COD">COD</option>
                     </select>
                   </td>
 
-                  <td className="px-3 py-2.5 min-w-[90px]">
+                  <td className="px-3 py-2.5 min-w-[110px]">
                     <input className={cell} value={o.courier} onChange={e => onUpdate(idx, "courier", e.target.value)} placeholder="Courier" />
                   </td>
 
                   <td className="px-3 py-2.5">
-                    <button onClick={() => onRemove(idx)} className="w-6 h-6 flex items-center justify-center rounded-lg text-[#ddd] hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100">
+                    <button onClick={() => onRemove(idx)} className="w-6 h-6 flex items-center justify-center rounded-lg text-[#ddd] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors opacity-0 group-hover:opacity-100">
                       <X size={12} />
                     </button>
                   </td>
@@ -742,6 +780,8 @@ export default function MeeshoOrders() {
   const { meeshoOrders, setMeeshoOrders } = useData();
   const [appState, setAppState]           = useState<AppState>("idle");
   const [useAi, setUseAi]                 = useState(true);
+  const [aiFailed, setAiFailed]           = useState(false);
+  const [aiErrorMsg, setAiErrorMsg]       = useState("");
   const [progressMsg, setProgressMsg]     = useState("");
   const [progressPct, setProgressPct]     = useState(0);
   const [extracted, setExtracted]         = useState<ExtractedOrder[]>([]);
@@ -776,13 +816,17 @@ export default function MeeshoOrders() {
   const handleFile = useCallback(async (file: File) => {
     if (!/\.pdf$/i.test(file.name) && file.type !== "application/pdf") { setError("Please upload a PDF file."); return; }
     setError(null);
+    setAiFailed(false);
+    setAiErrorMsg("");
     setAppState("processing");
     setProgressPct(0);
     setProgressMsg("Starting…");
     try {
-      const orders = await extractFromPdf(file, useAi, (msg, pct) => { setProgressMsg(msg); setProgressPct(pct); });
-      if (orders.length === 0) { setError("No orders found. Make sure this is a Meesho shipping PDF."); setAppState("idle"); return; }
-      setExtracted(orders);
+      const result = await extractFromPdf(file, useAi, (msg, pct) => { setProgressMsg(msg); setProgressPct(pct); });
+      if (result.orders.length === 0) { setError("No orders found. Make sure this is a Meesho shipping PDF."); setAppState("idle"); return; }
+      setExtracted(result.orders);
+      setAiFailed(result.aiFailed);
+      setAiErrorMsg(result.errorMsg || "");
       setAppState("reviewing");
     } catch (e) {
       console.error(e);
@@ -908,13 +952,27 @@ export default function MeeshoOrders() {
 
       {/* Review */}
       {appState === "reviewing" && extracted.length > 0 && (
-        <ReviewTable
-          orders={extracted}
-          onUpdate={(idx, field, val) => setExtracted(p => p.map((o, i) => i === idx ? { ...o, [field]: val } : o))}
-          onRemove={idx => setExtracted(p => p.filter((_, i) => i !== idx))}
-          onSave={saveAll}
-          onReset={() => { setAppState("idle"); setExtracted([]); }}
-        />
+        <div className="space-y-4">
+          {aiFailed && (
+            <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 rounded-2xl p-4 flex gap-3 text-amber-800 dark:text-amber-300 animate-fade-in-up">
+              <AlertCircle className="shrink-0 mt-0.5" size={16} />
+              <div>
+                <div className="font-bold text-xs">AI Scan Bypassed (Local Regex Fallback Used)</div>
+                <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-1">
+                  The Claude AI parser failed or returned an error: <strong>&ldquo;{aiErrorMsg}&rdquo;</strong>.
+                  The system automatically fell back to the local regex parser, which might not extract all fields (SKU, Customer Name, Size, Courier) perfectly. Please configure a standard Anthropic API key starting with <code>sk-ant-</code>.
+                </p>
+              </div>
+            </div>
+          )}
+          <ReviewTable
+            orders={extracted}
+            onUpdate={(idx, field, val) => setExtracted(p => p.map((o, i) => i === idx ? { ...o, [field]: val } : o))}
+            onRemove={idx => setExtracted(p => p.filter((_, i) => i !== idx))}
+            onSave={saveAll}
+            onReset={() => { setAppState("idle"); setExtracted([]); setAiFailed(false); setAiErrorMsg(""); }}
+          />
+        </div>
       )}
 
       {/* Drop Zone */}

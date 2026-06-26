@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
   try {
-    const { text } = await req.json();
+    const { pages } = await req.json();
 
-    if (!text || typeof text !== "string") {
-      return NextResponse.json({ error: "Missing page text in request body" }, { status: 400 });
+    if (!pages || !Array.isArray(pages) || pages.length === 0) {
+      return NextResponse.json({ error: "Missing or invalid pages array in request body" }, { status: 400 });
     }
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -20,57 +20,80 @@ export async function POST(req: NextRequest) {
 
     const endpoint = `${baseUrl}v1/messages`;
 
-    const systemPrompt = `You are an expert system that extracts structured e-commerce order data from Meesho PDF document text.
-You will be given the raw text of a page from a Meesho document (which could be a shipping label or a tax invoice).
-Your goal is to classify the page type and extract all relevant fields into a structured JSON response.
+    const systemPrompt = `You are an expert order processing system that extracts and matches orders from Meesho PDF documents.
+You will be provided with a list of pages from a Meesho PDF document. Some pages are shipping labels (supplied as images or text), and other pages are tax invoices (supplied as text or images).
 
-Determine the page type:
-1. "shipping": If the text contains references to customer address, shipping labels, barcode details, courier names, prepaid/cod status, or typical shipping labels.
-2. "invoice": If the text contains billing details, tax invoice headers, GSTIN, supply details, gross amounts, tax rates, CGST/SGST/IGST, or product tables with tax breakdowns.
-3. "unknown": If the text doesn't contain enough information to be classified as a Meesho shipping label or tax invoice.
+Your goal is to:
+1. Parse every page to extract order details.
+2. Match shipping label details with their corresponding tax invoice details by matching the order number (usually a 13-18 digit number, e.g. 300712423978317195).
+3. If a shipping label page has no matching tax invoice page (or vice versa), you should still extract and output it as a standalone order with whatever fields you can find.
+4. Combine the customer details, SKU, and courier from the shipping label with the pricing, discount, and product name from the tax invoice into a single merged order.
+5. Output a clean, structured JSON array of matched/extracted orders.
 
-For "shipping" pages, extract:
-- "orderNo": Meesho order number (usually 13-18 digits, e.g., 185638294719472 or similar. May have trailing underscore like _1 or suffix).
-- "customerName": Customer's name.
-- "customerAddress": Customer's delivery address (house number, street, landmark, area). Do NOT include city, state, or pincode here.
-- "customerCity": Customer's city/town/state.
-- "customerPincode": 6-digit PIN code.
-- "sku": Seller SKU code (e.g., BOY-PANT-RED-3Y or similar).
-- "size": Item size (e.g. Free Size, 3-4 Years, S, M, L, etc.).
-- "color": Color if explicitly mentioned.
-- "qty": Quantity (integer).
-- "paymentType": Must be either "Prepaid" or "COD".
-- "courier": Name of the delivery partner/courier (e.g., "Xpress Bees", "Delhivery", "Shadowfax", "Ecom Express", "BlueDart", "Valmo", "Ekart", etc.).
-- "codAmount": The amount to collect if paymentType is COD (number). Set to 0 if Prepaid.
+For each order, extract and combine the following fields:
+- "orderNo": Meesho order number (usually 13-18 digits, e.g., 300712423978317195. Strip any trailing _1 or _2 if matching, but return the canonical order number).
+- "invoiceNo": Alphanumeric tax invoice number (from the invoice page).
+- "customerName": Customer's full name.
+- "customerAddress": Customer's delivery address (excluding city, state, pincode).
+- "customerCity": Customer's city/state.
+- "customerPincode": 6-digit postal code.
+- "sku": Seller SKU code (e.g. BOY-PANT-RED-3Y).
+- "productName": Full product name/description.
+- "size": Size (e.g. 3-4 Years, Free Size).
+- "color": Color (if specified).
+- "qty": Quantity (number, defaults to 1).
+- "grossAmount": Taxable value / gross amount before discount/taxes (number).
+- "discount": Discount amount (number).
+- "tax": GST/IGST/tax amount (number).
+- "sellingPrice": Final selling price paid by customer (number).
+- "paymentType": Either "Prepaid" or "COD".
+- "courier": Courier name (e.g., Delhivery, Xpress Bees, Shadowfax, Valmo, etc.).
+- "pageNos": Array of page numbers (1-indexed) that correspond to this order (e.g. [1, 2] if page 1 was the shipping label and page 2 was the invoice).
 
-For "invoice" pages, extract:
-- "orderNo": Purchase Order No / Order number (matching the order ID, e.g., 13-18 digits).
-- "invoiceNo": Invoice number (usually alphanumeric code, e.g., INV-2026-102).
-- "customerName": Name under "Bill To" or "Ship To".
-- "customerAddress": Billing/shipping address. Do NOT include city, state, or pincode here.
-- "customerCity": City/town/state.
-- "customerPincode": 6-digit PIN code.
-- "productName": Product name or description from the invoice table.
-- "size": Size if mentioned in the product description (e.g. 3-4 Years).
-- "grossAmount": Taxable value / gross amount before discount/taxes.
-- "discount": Discount amount (if any).
-- "tax": GST/IGST/tax amount.
-- "total": Final total amount paid/payable (selling price).
+Respond ONLY with a valid JSON array of objects matching this schema. Do not include markdown formatting, explanations, or any text outside the JSON.`;
 
-Output must be ONLY a valid JSON object. Do not wrap it in markdown code blocks, do not write explanations.
-If the page is unknown or empty, output:
-{
-  "type": "unknown"
-}`;
+    const content: any[] = [];
+    content.push({
+      type: "text",
+      text: "Below are the pages of a Meesho orders PDF. Please extract the orders, match shipping labels with invoices by order number, and output a structured JSON array of matched orders."
+    });
+
+    for (const page of pages) {
+      content.push({
+        type: "text",
+        text: `\n--- PAGE ${page.pageNo} ---`
+      });
+
+      if (page.image) {
+        const match = page.image.match(/^data:(image\/[a-z]+);base64,(.*)$/);
+        if (match) {
+          content.push({
+            type: "image",
+            source: {
+              type: "base64",
+              media_type: match[1],
+              data: match[2]
+            }
+          });
+        }
+      }
+
+      if (page.text) {
+        content.push({
+          type: "text",
+          text: `Page Text:\n${page.text}`
+        });
+      }
+    }
 
     const payload = {
       model: "claude-3-5-sonnet-20241022",
-      max_tokens: 1500,
+      max_tokens: 2500,
       system: systemPrompt,
       messages: [
         {
           role: "user",
-          content: `Here is the page text to parse:\n\n${text}`
+          content: content
         }
       ]
     };
@@ -95,16 +118,21 @@ If the page is unknown or empty, output:
 
     // Robust parsing of JSON from text
     textResponse = textResponse.trim();
-    const jsonMatch = textResponse.match(/```json\s*([\s\S]*?)\s*```/) || textResponse.match(/```\s*([\s\S]*?)\s*```/);
+    const jsonMatch = textResponse.match(/\[\s*\{[\s\S]*\}\s*\]/);
     if (jsonMatch) {
-      textResponse = jsonMatch[1].trim();
+      textResponse = jsonMatch[0];
+    } else {
+      const genericJsonMatch = textResponse.match(/```json\s*([\s\S]*?)\s*```/) || textResponse.match(/```\s*([\s\S]*?)\s*```/);
+      if (genericJsonMatch) {
+        textResponse = genericJsonMatch[1].trim();
+      }
     }
 
     try {
       const parsedData = JSON.parse(textResponse);
       return NextResponse.json(parsedData);
     } catch (parseErr) {
-      console.error("Failed to parse Claude output as JSON:", textResponse, parseErr);
+      console.error("Failed to parse Claude output as JSON array:", textResponse, parseErr);
       return NextResponse.json({ error: "Failed to parse structured JSON from model response", rawResponse: textResponse }, { status: 500 });
     }
 
