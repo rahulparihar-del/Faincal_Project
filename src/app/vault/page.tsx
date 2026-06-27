@@ -39,6 +39,7 @@ interface StashItem {
   context: string; // notes
   username?: string;
   password?: string;
+  accounts?: Array<{ username: string; password: string }>; // support multiple logins
   watched: boolean;
   createdAt: string;
 }
@@ -83,44 +84,38 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
 }
 
+function slug(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
 /* ─── Stash Card ────────────────────────────────────────────── */
 function StashCard({
   item,
   onDelete,
   onToggleWatched,
+  onUpdateAccounts,
 }: {
   item: StashItem;
   onDelete: (id: string) => void;
   onToggleWatched: (id: string) => void;
+  onUpdateAccounts: (id: string, newAccounts: Array<{ username: string; password: string }>) => void;
 }) {
   const fav = faviconOf(item.url);
   const open = () => item.url && window.open(item.url, "_blank", "noopener,noreferrer");
 
-  const [showPass, setShowPass] = useState(false);
-  const [copiedUser, setCopiedUser] = useState(false);
-  const [copiedPass, setCopiedPass] = useState(false);
+  // Normalize accounts list: support legacy root credentials as first entry
+  const accountsList = item.accounts || (item.username || item.password ? [{ username: item.username || "", password: item.password || "" }] : []);
 
-  const copyUsername = async () => {
-    if (!item.username) return;
-    try {
-      await navigator.clipboard.writeText(item.username);
-      setCopiedUser(true);
-      setTimeout(() => setCopiedUser(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy username", err);
-    }
-  };
+  // Multiple account toggle & copy states mapping
+  const [showPassMap, setShowPassMap] = useState<Record<number, boolean>>({});
+  const [copiedUserMap, setCopiedUserMap] = useState<Record<number, boolean>>({});
+  const [copiedPassMap, setCopiedPassMap] = useState<Record<number, boolean>>({});
 
-  const copyPassword = async () => {
-    if (!item.password) return;
-    try {
-      await navigator.clipboard.writeText(item.password);
-      setCopiedPass(true);
-      setTimeout(() => setCopiedPass(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy password", err);
-    }
-  };
+  // Inline account form states
+  const [addingAccount, setAddingAccount] = useState(false);
+  const [newAccUser, setNewAccUser] = useState("");
+  const [newAccPass, setNewAccPass] = useState("");
+  const [showNewAccPass, setShowNewAccPass] = useState(false);
 
   return (
     <motion.div
@@ -136,7 +131,7 @@ function StashCard({
       {/* Card Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-2xl bg-zinc-50 dark:bg-zinc-955 border border-zinc-200/60 dark:border-zinc-800 flex items-center justify-center shrink-0 overflow-hidden shadow-inner">
+          <div className="w-10 h-10 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 flex items-center justify-center shrink-0 overflow-hidden shadow-inner">
             {fav ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={fav} alt="" width={20} height={20} className="object-contain" />
@@ -165,53 +160,107 @@ function StashCard({
       </div>
 
       {/* Credentials Table Box */}
-      <div className="bg-zinc-50/50 dark:bg-zinc-950/40 border border-zinc-200/50 dark:border-zinc-800/50 rounded-2xl p-3 space-y-2.5 text-xs text-zinc-700 dark:text-zinc-300">
-        {/* Username Row */}
-        <div className="flex items-center justify-between gap-3 min-w-0">
-          <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-semibold uppercase tracking-wider shrink-0 w-16">Username</span>
-          <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
-            <span className="truncate font-mono font-medium text-zinc-900 dark:text-zinc-100 select-all text-right w-full" title={item.username}>
-              {item.username || "—"}
-            </span>
-            {item.username && (
-              <button
-                onClick={copyUsername}
-                className="p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 rounded-lg transition-all shrink-0 cursor-pointer"
-                title="Copy Username"
-              >
-                {copiedUser ? <Check size={13} className="text-green-600 dark:text-green-400" /> : <Copy size={13} />}
-              </button>
-            )}
-          </div>
-        </div>
-        
-        {/* Password Row */}
-        <div className="flex items-center justify-between gap-3 min-w-0 border-t border-zinc-200/40 dark:border-zinc-800/40 pt-2.5">
-          <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-semibold uppercase tracking-wider shrink-0 w-16">Password</span>
-          <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
-            <span className="font-mono text-zinc-900 dark:text-zinc-100 select-all tracking-wide text-right w-full">
-              {showPass ? item.password : "••••••••"}
-            </span>
-            <div className="flex items-center gap-1 shrink-0">
-              <button
-                onClick={() => setShowPass(!showPass)}
-                className="p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 rounded-lg transition-all cursor-pointer"
-                title={showPass ? "Hide Password" : "Show Password"}
-              >
-                {showPass ? <EyeOff size={13} /> : <Eye size={13} />}
-              </button>
-              {item.password && (
-                <button
-                  onClick={copyPassword}
-                  className="p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 rounded-lg transition-all cursor-pointer"
-                  title="Copy Password"
-                >
-                  {copiedPass ? <Check size={13} className="text-green-600 dark:text-green-400" /> : <Copy size={13} />}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+      <div className="bg-zinc-50/50 dark:bg-zinc-950/40 border border-zinc-200/50 dark:border-zinc-800/50 rounded-2xl p-3 space-y-3.5 text-xs text-zinc-700 dark:text-zinc-300">
+        {accountsList.length === 0 ? (
+          <div className="text-center py-2 text-zinc-400 text-[11px]">No accounts saved.</div>
+        ) : (
+          accountsList.map((acc, idx) => {
+            const isShow = !!showPassMap[idx];
+            const isCopiedUser = !!copiedUserMap[idx];
+            const isCopiedPass = !!copiedPassMap[idx];
+
+            const copyUser = async () => {
+              if (!acc.username) return;
+              try {
+                await navigator.clipboard.writeText(acc.username);
+                setCopiedUserMap((prev) => ({ ...prev, [idx]: true }));
+                setTimeout(() => setCopiedUserMap((prev) => ({ ...prev, [idx]: false })), 2000);
+              } catch (err) {
+                console.error("Failed to copy", err);
+              }
+            };
+
+            const copyPass = async () => {
+              if (!acc.password) return;
+              try {
+                await navigator.clipboard.writeText(acc.password);
+                setCopiedPassMap((prev) => ({ ...prev, [idx]: true }));
+                setTimeout(() => setCopiedPassMap((prev) => ({ ...prev, [idx]: false })), 2000);
+              } catch (err) {
+                console.error("Failed to copy", err);
+              }
+            };
+
+            return (
+              <div key={idx} className={`space-y-2.5 ${idx > 0 ? "border-t border-zinc-250/30 dark:border-zinc-800/40 pt-3" : ""}`}>
+                {/* Account Label */}
+                {accountsList.length > 1 && (
+                  <div className="flex items-center justify-between text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
+                    <span>Account #{idx + 1}</span>
+                    <button
+                      onClick={() => {
+                        if (window.confirm("Remove this login account from this card?")) {
+                          onUpdateAccounts(item.id, accountsList.filter((_, i) => i !== idx));
+                        }
+                      }}
+                      className="text-zinc-400 hover:text-red-500 transition-colors cursor-pointer"
+                      title="Delete this account"
+                    >
+                      <X size={10} />
+                    </button>
+                  </div>
+                )}
+
+                {/* Username Row */}
+                <div className="flex items-center justify-between gap-3 min-w-0">
+                  <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-semibold uppercase tracking-wider shrink-0 w-16">Username</span>
+                  <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
+                    <span className="truncate font-mono font-medium text-zinc-900 dark:text-zinc-100 select-all text-right w-full" title={acc.username}>
+                      {acc.username || "—"}
+                    </span>
+                    {acc.username && (
+                      <button
+                        onClick={copyUser}
+                        className="p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 rounded-lg transition-all shrink-0 cursor-pointer"
+                        title="Copy Username"
+                      >
+                        {isCopiedUser ? <Check size={13} className="text-green-600 dark:text-green-400" /> : <Copy size={13} />}
+                      </button>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Password Row */}
+                <div className="flex items-center justify-between gap-3 min-w-0 border-t border-zinc-200/10 dark:border-zinc-800/15 pt-2.5">
+                  <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-semibold uppercase tracking-wider shrink-0 w-16">Password</span>
+                  <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
+                    <span className="font-mono text-zinc-900 dark:text-zinc-100 select-all tracking-wide text-right w-full">
+                      {isShow ? acc.password : "••••••••"}
+                    </span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => setShowPassMap((prev) => ({ ...prev, [idx]: !prev[idx] }))}
+                        className="p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 rounded-lg transition-all cursor-pointer"
+                        title={isShow ? "Hide Password" : "Show Password"}
+                      >
+                        {isShow ? <EyeOff size={13} /> : <Eye size={13} />}
+                      </button>
+                      {acc.password && (
+                        <button
+                          onClick={copyPass}
+                          className="p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 rounded-lg transition-all cursor-pointer"
+                          title="Copy Password"
+                        >
+                          {isCopiedPass ? <Check size={13} className="text-green-600 dark:text-green-400" /> : <Copy size={13} />}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
 
       {/* Notes / Context */}
@@ -222,6 +271,87 @@ function StashCard({
             {item.context}
           </p>
         </div>
+      )}
+
+      {/* Inline Account Form Creator */}
+      {addingAccount ? (
+        <div className="border-t border-zinc-100 dark:border-zinc-800/60 pt-3 space-y-2 mt-1">
+          <div className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Add Secondary Login</div>
+          <div className="grid grid-cols-1 gap-2">
+            <input
+              value={newAccUser}
+              onChange={(e) => setNewAccUser(e.target.value)}
+              placeholder="Username / Email"
+              className="bg-[#f8f8f8] dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-550 placeholder:text-zinc-400 focus:outline-none w-full animate-none"
+            />
+            <div className="flex items-center gap-2 bg-[#f8f8f8] dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-xl px-3 py-1.5 w-full">
+              <input
+                type={showNewAccPass ? "text" : "password"}
+                value={newAccPass}
+                onChange={(e) => setNewAccPass(e.target.value)}
+                placeholder="Password"
+                className="flex-1 bg-transparent text-xs text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 focus:outline-none border-none p-0 min-w-0"
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewAccPass(!showNewAccPass)}
+                className="text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 shrink-0 cursor-pointer"
+              >
+                {showNewAccPass ? <EyeOff size={12} /> : <Eye size={12} />}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+~`|}{[]:;?><,./-=";
+                  const len = 16;
+                  let pass = "";
+                  const array = new Uint32Array(len);
+                  window.crypto.getRandomValues(array);
+                  for (let i = 0; i < len; i++) {
+                    pass += chars[array[i] % chars.length];
+                  }
+                  setNewAccPass(pass);
+                  setShowNewAccPass(true);
+                }}
+                className="text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 shrink-0 cursor-pointer"
+                title="Generate Secure Password"
+              >
+                <RefreshCw size={12} />
+              </button>
+            </div>
+          </div>
+          <div className="flex justify-end gap-1.5 pt-1">
+            <button
+              onClick={() => {
+                setAddingAccount(false);
+                setNewAccUser("");
+                setNewAccPass("");
+              }}
+              className="px-2.5 py-1 rounded-lg text-[10px] font-bold text-zinc-500 hover:bg-zinc-100 cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                if (!newAccUser.trim() && !newAccPass.trim()) return;
+                onUpdateAccounts(item.id, [...accountsList, { username: newAccUser.trim(), password: newAccPass }]);
+                setAddingAccount(false);
+                setNewAccUser("");
+                setNewAccPass("");
+              }}
+              className="px-3 py-1 rounded-lg bg-zinc-950 dark:bg-zinc-100 text-white dark:text-zinc-950 text-[10px] font-bold cursor-pointer"
+            >
+              Add
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => setAddingAccount(true)}
+          className="flex items-center justify-center gap-1.5 px-3 py-1.5 w-full rounded-xl text-[10px] font-bold text-zinc-500 dark:text-zinc-400 border border-zinc-200/50 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-950/20 hover:text-zinc-900 dark:hover:text-zinc-200 transition-all cursor-pointer mt-1"
+        >
+          <Plus size={11} /> Add Another Account
+        </button>
       )}
 
       {/* Card Footer Actions */}
@@ -253,7 +383,7 @@ function StashCard({
           <button
             onClick={() => onDelete(item.id)}
             className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-400 hover:text-red-500 hover:bg-red-500/10 transition-all cursor-pointer"
-            title="Delete"
+            title="Delete card"
           >
             <Trash2 size={13} />
           </button>
@@ -333,15 +463,24 @@ export default function VaultPage() {
           context: string;
           username?: string;
           password?: string;
+          accounts?: Array<{ username: string; password: string }>;
         }>(key, r.enc);
+
+        // Normalize accounts array for multi-login support
+        let accounts = payload.accounts || [];
+        if (accounts.length === 0 && (payload.username || payload.password)) {
+          accounts = [{ username: payload.username || "", password: payload.password || "" }];
+        }
+
         out.push({
           id: r.id,
-          type: payload.type || (payload.username || payload.password ? "credential" : "link"),
+          type: payload.type || "credential",
           title: payload.title || "",
           url: payload.url || "",
           context: payload.context || "",
           username: payload.username || "",
           password: payload.password || "",
+          accounts: accounts,
           watched: !!r.watched,
           createdAt: r.createdAt || new Date(0).toISOString(),
         });
@@ -448,14 +587,37 @@ export default function VaultPage() {
     const id = `st-${Date.now()}`;
     const createdAt = new Date().toISOString();
     const cleanUrl = url.trim() ? normalizeUrl(url) : "";
+    const cleanTitle = title.trim() || hostnameOf(cleanUrl) || "Unnamed Login";
+
+    // Deduplication check: if a card with the same title/domain already exists, merge accounts!
+    const existing = stash.find((i) => 
+      slug(i.title) === slug(cleanTitle) || 
+      (cleanUrl && hostnameOf(i.url) === hostnameOf(cleanUrl))
+    );
+
+    if (existing) {
+      const existingAccounts = existing.accounts || (existing.username || existing.password ? [{ username: existing.username || "", password: existing.password || "" }] : []);
+      const mergedAccounts = [...existingAccounts, { username: username.trim(), password: password }];
+      await updateAccounts(existing.id, mergedAccounts);
+
+      setUrl("");
+      setTitle("");
+      setUsername("");
+      setPassword("");
+      setContext("");
+      setShowComposerPass(false);
+      setIsModalOpen(false);
+      return;
+    }
 
     const payload = {
       type: "credential" as const,
-      title: title.trim() || hostnameOf(cleanUrl) || "Unnamed Login",
+      title: cleanTitle,
       url: cleanUrl,
-      username: username.trim(),
-      password: password,
       context: context.trim(),
+      accounts: [
+        { username: username.trim(), password: password }
+      ]
     };
 
     const enc = await encryptJSON(key, payload);
@@ -466,9 +628,8 @@ export default function VaultPage() {
       type: "credential",
       title: payload.title,
       url: cleanUrl,
-      username: username.trim(),
-      password: password,
       context: context.trim(),
+      accounts: payload.accounts,
       watched: false,
       createdAt
     }, ...prev]);
@@ -492,8 +653,44 @@ export default function VaultPage() {
     setStash((prev) => prev.map((i) => (i.id === id ? { ...i, watched: !i.watched } : i)));
   };
 
+  const updateAccounts = async (id: string, newAccounts: Array<{ username: string; password: string }>) => {
+    const key = keyRef.current;
+    if (!key) return;
+
+    const record = records.find((r) => r.id === id);
+    if (!record || !record.enc) return;
+
+    try {
+      const oldPayload = await decryptJSON<{
+        type?: "link" | "credential";
+        title: string;
+        url: string;
+        context: string;
+      }>(key, record.enc);
+
+      const newPayload = {
+        ...oldPayload,
+        accounts: newAccounts,
+      };
+
+      const enc = await encryptJSON(key, newPayload);
+
+      setRecords((prev) => prev.map((r) => r.id === id ? { ...r, enc } : r));
+      setStash((prev) => prev.map((i) => {
+        if (i.id === id) {
+          return {
+            ...i,
+            accounts: newAccounts,
+          };
+        }
+        return i;
+      }));
+    } catch (e) {
+      console.error("Failed to update accounts list", e);
+    }
+  };
+
   const visible = stash.filter((i) => (showWatched ? true : !i.watched));
-  const pendingCount = stash.filter((i) => !i.watched).length;
 
   return (
     <div>
@@ -560,14 +757,14 @@ export default function VaultPage() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(true)}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-850 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-950 text-xs font-bold transition-all shadow-[0_1px_2px_rgba(0,0,0,0.02)] cursor-pointer"
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-850 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-955 text-xs font-bold transition-all shadow-[0_1px_2px_rgba(0,0,0,0.02)] cursor-pointer"
                 >
                   <Plus size={13} /> Add Password
                 </button>
                 <button
                   type="button"
                   onClick={lock}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 text-xs font-bold text-zinc-700 dark:text-zinc-355 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-850 active:scale-95 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.01)] cursor-pointer"
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 text-xs font-bold text-zinc-700 dark:text-zinc-350 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-850 active:scale-95 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.01)] cursor-pointer"
                 >
                   <Lock size={13} /> Lock Vault
                 </button>
@@ -617,8 +814,8 @@ export default function VaultPage() {
                         <input
                           value={title}
                           onChange={(e) => setTitle(e.target.value)}
-                          placeholder="Google, Netflix, Router, etc."
-                          className="bg-[#f8f8f8] dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-650 focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-300 focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 transition-all w-full"
+                          placeholder="Google, Flipkart, Amazone, etc."
+                          className="bg-[#f8f8f8] dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-650 focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-300 focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 transition-all w-full animate-none"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
@@ -642,7 +839,7 @@ export default function VaultPage() {
                           value={username}
                           onChange={(e) => setUsername(e.target.value)}
                           placeholder="username@gmail.com or user123"
-                          className="bg-[#f8f8f8] dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-650 focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-300 focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 transition-all w-full"
+                          className="bg-[#f8f8f8] dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-650 focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-300 focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 transition-all w-full animate-none"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
@@ -682,7 +879,7 @@ export default function VaultPage() {
                         onChange={(e) => setContext(e.target.value)}
                         placeholder="Security questions, recovery codes, account numbers..."
                         rows={2}
-                        className="bg-[#f8f8f8] dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-650 focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-300 focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 transition-all resize-y w-full"
+                        className="bg-[#f8f8f8] dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-900 dark:text-zinc-550 placeholder:text-zinc-400 dark:placeholder:text-zinc-650 focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-300 focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 transition-all resize-y w-full"
                       />
                     </div>
 
@@ -720,7 +917,13 @@ export default function VaultPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <AnimatePresence mode="popLayout">
                   {visible.map((item) => (
-                    <StashCard key={item.id} item={item} onDelete={remove} onToggleWatched={toggleWatched} />
+                    <StashCard 
+                      key={item.id} 
+                      item={item} 
+                      onDelete={remove} 
+                      onToggleWatched={toggleWatched} 
+                      onUpdateAccounts={updateAccounts}
+                    />
                   ))}
                 </AnimatePresence>
               </div>
