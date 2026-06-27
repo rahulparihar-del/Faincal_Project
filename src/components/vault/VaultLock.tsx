@@ -18,13 +18,11 @@ export function VaultLock({
   verify,
   onUnlock,
   notice,
-  onReset,
 }: {
   mode: "setup" | "unlock";
   verify: (pin: string) => Promise<boolean>;
   onUnlock: () => void;
   notice?: string;
-  onReset?: () => void;
 }) {
   const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -224,15 +222,7 @@ export function VaultLock({
           </button>
         </div>
 
-        {onReset && (
-          <button
-            onClick={onReset}
-            type="button"
-            className="mt-6 text-[11px] text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 font-semibold tracking-wide transition-colors cursor-pointer"
-          >
-            Reset Vault
-          </button>
-        )}
+
       </motion.div>
     </div>
   );

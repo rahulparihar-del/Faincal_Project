@@ -532,7 +532,6 @@ export default function VaultPage() {
               mode={mode}
               verify={verify}
               onUnlock={unlock}
-              onReset={resetVault}
               notice={autoLocked ? "Locked due to inactivity" : undefined}
             />
           )
