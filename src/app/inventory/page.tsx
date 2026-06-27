@@ -111,8 +111,6 @@ function slug(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
-const NUM_INPUT = "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
-
 export default function InventoryPage() {
   const [cats, setCats, isReady] = useSupabaseTable<InventoryCategory>("inventory_categories", STORAGE_KEY, []);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -130,16 +128,19 @@ export default function InventoryPage() {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Seed default data once if the table is empty. Persists to Supabase only —
-  // nothing is written to localStorage.
+  // Edit in place cell state
+  const [editingCell, setEditingCell] = useState<{ size: string; print: string } | null>(null);
+  const [dimModalOpen, setDimModalOpen] = useState(false);
+  const [dimType, setDimType] = useState<"print" | "size">("print");
+
+  // Seed default data once if the table is empty.
   useEffect(() => {
     if (!isReady || seededRef.current) return;
     if (cats.length === 0) {
       seededRef.current = true;
       setCats(DEFAULT_CATEGORIES);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReady]);
+  }, [isReady, cats, setCats]);
 
   const ordered = useMemo(() => [...cats].sort((a, b) => a.order - b.order), [cats]);
 
@@ -155,9 +156,6 @@ export default function InventoryPage() {
   const pushLog = (text: string) =>
     setLog((prev) => [{ id: `lg-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`, text, at: new Date().toISOString() }, ...prev].slice(0, 50));
 
-  // Each edit persists to Supabase immediately (via setCats). This drives the
-  // "Saving… → Saved" status + toast: it debounces so a burst of edits shows one
-  // confirmation once typing settles.
   const touchSaved = () => {
     setSaveState("saving");
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -192,6 +190,13 @@ export default function InventoryPage() {
     setQty(size, print, cur - 1);
     pushLog(`Sold 1 ${active.name} · ${size} · ${print}`);
   };
+  const handleCellClick = (size: string, print: string, val: number) => {
+    if (quickSale) {
+      if (val > 0) cellSale(size, print);
+    } else {
+      setEditingCell({ size, print });
+    }
+  };
   const addPrint = () => {
     if (!active) return;
     const name = newPrint.trim();
@@ -218,18 +223,24 @@ export default function InventoryPage() {
   };
   const removePrint = (print: string) => {
     if (!active) return;
-    updateCat(active.id, (c) => {
-      const qty: Record<string, Record<string, number>> = {};
-      for (const s of c.sizes) { const { [print]: _d, ...rest } = c.qty[s] || {}; void _d; qty[s] = rest; }
-      return { ...c, prints: c.prints.filter((p) => p !== print), qty };
-    });
+    if (window.confirm(`Are you sure you want to delete print "${print}"?`)) {
+      updateCat(active.id, (c) => {
+        const qty: Record<string, Record<string, number>> = {};
+        for (const s of c.sizes) { const { [print]: _d, ...rest } = c.qty[s] || {}; void _d; qty[s] = rest; }
+        return { ...c, prints: c.prints.filter((p) => p !== print), qty };
+      });
+      pushLog(`Removed print "${print}" from ${active.name}`);
+    }
   };
   const removeSize = (size: string) => {
     if (!active) return;
-    updateCat(active.id, (c) => {
-      const { [size]: _d, ...rest } = c.qty; void _d;
-      return { ...c, sizes: c.sizes.filter((s) => s !== size), qty: rest };
-    });
+    if (window.confirm(`Are you sure you want to delete size "${size}"?`)) {
+      updateCat(active.id, (c) => {
+        const { [size]: _d, ...rest } = c.qty; void _d;
+        return { ...c, sizes: c.sizes.filter((s) => s !== size), qty: rest };
+      });
+      pushLog(`Removed size "${size}" from ${active.name}`);
+    }
   };
 
   /* ── Search filter ── */
@@ -262,7 +273,7 @@ export default function InventoryPage() {
     setTimeout(() => win.print(), 300);
   };
 
-  /* ── Parse "sold 2 jabla 3-6 bear" lines ── */
+  /* ── Parse lines ── */
   const applyParse = (raw: string) => {
     const lines = raw.split(/\n+/).map((l) => l.trim()).filter(Boolean);
     let applied = 0;
@@ -290,17 +301,20 @@ export default function InventoryPage() {
 
   const Tool = ({ icon, label, onClick, active: on }: { icon: React.ReactNode; label: string; onClick: () => void; active?: boolean }) => (
     <button
+      type="button"
       onClick={onClick}
-      className={`flex items-center gap-1.5 h-9 px-3 rounded-lg text-[13px] font-semibold transition-colors ${
-        on ? "bg-black text-white" : "bg-white border border-[#e8e8e8] text-[#555] hover:bg-[#f5f5f5]"
+      className={`flex items-center gap-1.5 h-9 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+        on 
+          ? "bg-zinc-950 dark:bg-zinc-100 text-white dark:text-zinc-950 shadow-sm" 
+          : "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-650 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-850 hover:text-zinc-900 dark:hover:text-zinc-250"
       }`}
     >
-      {icon}{label}
+      {icon}<span>{label}</span>
     </button>
   );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Auto-save toast */}
       <AnimatePresence>
         {toast && (
@@ -312,182 +326,333 @@ export default function InventoryPage() {
             className="fixed top-20 left-1/2 z-[60] flex items-center gap-2 px-4 py-2.5 rounded-xl bg-black text-white shadow-[0_8px_32px_rgba(0,0,0,0.25)]"
             role="status"
           >
-            <Check size={15} />
-            <span className="text-sm font-semibold">Changes saved to database</span>
+            <Check size={15} className="text-green-400" />
+            <span className="text-sm font-semibold">Changes synced to database</span>
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-black text-white flex items-center justify-center"><Package size={17} /></div>
+      <div className="flex items-center justify-between gap-3 flex-wrap pb-2">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-zinc-950 dark:bg-zinc-100 text-white dark:text-zinc-955 flex items-center justify-center shadow-sm">
+            <Package size={20} />
+          </div>
           <div>
-            <h2 className="text-xl font-bold text-black tracking-tight leading-none">Stock Inventory</h2>
-            <p className="text-[11px] text-[#999] mt-1">{grandTotal.toLocaleString("en-IN")} pcs across {ordered.length} categories</p>
+            <h2 className="text-2xl font-black text-zinc-900 dark:text-zinc-50 tracking-tight leading-none">Stock Inventory</h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1.5">
+              {grandTotal.toLocaleString("en-IN")} pcs total · across {ordered.length} active categories
+            </p>
           </div>
         </div>
-        <div className="flex items-center gap-3 text-[11px] text-[#999]">
+        <div className="flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
           {saveState === "saving" ? (
-            <span className="flex items-center gap-1.5 text-black font-medium"><RefreshCw size={12} className="animate-spin" /> Saving…</span>
+            <span className="flex items-center gap-1.5 text-zinc-900 dark:text-zinc-100 font-medium">
+              <RefreshCw size={12} className="animate-spin" /> Saving changes…
+            </span>
           ) : savedAt ? (
-            <span className="flex items-center gap-1 text-[#666] font-medium"><Check size={12} /> Saved · {savedAt}</span>
+            <span className="flex items-center gap-1.5 text-zinc-700 dark:text-zinc-300 font-medium">
+              <Check size={12} className="text-green-500" /> Synced · {savedAt}
+            </span>
           ) : null}
-          <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-black" /> Auto-sync</span>
+          <span className="flex items-center gap-1.5 font-semibold">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> Auto-sync active
+          </span>
         </div>
       </div>
 
-      {/* Category selector (doubles as totals) */}
-      <div className="flex items-stretch gap-2 flex-wrap">
-        <div className="bg-black text-white rounded-xl px-4 py-2.5 flex flex-col justify-center min-w-[120px]">
-          <span className="text-[10px] uppercase tracking-[0.14em] text-white/55">Grand Total</span>
-          <span className="text-xl font-bold leading-tight">{grandTotal.toLocaleString("en-IN")}<span className="text-[11px] font-medium text-white/55 ml-1">pcs</span></span>
+      {/* Category selector */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        {/* Grand Total Card */}
+        <div className="bg-gradient-to-br from-zinc-900 to-zinc-950 dark:from-zinc-950 dark:to-black text-white rounded-2xl p-3.5 flex flex-col justify-between shadow-sm min-h-[82px] border border-zinc-800">
+          <span className="text-[9px] uppercase tracking-wider text-zinc-400 font-bold">Grand Total</span>
+          <div className="flex items-baseline gap-1 mt-1">
+            <span className="text-2xl font-black tracking-tight">{grandTotal.toLocaleString("en-IN")}</span>
+            <span className="text-[10px] font-medium text-zinc-400 uppercase">pcs</span>
+          </div>
         </div>
+        
         {ordered.map((c) => {
           const on = c.id === activeId;
           return (
             <button
               key={c.id}
               onClick={() => setActiveId(c.id)}
-              className={`rounded-xl px-4 py-2.5 flex flex-col justify-center min-w-[104px] text-left border transition-all ${
-                on ? "bg-white border-black ring-1 ring-black" : "bg-white border-[#e8e8e8] hover:border-[#ccc]"
+              className={`rounded-2xl p-3.5 flex flex-col justify-between text-left border transition-all duration-300 min-h-[82px] cursor-pointer hover:shadow-sm ${
+                on 
+                  ? "bg-white dark:bg-zinc-800 border-zinc-950 dark:border-zinc-100 ring-2 ring-zinc-950/10 dark:ring-white/10" 
+                  : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800/80 hover:border-zinc-350 dark:hover:border-zinc-700"
               }`}
             >
-              <span className="text-[10px] uppercase tracking-[0.12em] text-[#999] truncate">{c.name}</span>
-              <span className="text-xl font-bold text-black leading-tight">{catTotal(c)}</span>
+              <span className={`text-[9px] uppercase tracking-wider font-bold ${on ? "text-zinc-900 dark:text-white" : "text-zinc-400 dark:text-zinc-550"} truncate`}>
+                {c.name}
+              </span>
+              <div className="flex items-baseline gap-1 mt-1">
+                <span className={`text-2xl font-extrabold tracking-tight ${on ? "text-zinc-900 dark:text-white" : "text-zinc-800 dark:text-zinc-200"}`}>
+                  {catTotal(c).toLocaleString("en-IN")}
+                </span>
+                <span className="text-[9px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase">pcs</span>
+              </div>
             </button>
           );
         })}
       </div>
 
       {/* Toolbar */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <div className="flex-1 min-w-[180px] flex items-center gap-2 bg-[#f8f8f8] border border-[#e8e8e8] rounded-lg px-3 h-9 focus-within:border-black transition-all">
-          <Search size={15} className="text-[#bbb] shrink-0" />
+      <div className="flex items-center gap-2.5 flex-wrap">
+        <div className="flex-1 min-w-[200px] flex items-center gap-2 bg-[#f8f8f8] dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 h-9 focus-within:border-zinc-900 dark:focus-within:border-zinc-300 focus-within:ring-2 focus-within:ring-black/5 dark:focus-within:ring-white/5 transition-all">
+          <Search size={14} className="text-zinc-400 dark:text-zinc-500 shrink-0" />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search size or print…"
-            className="flex-1 bg-transparent text-sm text-black placeholder:text-[#bbb] focus:outline-none border-none p-0 min-w-0" />
+            className="flex-1 bg-transparent text-xs text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-405 dark:placeholder:text-zinc-600 focus:outline-none border-none p-0 min-w-0" />
           {oos > 0 && (
-            <span className="flex items-center gap-1 text-[11px] font-semibold text-[#666] bg-[#ececec] px-2 py-0.5 rounded-full whitespace-nowrap">
-              <AlertTriangle size={11} /> {oos} empty
+            <span className="flex items-center gap-1 text-[10px] font-bold text-zinc-600 dark:text-zinc-400 bg-zinc-200/50 dark:bg-zinc-800/80 px-2 py-0.5 rounded-full whitespace-nowrap">
+              <AlertTriangle size={10} className="text-amber-500" /> {oos} empty
             </span>
           )}
         </div>
-        <Tool icon={<Zap size={14} />} label="Quick Sale" onClick={() => setQuickSale((v) => !v)} active={quickSale} />
-        <Tool icon={<Sparkles size={14} />} label="AI Parse" onClick={() => setParseOpen(true)} />
-        <Tool icon={<ClipboardPaste size={14} />} label="Bulk Paste" onClick={() => setParseOpen(true)} />
-        <Tool icon={<History size={14} />} label="Log" onClick={() => setShowLog(true)} />
-        <Tool icon={<FileDown size={14} />} label="PDF" onClick={exportPdf} />
-        <Tool icon={<Share2 size={14} />} label="WhatsApp" onClick={shareWhatsApp} />
+        <button
+          onClick={() => setDimModalOpen(true)}
+          className="flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-zinc-950 hover:bg-zinc-850 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-955 text-xs font-bold transition-all shadow-[0_1px_2px_rgba(0,0,0,0.02)] cursor-pointer shrink-0"
+        >
+          <Plus size={13} /> Add Dimension
+        </button>
+        <div className="w-px h-6 bg-zinc-200 dark:bg-zinc-800 hidden sm:block" />
+        <Tool icon={<Zap size={13} />} label="Quick Sale" onClick={() => setQuickSale((v) => !v)} active={quickSale} />
+        <Tool icon={<Sparkles size={13} />} label="AI Parse" onClick={() => setParseOpen(true)} />
+        <Tool icon={<ClipboardPaste size={13} />} label="Bulk Paste" onClick={() => setParseOpen(true)} />
+        <Tool icon={<History size={13} />} label="Log" onClick={() => setShowLog(true)} />
+        <Tool icon={<FileDown size={13} />} label="PDF" onClick={exportPdf} />
+        <Tool icon={<Share2 size={13} />} label="WhatsApp" onClick={shareWhatsApp} />
       </div>
 
       {quickSale && (
-        <div className="text-[12px] text-[#555] bg-[#f5f5f5] border border-[#e8e8e8] rounded-lg px-3 py-2">
-          <strong>Quick Sale on</strong> — tap any cell to deduct 1 from stock.
+        <div className="text-xs text-zinc-600 dark:text-zinc-400 bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-2.5 flex items-center gap-2">
+          <Zap size={14} className="text-amber-500 animate-pulse" />
+          <span><strong>Quick Sale Mode Active</strong> — Tap any stock cell in the table below to deduct 1 item.</span>
         </div>
       )}
 
       {active && (
-        <div className="bg-white rounded-2xl border border-[#e8e8e8] shadow-sm overflow-hidden">
-          {/* Add print / size */}
-          <div className="flex flex-col sm:flex-row items-stretch gap-2 p-3 border-b border-[#f0f0f0]">
-            <div className="flex items-center gap-1.5 flex-1">
-              <input value={newPrint} onChange={(e) => setNewPrint(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addPrint(); }}
-                placeholder={`New print for ${active.name}`}
-                className="flex-1 bg-[#f8f8f8] border border-[#e8e8e8] rounded-lg px-3 h-9 text-sm text-black placeholder:text-[#bbb] focus:outline-none focus:border-black transition-all min-w-0" />
-              <button onClick={addPrint} className="flex items-center gap-1 px-3 h-9 rounded-lg bg-black text-white text-[13px] font-semibold hover:bg-[#222] shrink-0"><Plus size={14} /> Print</button>
-            </div>
-            <div className="flex items-center gap-1.5 flex-1">
-              <input value={newSize} onChange={(e) => setNewSize(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addSize(); }}
-                placeholder="New size (e.g. 24-30)"
-                className="flex-1 bg-[#f8f8f8] border border-[#e8e8e8] rounded-lg px-3 h-9 text-sm text-black placeholder:text-[#bbb] focus:outline-none focus:border-black transition-all min-w-0" />
-              <button onClick={addSize} className="flex items-center gap-1 px-3 h-9 rounded-lg bg-white border border-black text-black text-[13px] font-semibold hover:bg-[#f5f5f5] shrink-0"><Plus size={14} /> Size</button>
-            </div>
-          </div>
-
-          {/* Matrix — table-fixed so it always fits the width (no horizontal scroll) */}
-          <table className="w-full table-fixed border-collapse">
-            <thead>
-              <tr className="border-b border-[#e8e8e8]">
-                <th className="w-[56px] text-left text-[11px] font-semibold uppercase tracking-wider text-[#999] px-3 py-2.5">Size</th>
-                {visiblePrints.map((p) => (
-                  <th key={p} className="text-[10.5px] font-semibold text-[#777] px-1 py-2.5 text-center leading-tight align-bottom group">
-                    <span className="inline-flex items-center gap-0.5 break-words">
-                      {p}
-                      <button onClick={() => removePrint(p)} className="opacity-0 group-hover:opacity-100 text-[#ccc] hover:text-black transition-all shrink-0"><X size={10} /></button>
-                    </span>
+        <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200/80 dark:border-zinc-800/80 shadow-[0_2px_12px_rgba(0,0,0,0.02)] dark:shadow-none overflow-hidden">
+          {/* Matrix Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[850px] table-fixed border-collapse">
+              <thead>
+                <tr className="border-b border-zinc-200/80 dark:border-zinc-800/60 bg-zinc-50/50 dark:bg-zinc-950/20 text-xs text-zinc-400 dark:text-zinc-550">
+                  <th className="sticky left-0 bg-white dark:bg-zinc-900 z-20 w-[68px] text-left text-[10px] font-bold uppercase tracking-wider px-4 py-3 border-r border-zinc-150/40 dark:border-zinc-800/60 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.02)] dark:shadow-none">
+                    Size
                   </th>
-                ))}
-                <th className="w-[52px] text-right text-[11px] font-semibold uppercase tracking-wider text-[#999] px-3 py-2.5">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibleSizes.map((s) => (
-                <tr key={s} className="border-b border-[#f3f3f3] group hover:bg-[#fafafa]">
-                  <td className="px-3 py-1.5 text-[13px] font-medium text-black whitespace-nowrap">
-                    <span className="inline-flex items-center gap-1">
-                      {s}
-                      <button onClick={() => removeSize(s)} className="opacity-0 group-hover:opacity-100 text-[#ccc] hover:text-black transition-all"><X size={10} /></button>
-                    </span>
-                  </td>
-                  {visiblePrints.map((p) => {
-                    const val = active.qty[s]?.[p] ?? 0;
-                    return (
-                      <td key={p} className="px-0.5 py-1.5 text-center">
-                        {quickSale ? (
-                          <button onClick={() => cellSale(s, p)} disabled={val <= 0}
-                            className={`inv-cell w-11 h-7 mx-auto rounded-md border text-[13px] font-medium transition-colors ${val <= 0 ? "text-[#ccc] border-[#f0f0f0] cursor-not-allowed" : "text-black border-[#e8e8e8] hover:bg-[#f0f0f0]"}`}>
-                            {val}
-                          </button>
-                        ) : (
-                          <input type="number" inputMode="numeric" value={val} min={0}
-                            onChange={(e) => setQty(s, p, parseInt(e.target.value, 10))}
-                            onFocus={(e) => e.target.select()}
-                            className={`inv-cell w-11 h-7 mx-auto text-center rounded-md border text-[13px] focus:outline-none focus:border-black focus:ring-1 focus:ring-black/20 transition-all ${NUM_INPUT} ${val === 0 ? "text-[#ccc] border-[#f0f0f0]" : "text-black border-[#e8e8e8]"}`} />
-                        )}
-                      </td>
-                    );
-                  })}
-                  <td className="px-3 py-1.5 text-right text-[13px] font-bold text-black">{rowTotal(active, s)}</td>
+                  {visiblePrints.map((p) => (
+                    <th key={p} className="text-[10px] font-bold uppercase tracking-wider px-2 py-3 text-center leading-tight align-bottom group relative">
+                      <span className="inline-flex items-center gap-1 justify-center w-full">
+                        <span className="truncate" title={p}>{p}</span>
+                        <button 
+                          onClick={() => removePrint(p)} 
+                          className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-red-500 transition-all shrink-0 cursor-pointer"
+                          title={`Delete print ${p}`}
+                        >
+                          <X size={10} />
+                        </button>
+                      </span>
+                    </th>
+                  ))}
+                  <th className="sticky right-0 bg-white dark:bg-zinc-900 z-20 w-[78px] text-right text-[10px] font-bold uppercase tracking-wider px-4 py-3 border-l border-zinc-150/40 dark:border-zinc-800/60 shadow-[-3px_0_6px_-2px_rgba(0,0,0,0.02)] dark:shadow-none">
+                    Total
+                  </th>
                 </tr>
-              ))}
-              <tr className="bg-[#fafafa]">
-                <td className="px-3 py-2.5 text-[11px] font-bold uppercase tracking-wider text-black">Total</td>
-                {visiblePrints.map((p) => (
-                  <td key={p} className="px-0.5 py-2.5 text-center text-[13px] font-bold text-black">{colTotal(active, p)}</td>
+              </thead>
+              <tbody>
+                {visibleSizes.map((s) => (
+                  <tr key={s} className="border-b border-zinc-150/40 dark:border-zinc-800/40 group hover:bg-zinc-50/40 dark:hover:bg-zinc-950/20 transition-all">
+                    <td className="sticky left-0 bg-white dark:bg-zinc-900 z-10 px-4 py-2 text-xs font-semibold text-zinc-900 dark:text-zinc-50 border-r border-zinc-150/40 dark:border-zinc-800/60 whitespace-nowrap shadow-[3px_0_6px_-2px_rgba(0,0,0,0.02)] dark:shadow-none">
+                      <div className="flex items-center gap-1.5">
+                        {s}
+                        <button 
+                          onClick={() => removeSize(s)} 
+                          className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-red-500 transition-all cursor-pointer"
+                          title={`Delete size ${s}`}
+                        >
+                          <X size={10} />
+                        </button>
+                      </div>
+                    </td>
+                    {visiblePrints.map((p) => {
+                      const val = active.qty[s]?.[p] ?? 0;
+                      const isEditing = editingCell?.size === s && editingCell?.print === p;
+                      return (
+                        <td key={p} className="px-0.5 py-1.5 text-center">
+                          {isEditing ? (
+                            <input
+                              type="number"
+                              inputMode="numeric"
+                              value={val}
+                              min={0}
+                              onChange={(e) => setQty(s, p, parseInt(e.target.value, 10))}
+                              onBlur={() => setEditingCell(null)}
+                              onKeyDown={(e) => { if (e.key === "Enter") setEditingCell(null); }}
+                              className="w-12 h-8 text-center text-xs font-bold rounded-lg border border-zinc-950 dark:border-zinc-100 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10"
+                              autoFocus
+                              onFocus={(e) => e.target.select()}
+                            />
+                          ) : (
+                            <div
+                              onClick={() => handleCellClick(s, p, val)}
+                              className={`w-12 h-8 mx-auto flex items-center justify-center rounded-lg text-xs font-semibold cursor-pointer transition-all border ${
+                                val === 0
+                                  ? "text-red-500 bg-red-500/5 dark:bg-red-500/10 border-red-500/10"
+                                  : val <= 5
+                                  ? "text-amber-600 bg-amber-500/5 dark:bg-amber-500/10 border-amber-500/10"
+                                  : "text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 border-transparent"
+                              }`}
+                            >
+                              {val}
+                            </div>
+                          )}
+                        </td>
+                      );
+                    })}
+                    <td className="sticky right-0 bg-white dark:bg-zinc-900 z-10 px-4 py-2 text-right text-xs font-black text-zinc-900 dark:text-zinc-50 border-l border-zinc-150/40 dark:border-zinc-800/60 shadow-[-3px_0_6px_-2px_rgba(0,0,0,0.02)] dark:shadow-none">
+                      {rowTotal(active, s).toLocaleString("en-IN")}
+                    </td>
+                  </tr>
                 ))}
-                <td className="px-3 py-2.5 text-right text-[13px] font-bold text-black">{catTotal(active)}</td>
-              </tr>
-            </tbody>
-          </table>
+                <tr className="bg-zinc-50/50 dark:bg-zinc-950/20">
+                  <td className="sticky left-0 bg-zinc-50/80 dark:bg-zinc-950/80 z-10 px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-zinc-900 dark:text-zinc-50 border-r border-zinc-150/40 dark:border-zinc-800/60 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.02)] dark:shadow-none">
+                    Total
+                  </td>
+                  {visiblePrints.map((p) => (
+                    <td key={p} className="px-0.5 py-3 text-center text-xs font-black text-zinc-900 dark:text-zinc-50">
+                      {colTotal(active, p).toLocaleString("en-IN")}
+                    </td>
+                  ))}
+                  <td className="sticky right-0 bg-zinc-50/80 dark:bg-zinc-950/80 z-10 px-4 py-3 text-right text-xs font-black text-zinc-900 dark:text-zinc-50 border-l border-zinc-150/40 dark:border-zinc-800/60 shadow-[-3px_0_6px_-2px_rgba(0,0,0,0.02)] dark:shadow-none">
+                    {catTotal(active).toLocaleString("en-IN")}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
       {!isReady && <div className="py-20 text-center text-[#999]"><RefreshCw size={22} className="animate-spin inline" /></div>}
 
-      {/* Log */}
-      {showLog && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 px-4" onClick={() => setShowLog(false)}>
-          <div className="absolute inset-0 bg-black/30" />
-          <div className="relative bg-white rounded-2xl border border-[#e8e8e8] shadow-2xl w-full max-w-md max-h-[60vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[#e8e8e8]">
-              <h3 className="font-bold text-black flex items-center gap-2"><History size={16} /> Activity Log</h3>
-              <button onClick={() => setShowLog(false)} className="text-[#999] hover:text-black"><X size={18} /></button>
-            </div>
-            <div className="overflow-y-auto p-2">
-              {log.length === 0 ? (
-                <p className="text-sm text-[#999] text-center py-8">No activity yet this session.</p>
+      {/* Add Dimension Modal */}
+      <AnimatePresence>
+        {dimModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setDimModalOpen(false)}
+              className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              className="relative max-w-sm w-full bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 p-5 z-10 flex flex-col gap-4 shadow-xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between pb-2 border-b border-zinc-100 dark:border-zinc-800/60">
+                <h3 className="font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                  <Plus size={16} /> Add Dimension
+                </h3>
+                <button onClick={() => setDimModalOpen(false)} className="text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 cursor-pointer">
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="flex items-center gap-1 p-1 bg-zinc-100 dark:bg-zinc-950 rounded-xl">
+                <button
+                  onClick={() => setDimType("print")}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${dimType === "print" ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm" : "text-zinc-500 hover:text-zinc-900"}`}
+                >
+                  Print Pattern
+                </button>
+                <button
+                  onClick={() => setDimType("size")}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${dimType === "size" ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm" : "text-zinc-500 hover:text-zinc-900"}`}
+                >
+                  Size Option
+                </button>
+              </div>
+
+              {dimType === "print" ? (
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider ml-1">Print Pattern Name</label>
+                  <input
+                    value={newPrint}
+                    onChange={(e) => setNewPrint(e.target.value)}
+                    placeholder="e.g. Bear, Dinosaur, Stripes"
+                    onKeyDown={(e) => { if (e.key === "Enter") { addPrint(); setDimModalOpen(false); } }}
+                    className="bg-[#f8f8f8] dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-900 dark:text-zinc-50 focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-300 focus:ring-2 focus:ring-black/5 w-full"
+                  />
+                </div>
               ) : (
-                log.map((l) => (
-                  <div key={l.id} className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg hover:bg-[#f5f5f5]">
-                    <span className="text-sm text-black">{l.text}</span>
-                    <span className="text-[11px] text-[#aaa] whitespace-nowrap">{new Date(l.at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</span>
-                  </div>
-                ))
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider ml-1">Size Option Label</label>
+                  <input
+                    value={newSize}
+                    onChange={(e) => setNewSize(e.target.value)}
+                    placeholder="e.g. 12-18, Standard, XL"
+                    onKeyDown={(e) => { if (e.key === "Enter") { addSize(); setDimModalOpen(false); } }}
+                    className="bg-[#f8f8f8] dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-900 dark:text-zinc-50 focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-300 focus:ring-2 focus:ring-black/5 w-full"
+                  />
+                </div>
               )}
-            </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button onClick={() => setDimModalOpen(false)} className="px-3.5 py-2 rounded-xl text-xs font-semibold text-zinc-500 hover:bg-zinc-100 cursor-pointer">Cancel</button>
+                <button
+                  onClick={() => {
+                    if (dimType === "print") addPrint();
+                    else addSize();
+                    setDimModalOpen(false);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-zinc-950 dark:bg-zinc-100 text-white dark:text-zinc-950 text-xs font-bold hover:shadow transition-all cursor-pointer"
+                >
+                  Add to {active?.name}
+                </button>
+              </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
+
+      {/* Log */}
+      <AnimatePresence>
+        {showLog && (
+          <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 px-4" onClick={() => setShowLog(false)}>
+            <div className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm" />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: -20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -20 }}
+              className="relative bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-2xl w-full max-w-md max-h-[60vh] flex flex-col z-10 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100 dark:border-zinc-800/60">
+                <h3 className="font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2"><History size={16} /> Activity Log</h3>
+                <button onClick={() => setShowLog(false)} className="text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 cursor-pointer"><X size={18} /></button>
+              </div>
+              <div className="overflow-y-auto p-3 space-y-1">
+                {log.length === 0 ? (
+                  <p className="text-xs text-zinc-400 text-center py-10">No activity yet this session.</p>
+                ) : (
+                  log.map((l) => (
+                    <div key={l.id} className="flex items-center justify-between gap-3 px-3 py-2 rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-950/40 transition-colors">
+                      <span className="text-xs text-zinc-800 dark:text-zinc-200">{l.text}</span>
+                      <span className="text-[10px] text-zinc-400 dark:text-zinc-500 whitespace-nowrap">{new Date(l.at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {parseOpen && <ParseModal onClose={() => setParseOpen(false)} onApply={applyParse} />}
     </div>
@@ -509,24 +674,51 @@ function ParseModal({ onClose, onApply }: { onClose: () => void; onApply: (raw: 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/30" />
-      <div className="relative bg-white rounded-2xl border border-[#e8e8e8] shadow-2xl w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[#e8e8e8]">
-          <h3 className="font-bold text-black flex items-center gap-2"><Sparkles size={16} /> Parse sales / bulk paste</h3>
-          <button onClick={onClose} className="text-[#999] hover:text-black"><X size={18} /></button>
+      <div className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm" />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 16 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 16 }}
+        className="relative bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-2xl w-full max-w-lg p-5 z-10 flex flex-col gap-4 overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between pb-2 border-b border-zinc-100 dark:border-zinc-800/60">
+          <h3 className="font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+            <Sparkles size={16} className="text-zinc-500" /> Parse Sales & Bulk Paste
+          </h3>
+          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 cursor-pointer">
+            <X size={18} />
+          </button>
         </div>
-        <div className="p-4 space-y-3">
-          <p className="text-[13px] text-[#666]">One per line — each line deducts stock:</p>
-          <textarea ref={ref} value={text} onChange={(e) => { setText(e.target.value); setResult(null); }} rows={6}
+        <div className="space-y-3">
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            Paste one entry per line to deduct from stock. Format: <code className="font-mono text-zinc-800 dark:text-zinc-200 bg-zinc-100 dark:bg-zinc-950 px-1.5 py-0.5 rounded">sold 2 jabla 3-6 bear</code>
+          </p>
+          <textarea
+            ref={ref}
+            value={text}
+            onChange={(e) => { setText(e.target.value); setResult(null); }}
+            rows={6}
             placeholder={"sold 2 jabla 3-6 bear\nsold 1 frock 0-3 unicorn\n3 night suit 0-3 owl"}
-            className="w-full bg-[#f8f8f8] border border-[#e8e8e8] rounded-xl px-3 py-2.5 text-sm text-black placeholder:text-[#bbb] focus:outline-none focus:border-black focus:ring-1 focus:ring-black/20 transition-all resize-y font-mono" />
-          {result && <p className={`text-sm font-medium ${result.startsWith("Applied") ? "text-black" : "text-[#888]"}`}>{result}</p>}
-          <div className="flex justify-end gap-2">
-            <button onClick={onClose} className="px-4 h-9 rounded-lg text-sm font-semibold text-[#555] hover:bg-[#f5f5f5]">Close</button>
-            <button onClick={run} disabled={!text.trim()} className="flex items-center gap-1.5 px-4 h-9 rounded-lg bg-black text-white text-sm font-semibold disabled:bg-[#ddd]"><Check size={14} /> Apply</button>
+            className="w-full bg-[#f8f8f8] dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-300 focus:ring-2 focus:ring-black/5 resize-y font-mono"
+          />
+          {result && (
+            <p className={`text-xs font-semibold ${result.startsWith("Applied") ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-400"}`}>
+              {result}
+            </p>
+          )}
+          <div className="flex justify-end gap-2 pt-1">
+            <button onClick={onClose} className="px-3.5 py-2 rounded-xl text-xs font-semibold text-zinc-500 hover:bg-zinc-100 cursor-pointer">Close</button>
+            <button
+              onClick={run}
+              disabled={!text.trim()}
+              className="flex items-center gap-1.5 px-4 h-9 rounded-xl bg-zinc-950 hover:bg-zinc-850 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-955 text-xs font-bold disabled:bg-zinc-200 dark:disabled:bg-zinc-800 disabled:text-zinc-400 dark:disabled:text-zinc-650 disabled:cursor-not-allowed transition-all cursor-pointer"
+            >
+              <Check size={14} /> Apply Updates
+            </button>
           </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
