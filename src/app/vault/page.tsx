@@ -13,7 +13,6 @@ import {
   decryptJSON,
 } from "@/lib/vault/crypto";
 import {
-  Bookmark,
   Plus,
   Trash2,
   ExternalLink,
@@ -23,7 +22,6 @@ import {
   EyeOff,
   Clock,
   Lock,
-  Play,
   CircleCheckBig,
   Loader2,
   Key,
@@ -33,28 +31,25 @@ import {
 } from "lucide-react";
 
 /* ─── Types ─────────────────────────────────────────────────── */
-// Decrypted, in-memory shape used for display.
 interface StashItem {
   id: string;
   type?: "link" | "credential";
   title: string;
   url: string;
-  context: string;
+  context: string; // notes
   username?: string;
   password?: string;
   watched: boolean;
   createdAt: string;
 }
 
-// Persisted shape (Supabase). Sensitive fields live encrypted inside `enc`.
-// The meta record (id === META_ID) holds the salt + verifier instead.
 interface VaultRecord {
   id: string;
-  enc?: string;        // base64(iv|ciphertext) of { title, url, context }
+  enc?: string;        // base64(iv|ciphertext) of encrypted payload
   watched?: boolean;
   createdAt?: string;
   salt?: string;       // meta only
-  check?: string;      // meta only — encrypted verifier
+  check?: string;      // meta only
 }
 
 const STORAGE_KEY = "biztrack_vault";
@@ -127,142 +122,137 @@ function StashCard({
     }
   };
 
-  const isCredential = item.type === "credential";
-
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.96 }}
-      className={`group bg-white rounded-2xl border border-[#e8e8e8] hover:border-[#ccc] shadow-[0_1px_4px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)] transition-all p-4 flex flex-col gap-2.5 ${
-        item.watched ? "opacity-60" : ""
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.25 }}
+      className={`group relative bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800/80 hover:border-zinc-400 dark:hover:border-zinc-700 rounded-3xl p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:shadow-[0_12px_24px_rgba(0,0,0,0.04)] dark:hover:shadow-[0_12px_24px_rgba(0,0,0,0.25)] transition-all duration-300 flex flex-col gap-4 ${
+        item.watched ? "opacity-50" : ""
       }`}
     >
-      <div className="flex items-start gap-2.5">
-        <div className="w-9 h-9 rounded-xl bg-[#f5f5f5] border border-[#e8e8e8] flex items-center justify-center shrink-0 overflow-hidden">
-          {fav ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={fav} alt="" width={18} height={18} className="object-contain" />
-          ) : isCredential ? (
-            <Key size={15} className="text-amber-600" />
-          ) : (
-            <Bookmark size={15} className="text-[#999]" />
-          )}
+      {/* Card Header */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 flex items-center justify-center shrink-0 overflow-hidden shadow-inner">
+            {fav ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={fav} alt="" width={20} height={20} className="object-contain" />
+            ) : (
+              <Key size={18} className="text-amber-500 dark:text-amber-400" />
+            )}
+          </div>
+          <div className="min-w-0">
+            <h3 className={`font-bold text-sm text-zinc-900 dark:text-zinc-50 leading-snug truncate ${item.watched ? "line-through text-zinc-400 dark:text-zinc-500" : ""}`}>
+              {item.title || "Unnamed Login"}
+            </h3>
+            {item.url && (
+              <button 
+                onClick={open} 
+                className="text-[11px] text-zinc-400 dark:text-zinc-500 hover:text-amber-500 dark:hover:text-amber-400 transition-colors truncate flex items-center gap-1 mt-0.5 w-fit max-w-full cursor-pointer"
+              >
+                <span className="truncate">{hostnameOf(item.url)}</span> 
+                <ExternalLink size={9} className="shrink-0" />
+              </button>
+            )}
+          </div>
         </div>
-        <div className="flex-1 min-w-0">
-          <h3 className={`font-semibold text-sm text-black leading-snug ${item.watched ? "line-through" : ""}`}>
-            {item.title || (isCredential ? "Unnamed Login" : hostnameOf(item.url) || "Saved note")}
-          </h3>
-          {item.url && (
-            <button onClick={open} className="text-[11px] text-[#aaa] hover:text-blue-500 truncate flex items-center gap-1 mt-0.5 w-fit max-w-full">
-              <span className="truncate">{hostnameOf(item.url)}</span> <ExternalLink size={9} className="shrink-0" />
-            </button>
-          )}
-        </div>
-        {isCredential && (
-          <span className="text-[9px] font-bold px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200/50 rounded-full shrink-0 uppercase tracking-wider">
-            Login
-          </span>
-        )}
+        <span className="text-[9px] font-bold px-2 py-0.5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-200/35 dark:border-amber-900/40 rounded-full shrink-0 uppercase tracking-wider">
+          Login
+        </span>
       </div>
 
-      {isCredential ? (
-        <div className="bg-[#fafafa] border border-[#f0f0f0] rounded-xl p-2.5 space-y-2 mt-0.5 text-xs text-[#444]">
-          <div className="flex items-center justify-between gap-2 min-w-0">
-            <span className="text-[#888] shrink-0 font-medium w-16">Username</span>
-            <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
-              <span className="truncate font-mono text-black select-all text-right w-full" title={item.username}>
-                {item.username || "—"}
-              </span>
-              {item.username && (
+      {/* Credentials Table Box */}
+      <div className="bg-zinc-50/50 dark:bg-zinc-950/40 border border-zinc-200/50 dark:border-zinc-800/50 rounded-2xl p-3 space-y-2.5 text-xs text-zinc-700 dark:text-zinc-300">
+        {/* Username Row */}
+        <div className="flex items-center justify-between gap-3 min-w-0">
+          <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-semibold uppercase tracking-wider shrink-0 w-16">Username</span>
+          <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
+            <span className="truncate font-mono font-medium text-zinc-900 dark:text-zinc-100 select-all text-right w-full" title={item.username}>
+              {item.username || "—"}
+            </span>
+            {item.username && (
+              <button
+                onClick={copyUsername}
+                className="p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 rounded-lg transition-all shrink-0 cursor-pointer"
+                title="Copy Username"
+              >
+                {copiedUser ? <Check size={13} className="text-green-600 dark:text-green-400" /> : <Copy size={13} />}
+              </button>
+            )}
+          </div>
+        </div>
+        
+        {/* Password Row */}
+        <div className="flex items-center justify-between gap-3 min-w-0 border-t border-zinc-200/40 dark:border-zinc-800/40 pt-2.5">
+          <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-semibold uppercase tracking-wider shrink-0 w-16">Password</span>
+          <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
+            <span className="font-mono text-zinc-900 dark:text-zinc-100 select-all tracking-wide text-right w-full">
+              {showPass ? item.password : "••••••••"}
+            </span>
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={() => setShowPass(!showPass)}
+                className="p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 rounded-lg transition-all cursor-pointer"
+                title={showPass ? "Hide Password" : "Show Password"}
+              >
+                {showPass ? <EyeOff size={13} /> : <Eye size={13} />}
+              </button>
+              {item.password && (
                 <button
-                  onClick={copyUsername}
-                  className="p-1 hover:bg-[#e8e8e8] text-[#888] hover:text-black rounded transition-colors shrink-0"
-                  title="Copy Username"
+                  onClick={copyPassword}
+                  className="p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 rounded-lg transition-all cursor-pointer"
+                  title="Copy Password"
                 >
-                  {copiedUser ? <Check size={12} className="text-green-600" /> : <Copy size={12} />}
+                  {copiedPass ? <Check size={13} className="text-green-600 dark:text-green-400" /> : <Copy size={13} />}
                 </button>
               )}
             </div>
           </div>
-          <div className="flex items-center justify-between gap-2 min-w-0 border-t border-[#f0f0f0]/60 pt-2">
-            <span className="text-[#888] shrink-0 font-medium w-16">Password</span>
-            <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
-              <span className="font-mono text-black select-all tracking-wide text-right w-full">
-                {showPass ? item.password : "••••••••"}
-              </span>
-              <div className="flex items-center gap-0.5 shrink-0">
-                <button
-                  onClick={() => setShowPass(!showPass)}
-                  className="p-1 hover:bg-[#e8e8e8] text-[#888] hover:text-black rounded transition-colors"
-                  title={showPass ? "Hide Password" : "Show Password"}
-                >
-                  {showPass ? <EyeOff size={12} /> : <Eye size={12} />}
-                </button>
-                {item.password && (
-                  <button
-                    onClick={copyPassword}
-                    className="p-1 hover:bg-[#e8e8e8] text-[#888] hover:text-black rounded transition-colors"
-                    title="Copy Password"
-                  >
-                    {copiedPass ? <Check size={12} className="text-green-600" /> : <Copy size={12} />}
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
         </div>
-      ) : null}
+      </div>
 
-      {!isCredential && item.context && (
-        <p className="text-[13px] text-[#666] leading-relaxed whitespace-pre-wrap">{item.context}</p>
-      )}
-
-      {isCredential && item.context && (
+      {/* Notes / Context */}
+      {item.context && (
         <div className="mt-0.5">
-          <span className="text-[10px] font-semibold text-[#aaa] uppercase tracking-wider block mb-0.5">Notes</span>
-          <p className="text-[12px] text-[#555] leading-relaxed whitespace-pre-wrap">{item.context}</p>
+          <span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider block mb-1">Notes</span>
+          <p className="text-[11px] text-zinc-600 dark:text-zinc-400 leading-relaxed whitespace-pre-wrap bg-zinc-50/20 dark:bg-zinc-950/10 p-2.5 rounded-xl border border-zinc-100 dark:border-zinc-800/40">
+            {item.context}
+          </p>
         </div>
       )}
 
-      <div className="flex items-center justify-between gap-2 border-t border-[#f3f3f3] pt-2.5 mt-auto">
-        <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-[#bbb]">
+      {/* Card Footer Actions */}
+      <div className="flex items-center justify-between gap-2 border-t border-zinc-100 dark:border-zinc-800/60 pt-3 mt-auto">
+        <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
           <Clock size={10} /> {timeAgo(item.createdAt)}
         </span>
-        <div className="flex items-center gap-1">
-          {item.url && !isCredential && (
+        <div className="flex items-center gap-1.5">
+          {item.url && (
             <button
               onClick={open}
-              className="flex items-center gap-1 px-2.5 h-7 rounded-lg text-[11px] font-semibold text-[#555] hover:bg-[#f5f5f5] transition-colors"
-              title="Open link"
-            >
-              <Play size={12} /> Resume
-            </button>
-          )}
-          {isCredential && item.url && (
-            <button
-              onClick={open}
-              className="flex items-center gap-1 px-2.5 h-7 rounded-lg text-[11px] font-semibold text-[#555] hover:bg-[#f5f5f5] transition-colors"
+              className="flex items-center gap-1 px-2.5 h-7 rounded-lg text-[10px] font-bold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all cursor-pointer"
               title="Open Website"
             >
-              <ExternalLink size={11} /> Open
+              <ExternalLink size={10} /> Open
             </button>
           )}
           <button
             onClick={() => onToggleWatched(item.id)}
-            className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${
+            className={`w-7 h-7 flex items-center justify-center rounded-lg transition-all cursor-pointer ${
               item.watched
-                ? "text-green-600 bg-green-50 hover:bg-green-100"
-                : "text-[#ccc] hover:text-green-600 hover:bg-green-50"
+                ? "text-green-600 bg-green-500/10 hover:bg-green-500/20"
+                : "text-zinc-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-500/5 dark:hover:bg-green-500/10"
             }`}
-            title={item.watched ? "Mark as not done" : "Mark as done"}
+            title={item.watched ? "Mark as active" : "Mark as completed/archived"}
           >
-            {item.watched ? <CircleCheckBig size={14} /> : <Eye size={14} />}
+            {item.watched ? <CircleCheckBig size={13} /> : <Eye size={13} />}
           </button>
           <button
             onClick={() => onDelete(item.id)}
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-[#ccc] hover:text-red-500 hover:bg-red-50 transition-colors"
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-400 hover:text-red-500 hover:bg-red-500/10 transition-all cursor-pointer"
             title="Delete"
           >
             <Trash2 size={13} />
@@ -288,7 +278,6 @@ export default function VaultPage() {
   const [context, setContext] = useState("");
   const [showWatched, setShowWatched] = useState(true);
 
-  const [composerTab, setComposerTab] = useState<"link" | "credential">("link");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showComposerPass, setShowComposerPass] = useState(false);
@@ -363,7 +352,6 @@ export default function VaultPage() {
     return out;
   };
 
-  /* Verify PIN (and set up the vault on first run). Returns success. */
   const verify = async (pin: string): Promise<boolean> => {
     try {
       const metaRec = records.find((r) => r.id === META_ID);
@@ -406,11 +394,6 @@ export default function VaultPage() {
     wipe();
     setLocked(true);
   };
-
-  // Re-lock on a hard reload — the session flag only survives in-app navigation,
-  // and we still require the PIN again to re-derive the key (data stays encrypted).
-  // (We intentionally do NOT auto-unlock from the session flag, since the key
-  //  cannot be restored without the PIN.)
 
   // Auto-lock after 1 minute of inactivity (only while unlocked).
   useEffect(() => {
@@ -460,63 +443,41 @@ export default function VaultPage() {
     const key = keyRef.current;
     if (!key) return;
 
+    if (!title.trim() && !username.trim() && !password.trim()) return;
     const id = `st-${Date.now()}`;
     const createdAt = new Date().toISOString();
+    const cleanUrl = url.trim() ? normalizeUrl(url) : "";
 
-    if (composerTab === "link") {
-      const cleanUrl = normalizeUrl(url);
-      if (!cleanUrl && !title.trim() && !context.trim()) return;
+    const payload = {
+      type: "credential" as const,
+      title: title.trim() || hostnameOf(cleanUrl) || "Unnamed Login",
+      url: cleanUrl,
+      username: username.trim(),
+      password: password,
+      context: context.trim(),
+    };
 
-      const payload = {
-        type: "link" as const,
-        title: title.trim(),
-        url: cleanUrl,
-        context: context.trim(),
-      };
+    const enc = await encryptJSON(key, payload);
+    const rec: VaultRecord = { id, enc, watched: false, createdAt };
+    setRecords((prev) => [rec, ...prev]);
+    setStash((prev) => [{
+      id,
+      type: "credential",
+      title: payload.title,
+      url: cleanUrl,
+      username: username.trim(),
+      password: password,
+      context: context.trim(),
+      watched: false,
+      createdAt
+    }, ...prev]);
 
-      const enc = await encryptJSON(key, payload);
-      const rec: VaultRecord = { id, enc, watched: false, createdAt };
-      setRecords((prev) => [rec, ...prev]);
-      setStash((prev) => [{ id, type: "link", title: title.trim(), url: cleanUrl, context: context.trim(), watched: false, createdAt }, ...prev]);
-      
-      setUrl("");
-      setTitle("");
-      setContext("");
-    } else {
-      if (!title.trim() && !username.trim() && !password.trim()) return;
-      const cleanUrl = url.trim() ? normalizeUrl(url) : "";
-
-      const payload = {
-        type: "credential" as const,
-        title: title.trim() || hostnameOf(cleanUrl) || "Unnamed Login",
-        url: cleanUrl,
-        username: username.trim(),
-        password: password,
-        context: context.trim(),
-      };
-
-      const enc = await encryptJSON(key, payload);
-      const rec: VaultRecord = { id, enc, watched: false, createdAt };
-      setRecords((prev) => [rec, ...prev]);
-      setStash((prev) => [{
-        id,
-        type: "credential",
-        title: payload.title,
-        url: cleanUrl,
-        username: username.trim(),
-        password: password,
-        context: context.trim(),
-        watched: false,
-        createdAt
-      }, ...prev]);
-
-      setUrl("");
-      setTitle("");
-      setUsername("");
-      setPassword("");
-      setContext("");
-      setShowComposerPass(false);
-    }
+    setUrl("");
+    setTitle("");
+    setUsername("");
+    setPassword("");
+    setContext("");
+    setShowComposerPass(false);
   };
 
   const remove = (id: string) => {
@@ -542,7 +503,7 @@ export default function VaultPage() {
             animate={{ opacity: 1, y: 0, x: "-50%" }}
             exit={{ opacity: 0, y: -16, x: "-50%" }}
             transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            className="fixed top-20 left-1/2 z-[60] flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-black text-white shadow-[0_8px_32px_rgba(0,0,0,0.25)]"
+            className="fixed top-20 left-1/2 z-[60] flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-black dark:bg-zinc-800 text-white shadow-[0_8px_32px_rgba(0,0,0,0.25)]"
             role="status"
           >
             <Lock size={15} className="text-amber-300" />
@@ -582,184 +543,119 @@ export default function VaultPage() {
             className="space-y-6"
           >
             {/* Header */}
-            <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="flex items-center justify-between gap-4 flex-wrap pb-2">
               <div>
-                <h2 className="text-2xl font-bold text-black tracking-tight">Vault</h2>
-                <p className="text-sm text-[#888] mt-1">
-                  {pendingCount} to revisit · {stash.length} saved · encrypted
+                <div className="flex items-center gap-2">
+                  <h2 className="text-2xl font-black text-zinc-900 dark:text-zinc-50 tracking-tight">Password Vault</h2>
+                  <span className="flex items-center gap-1 text-[9px] font-extrabold uppercase px-2 py-0.5 bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20 rounded-full tracking-wider">
+                    Secure
+                  </span>
+                </div>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                  {stash.length} logins saved · fully client-side encrypted with your PIN
                 </p>
               </div>
               <button
+                type="button"
                 onClick={lock}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#e8e8e8] text-sm font-semibold text-[#555] hover:bg-[#f5f5f5] transition-colors"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 text-xs font-bold text-zinc-700 dark:text-zinc-350 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-850 active:scale-95 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.01)] cursor-pointer"
               >
-                <Lock size={14} /> Lock
+                <Lock size={13} /> Lock Vault
               </button>
             </div>
 
             {/* Composer */}
-            <div className="bg-white rounded-2xl border border-[#e8e8e8] shadow-sm p-4 flex flex-col gap-3">
-              {/* Tabs */}
-              <div className="flex items-center gap-1 p-1 bg-[#f5f5f5] rounded-xl w-fit">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setComposerTab("link");
-                    setUrl("");
-                    setTitle("");
-                    setContext("");
-                  }}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                    composerTab === "link"
-                      ? "bg-white text-black shadow-sm"
-                      : "text-[#666] hover:text-black"
-                  }`}
-                >
-                  <Link2 size={13} />
-                  <span>Link / Note</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setComposerTab("credential");
-                    setUrl("");
-                    setTitle("");
-                    setContext("");
-                  }}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                    composerTab === "credential"
-                      ? "bg-white text-black shadow-sm"
-                      : "text-[#666] hover:text-black"
-                  }`}
-                >
-                  <Key size={13} />
-                  <span>Password / Login</span>
-                </button>
+            <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200/80 dark:border-zinc-800/80 shadow-[0_2px_12px_rgba(0,0,0,0.02)] dark:shadow-none p-5 flex flex-col gap-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-zinc-100 dark:border-zinc-800/60">
+                <div className="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-500">
+                  <Key size={14} />
+                </div>
+                <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Add Login Credentials</h3>
               </div>
 
-              {composerTab === "link" ? (
-                <>
-                  <div className="flex items-center gap-2 bg-[#f8f8f8] border border-[#e8e8e8] rounded-xl px-3 py-2.5 focus-within:border-black focus-within:ring-2 focus-within:ring-black/10 transition-all">
-                    <Link2 size={15} className="text-[#bbb] shrink-0" />
-                    <input
-                      value={url}
-                      onChange={(e) => setUrl(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") add(); }}
-                      placeholder="Paste a link (YouTube, article, anything)…"
-                      className="flex-1 bg-transparent text-sm text-black placeholder:text-[#bbb] focus:outline-none border-none p-0 min-w-0"
-                    />
-                    {url && (
-                      <button onClick={() => setUrl("")} className="text-[#ccc] hover:text-black shrink-0">
-                        <X size={14} />
-                      </button>
-                    )}
-                  </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider ml-1">App / Site Name</label>
                   <input
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") add(); }}
-                    placeholder="Title (optional)"
-                    className="bg-[#f8f8f8] border border-[#e8e8e8] rounded-xl px-3 py-2.5 text-sm text-black placeholder:text-[#bbb] focus:outline-none focus:border-black focus:ring-2 focus:ring-black/10 transition-all"
+                    placeholder="Google, Netflix, Router, etc."
+                    className="bg-[#f8f8f8] dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-900 dark:text-zinc-550 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-300 focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 transition-all w-full"
                   />
-                  <textarea
-                    value={context}
-                    onChange={(e) => setContext(e.target.value)}
-                    placeholder="What were you doing? Where to resume, why you saved it…"
-                    rows={2}
-                    className="bg-[#f8f8f8] border border-[#e8e8e8] rounded-xl px-3 py-2.5 text-sm text-black placeholder:text-[#bbb] focus:outline-none focus:border-black focus:ring-2 focus:ring-black/10 transition-all resize-y"
-                  />
-                </>
-              ) : (
-                <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[11px] font-bold text-[#888] uppercase tracking-wider ml-1">App / Site Name</label>
-                      <input
-                        value={title}
-                        onChange={(e) => setTitle(e.target.value)}
-                        placeholder="Google, Netflix, Router, etc."
-                        className="bg-[#f8f8f8] border border-[#e8e8e8] rounded-xl px-3 py-2.5 text-sm text-black placeholder:text-[#bbb] focus:outline-none focus:border-black focus:ring-2 focus:ring-black/10 transition-all"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[11px] font-bold text-[#888] uppercase tracking-wider ml-1">Website URL (optional)</label>
-                      <div className="flex items-center gap-2 bg-[#f8f8f8] border border-[#e8e8e8] rounded-xl px-3 py-2.5 focus-within:border-black focus-within:ring-2 focus-within:ring-black/10 transition-all">
-                        <Link2 size={14} className="text-[#bbb] shrink-0" />
-                        <input
-                          value={url}
-                          onChange={(e) => setUrl(e.target.value)}
-                          placeholder="https://example.com"
-                          className="flex-1 bg-transparent text-sm text-black placeholder:text-[#bbb] focus:outline-none border-none p-0 min-w-0"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[11px] font-bold text-[#888] uppercase tracking-wider ml-1">Username / Email</label>
-                      <input
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        placeholder="username@gmail.com or user123"
-                        className="bg-[#f8f8f8] border border-[#e8e8e8] rounded-xl px-3 py-2.5 text-sm text-black placeholder:text-[#bbb] focus:outline-none focus:border-black focus:ring-2 focus:ring-black/10 transition-all"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[11px] font-bold text-[#888] uppercase tracking-wider ml-1">Password</label>
-                      <div className="flex items-center gap-2 bg-[#f8f8f8] border border-[#e8e8e8] rounded-xl px-3 py-2.5 focus-within:border-black focus-within:ring-2 focus-within:ring-black/10 transition-all">
-                        <input
-                          type={showComposerPass ? "text" : "password"}
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          placeholder="••••••••••••••••"
-                          className="flex-1 bg-transparent text-sm text-black placeholder:text-[#bbb] focus:outline-none border-none p-0 min-w-0 font-mono"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowComposerPass(!showComposerPass)}
-                          className="text-[#ccc] hover:text-black shrink-0 transition-colors"
-                          title={showComposerPass ? "Hide password" : "Show password"}
-                        >
-                          {showComposerPass ? <EyeOff size={14} /> : <Eye size={14} />}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={generatePassword}
-                          className="text-[#ccc] hover:text-black shrink-0 transition-colors"
-                          title="Generate Secure Password"
-                        >
-                          <RefreshCw size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[11px] font-bold text-[#888] uppercase tracking-wider ml-1">Notes (optional)</label>
-                    <textarea
-                      value={context}
-                      onChange={(e) => setContext(e.target.value)}
-                      placeholder="Security questions, recovery codes, account numbers..."
-                      rows={2}
-                      className="bg-[#f8f8f8] border border-[#e8e8e8] rounded-xl px-3 py-2.5 text-sm text-black placeholder:text-[#bbb] focus:outline-none focus:border-black focus:ring-2 focus:ring-black/10 transition-all resize-y"
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider ml-1">Website URL (optional)</label>
+                  <div className="flex items-center gap-2 bg-[#f8f8f8] dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-xl px-3 py-2 focus-within:border-zinc-900 dark:focus-within:border-zinc-300 focus-within:ring-2 focus-within:ring-black/5 dark:focus-within:ring-white/5 transition-all w-full">
+                    <Link2 size={14} className="text-zinc-400 dark:text-zinc-500 shrink-0" />
+                    <input
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      placeholder="https://example.com"
+                      className="flex-1 bg-transparent text-sm text-zinc-900 dark:text-zinc-550 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:outline-none border-none p-0 min-w-0 w-full"
                     />
                   </div>
-                </>
-              )}
+                </div>
+              </div>
 
-              <div className="flex justify-end">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider ml-1">Username / Email</label>
+                  <input
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="username@gmail.com or user123"
+                    className="bg-[#f8f8f8] dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-900 dark:text-zinc-550 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-300 focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 transition-all w-full"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider ml-1">Password</label>
+                  <div className="flex items-center gap-2 bg-[#f8f8f8] dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-xl px-3 py-2 focus-within:border-zinc-900 dark:focus-within:border-zinc-300 focus-within:ring-2 focus-within:ring-black/5 dark:focus-within:ring-white/5 transition-all w-full">
+                    <input
+                      type={showComposerPass ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••••••••••"
+                      className="flex-1 bg-transparent text-sm text-zinc-900 dark:text-zinc-550 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:outline-none border-none p-0 min-w-0 font-mono tracking-wide w-full"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowComposerPass(!showComposerPass)}
+                      className="text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 shrink-0 transition-colors cursor-pointer"
+                      title={showComposerPass ? "Hide password" : "Show password"}
+                    >
+                      {showComposerPass ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={generatePassword}
+                      className="text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 shrink-0 transition-colors cursor-pointer"
+                      title="Generate Secure Password"
+                    >
+                      <RefreshCw size={14} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider ml-1">Notes (optional)</label>
+                <textarea
+                  value={context}
+                  onChange={(e) => setContext(e.target.value)}
+                  placeholder="Security questions, recovery codes, account numbers..."
+                  rows={2}
+                  className="bg-[#f8f8f8] dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-900 dark:text-zinc-550 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-300 focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 transition-all resize-y w-full"
+                />
+              </div>
+
+              <div className="flex justify-end pt-1">
                 <button
                   type="button"
                   onClick={add}
-                  disabled={
-                    composerTab === "link"
-                      ? !url.trim() && !title.trim() && !context.trim()
-                      : !title.trim() && !username.trim() && !password.trim()
-                  }
-                  className="flex items-center gap-1.5 px-4 py-2.5 bg-black hover:bg-[#222] disabled:bg-[#ddd] disabled:cursor-not-allowed text-white rounded-xl text-sm font-semibold transition-colors"
+                  disabled={!title.trim() && !username.trim() && !password.trim()}
+                  className="flex items-center gap-1.5 px-5 py-2.5 bg-zinc-950 hover:bg-zinc-850 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-950 disabled:bg-zinc-200 dark:disabled:bg-zinc-800 disabled:text-zinc-400 dark:disabled:text-zinc-600 disabled:cursor-not-allowed rounded-xl text-xs font-bold transition-all shadow-sm hover:shadow active:scale-98 cursor-pointer"
                 >
-                  <Plus size={15} /> Save to Vault
+                  <Plus size={14} /> Save Password
                 </button>
               </div>
             </div>
@@ -769,18 +665,18 @@ export default function VaultPage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowWatched((v) => !v)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-colors ${
-                    showWatched ? "bg-white text-[#666] border-[#e8e8e8] hover:border-[#bbb]" : "bg-black text-white border-black"
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold border transition-colors cursor-pointer ${
+                    showWatched ? "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700" : "bg-black dark:bg-zinc-100 text-white dark:text-zinc-950 border-black dark:border-zinc-100"
                   }`}
                 >
-                  {showWatched ? "Hide done" : "Show all"}
+                  {showWatched ? "Hide Archived" : "Show All"}
                 </button>
               </div>
             )}
 
             {/* List */}
             {visible.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <AnimatePresence mode="popLayout">
                   {visible.map((item) => (
                     <StashCard key={item.id} item={item} onDelete={remove} onToggleWatched={toggleWatched} />
@@ -788,14 +684,14 @@ export default function VaultPage() {
                 </AnimatePresence>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-                <div className="w-16 h-16 rounded-2xl bg-[#f5f5f5] flex items-center justify-center">
-                  <Bookmark size={28} className="text-[#ccc]" />
+              <div className="flex flex-col items-center justify-center py-16 gap-4 text-center bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/40 rounded-3xl p-6">
+                <div className="w-14 h-14 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 flex items-center justify-center text-zinc-400 dark:text-zinc-500 shadow-inner">
+                  <Key size={24} />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-black">Nothing saved yet</h3>
-                  <p className="text-sm text-[#888] mt-1 max-w-xs">
-                    Paste a link and jot down where you left off — everything here is encrypted with your PIN.
+                  <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-100">No passwords saved yet</h3>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1.5 max-w-xs leading-relaxed">
+                    Add your login credentials above to secure them. Everything stored here is locally encrypted in your browser.
                   </p>
                 </div>
               </div>

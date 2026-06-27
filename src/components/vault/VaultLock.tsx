@@ -140,94 +140,100 @@ export function VaultLock({
     : "Enter your PIN to continue";
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0, scale: 1.06, filter: "blur(8px)" }}
-      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-      className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] select-none"
-    >
+    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-220px)] px-4">
       <motion.div
-        animate={success ? { scale: [1, 1.15, 1] } : {}}
-        transition={{ duration: 0.5 }}
-        className={`w-20 h-20 rounded-3xl flex items-center justify-center mb-6 transition-colors duration-300 ${
-          success ? "bg-green-500 text-white" : "bg-black text-white"
-        }`}
-        style={{ boxShadow: "0 10px 40px rgba(0,0,0,0.18)" }}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, filter: "blur(8px)" }}
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+        className="max-w-[360px] w-full bg-white dark:bg-zinc-900/60 dark:backdrop-blur-md border border-[#e8e8e8] dark:border-zinc-800 rounded-3xl p-7 shadow-[0_8px_32px_rgba(0,0,0,0.03)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex flex-col items-center select-none"
       >
-        {success ? <ShieldCheck size={34} /> : <LockKeyhole size={32} />}
-      </motion.div>
+        <motion.div
+          animate={success ? { scale: [1, 1.15, 1] } : {}}
+          transition={{ duration: 0.5 }}
+          className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-5 transition-colors duration-300 ${
+            success ? "bg-green-500 text-white" : "bg-zinc-950 dark:bg-zinc-100 text-white dark:text-zinc-900"
+          }`}
+          style={{ boxShadow: "0 8px 30px rgba(0,0,0,0.12)" }}
+        >
+          {success ? <ShieldCheck size={28} /> : <LockKeyhole size={26} />}
+        </motion.div>
 
-      <h2 className="text-xl font-bold text-black tracking-tight">
-        {mode === "setup" ? "Set up your Vault" : "Private Vault"}
-      </h2>
-      <p className={`text-sm mt-1 mb-7 ${error ? "text-red-500 font-medium" : "text-[#888]"}`}>
-        {subtitle}
-      </p>
+        <h2 className="text-lg font-bold text-black dark:text-white tracking-tight">
+          {mode === "setup" ? "Set up your Vault" : "Private Vault"}
+        </h2>
+        <p className={`text-xs mt-1 mb-6 text-center ${error ? "text-red-500 font-medium" : "text-zinc-500 dark:text-zinc-400"}`}>
+          {subtitle}
+        </p>
 
-      {/* PIN dots */}
-      <motion.div
-        animate={error ? { x: [0, -10, 10, -8, 8, -4, 0] } : { x: 0 }}
-        transition={{ duration: 0.4 }}
-        className="flex items-center gap-3.5 mb-8"
-      >
-        {Array.from({ length: LEN }).map((_, i) => {
-          const filled = i < pin.length;
-          return (
-            <span
-              key={i}
-              className={`w-3.5 h-3.5 rounded-full border-2 transition-all duration-150 ${
-                error
-                  ? "border-red-400 bg-red-400"
-                  : success
-                  ? "border-green-500 bg-green-500"
-                  : filled
-                  ? "border-black bg-black"
-                  : "border-[#ccc] bg-transparent"
-              }`}
-            />
-          );
-        })}
-      </motion.div>
+        {/* PIN dots */}
+        <motion.div
+          animate={error ? { x: [0, -10, 10, -8, 8, -4, 0] } : { x: 0 }}
+          transition={{ duration: 0.4 }}
+          className="flex items-center gap-3 mb-6"
+        >
+          {Array.from({ length: LEN }).map((_, i) => {
+            const filled = i < pin.length;
+            return (
+              <span
+                key={i}
+                className={`w-3 h-3 rounded-full border-2 transition-all duration-150 ${
+                  error
+                    ? "border-red-400 bg-red-400"
+                    : success
+                    ? "border-green-500 bg-green-500"
+                    : filled
+                    ? "border-black dark:border-white bg-black dark:bg-white"
+                    : "border-zinc-300 dark:border-zinc-700 bg-transparent"
+                }`}
+              />
+            );
+          })}
+        </motion.div>
 
-      {/* Keypad */}
-      <div className="grid grid-cols-3 gap-3 w-[260px]">
-        {keys.map((k) => (
+        {/* Keypad */}
+        <div className="grid grid-cols-3 gap-2.5 w-full">
+          {keys.map((k) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => press(k)}
+              disabled={busy}
+              className="h-14 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200/60 dark:border-zinc-800/80 text-xl font-bold text-zinc-800 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 active:scale-95 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.01)] disabled:opacity-50 cursor-pointer"
+            >
+              {k}
+            </button>
+          ))}
+          <span />
           <button
-            key={k}
-            onClick={() => press(k)}
+            onClick={() => press("0")}
+            type="button"
             disabled={busy}
-            className="h-16 rounded-2xl bg-white border border-[#e8e8e8] text-2xl font-semibold text-black hover:bg-[#f5f5f5] active:scale-95 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.04)] disabled:opacity-50"
+            className="h-14 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200/60 dark:border-zinc-800/80 text-xl font-bold text-zinc-800 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 active:scale-95 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.01)] disabled:opacity-50 cursor-pointer"
           >
-            {k}
+            0
           </button>
-        ))}
-        <span />
-        <button
-          onClick={() => press("0")}
-          disabled={busy}
-          className="h-16 rounded-2xl bg-white border border-[#e8e8e8] text-2xl font-semibold text-black hover:bg-[#f5f5f5] active:scale-95 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.04)] disabled:opacity-50"
-        >
-          0
-        </button>
-        <button
-          onClick={back}
-          disabled={busy}
-          className="h-16 rounded-2xl flex items-center justify-center text-[#888] hover:bg-[#f5f5f5] active:scale-95 transition-all disabled:opacity-50"
-          aria-label="Delete"
-        >
-          <Delete size={24} />
-        </button>
-      </div>
+          <button
+            onClick={back}
+            type="button"
+            disabled={busy}
+            className="h-14 rounded-2xl flex items-center justify-center text-zinc-400 dark:text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
+            aria-label="Delete"
+          >
+            <Delete size={20} />
+          </button>
+        </div>
 
-      {onReset && (
-        <button
-          onClick={onReset}
-          className="mt-6 text-xs text-red-500 hover:text-red-700 hover:underline font-semibold transition-colors"
-        >
-          Reset Vault
-        </button>
-      )}
-    </motion.div>
+        {onReset && (
+          <button
+            onClick={onReset}
+            type="button"
+            className="mt-6 text-[11px] text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 font-semibold tracking-wide transition-colors cursor-pointer"
+          >
+            Reset Vault
+          </button>
+        )}
+      </motion.div>
+    </div>
   );
 }
