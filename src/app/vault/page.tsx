@@ -136,7 +136,7 @@ function StashCard({
       {/* Card Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 flex items-center justify-center shrink-0 overflow-hidden shadow-inner">
+          <div className="w-10 h-10 rounded-2xl bg-zinc-50 dark:bg-zinc-955 border border-zinc-200/60 dark:border-zinc-800 flex items-center justify-center shrink-0 overflow-hidden shadow-inner">
             {fav ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={fav} alt="" width={20} height={20} className="object-contain" />
@@ -281,6 +281,7 @@ export default function VaultPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showComposerPass, setShowComposerPass] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const hasMeta = records.some((r) => r.id === META_ID);
   const mode: "setup" | "unlock" = hasMeta ? "unlock" : "setup";
@@ -478,6 +479,7 @@ export default function VaultPage() {
     setPassword("");
     setContext("");
     setShowComposerPass(false);
+    setIsModalOpen(false);
   };
 
   const remove = (id: string) => {
@@ -555,110 +557,150 @@ export default function VaultPage() {
                   {stash.length} logins saved · fully client-side encrypted with your PIN
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={lock}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 text-xs font-bold text-zinc-700 dark:text-zinc-350 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-850 active:scale-95 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.01)] cursor-pointer"
-              >
-                <Lock size={13} /> Lock Vault
-              </button>
-            </div>
-
-            {/* Composer */}
-            <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200/80 dark:border-zinc-800/80 shadow-[0_2px_12px_rgba(0,0,0,0.02)] dark:shadow-none p-5 flex flex-col gap-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-zinc-100 dark:border-zinc-800/60">
-                <div className="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-500">
-                  <Key size={14} />
-                </div>
-                <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Add Login Credentials</h3>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider ml-1">App / Site Name</label>
-                  <input
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Google, Netflix, Router, etc."
-                    className="bg-[#f8f8f8] dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-900 dark:text-zinc-550 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-300 focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 transition-all w-full"
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider ml-1">Website URL (optional)</label>
-                  <div className="flex items-center gap-2 bg-[#f8f8f8] dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-xl px-3 py-2 focus-within:border-zinc-900 dark:focus-within:border-zinc-300 focus-within:ring-2 focus-within:ring-black/5 dark:focus-within:ring-white/5 transition-all w-full">
-                    <Link2 size={14} className="text-zinc-400 dark:text-zinc-500 shrink-0" />
-                    <input
-                      value={url}
-                      onChange={(e) => setUrl(e.target.value)}
-                      placeholder="https://example.com"
-                      className="flex-1 bg-transparent text-sm text-zinc-900 dark:text-zinc-550 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:outline-none border-none p-0 min-w-0 w-full"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider ml-1">Username / Email</label>
-                  <input
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="username@gmail.com or user123"
-                    className="bg-[#f8f8f8] dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-900 dark:text-zinc-550 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-300 focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 transition-all w-full"
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider ml-1">Password</label>
-                  <div className="flex items-center gap-2 bg-[#f8f8f8] dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-xl px-3 py-2 focus-within:border-zinc-900 dark:focus-within:border-zinc-300 focus-within:ring-2 focus-within:ring-black/5 dark:focus-within:ring-white/5 transition-all w-full">
-                    <input
-                      type={showComposerPass ? "text" : "password"}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••••••••••"
-                      className="flex-1 bg-transparent text-sm text-zinc-900 dark:text-zinc-550 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:outline-none border-none p-0 min-w-0 font-mono tracking-wide w-full"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowComposerPass(!showComposerPass)}
-                      className="text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 shrink-0 transition-colors cursor-pointer"
-                      title={showComposerPass ? "Hide password" : "Show password"}
-                    >
-                      {showComposerPass ? <EyeOff size={14} /> : <Eye size={14} />}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={generatePassword}
-                      className="text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 shrink-0 transition-colors cursor-pointer"
-                      title="Generate Secure Password"
-                    >
-                      <RefreshCw size={14} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider ml-1">Notes (optional)</label>
-                <textarea
-                  value={context}
-                  onChange={(e) => setContext(e.target.value)}
-                  placeholder="Security questions, recovery codes, account numbers..."
-                  rows={2}
-                  className="bg-[#f8f8f8] dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-900 dark:text-zinc-550 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-300 focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 transition-all resize-y w-full"
-                />
-              </div>
-
-              <div className="flex justify-end pt-1">
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={add}
-                  disabled={!title.trim() && !username.trim() && !password.trim()}
-                  className="flex items-center gap-1.5 px-5 py-2.5 bg-zinc-950 hover:bg-zinc-850 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-950 disabled:bg-zinc-200 dark:disabled:bg-zinc-800 disabled:text-zinc-400 dark:disabled:text-zinc-600 disabled:cursor-not-allowed rounded-xl text-xs font-bold transition-all shadow-sm hover:shadow active:scale-98 cursor-pointer"
+                  onClick={() => setIsModalOpen(true)}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-850 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-950 text-xs font-bold transition-all shadow-[0_1px_2px_rgba(0,0,0,0.02)] cursor-pointer"
                 >
-                  <Plus size={14} /> Save Password
+                  <Plus size={13} /> Add Password
+                </button>
+                <button
+                  type="button"
+                  onClick={lock}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 text-xs font-bold text-zinc-700 dark:text-zinc-355 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-850 active:scale-95 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.01)] cursor-pointer"
+                >
+                  <Lock size={13} /> Lock Vault
                 </button>
               </div>
             </div>
+
+            {/* Add Credentials Modal */}
+            <AnimatePresence>
+              {isModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                  {/* Backdrop */}
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setIsModalOpen(false)}
+                    className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm"
+                  />
+
+                  {/* Modal Container */}
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: 16 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: 16 }}
+                    transition={{ type: "spring", duration: 0.4 }}
+                    className="relative max-w-xl w-full bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200/80 dark:border-zinc-800/80 shadow-2xl dark:shadow-[0_25px_60px_rgba(0,0,0,0.4)] p-6 z-10 flex flex-col gap-4 overflow-hidden"
+                  >
+                    <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800/60">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-500">
+                          <Key size={14} />
+                        </div>
+                        <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Add Login Credentials</h3>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsModalOpen(false)}
+                        className="p-1 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all cursor-pointer"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider ml-1">App / Site Name</label>
+                        <input
+                          value={title}
+                          onChange={(e) => setTitle(e.target.value)}
+                          placeholder="Google, Netflix, Router, etc."
+                          className="bg-[#f8f8f8] dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-650 focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-300 focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 transition-all w-full"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider ml-1">Website URL (optional)</label>
+                        <div className="flex items-center gap-2 bg-[#f8f8f8] dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-xl px-3 py-2 focus-within:border-zinc-900 dark:focus-within:border-zinc-300 focus-within:ring-2 focus-within:ring-black/5 dark:focus-within:ring-white/5 transition-all w-full">
+                          <Link2 size={14} className="text-zinc-400 dark:text-zinc-550 shrink-0" />
+                          <input
+                            value={url}
+                            onChange={(e) => setUrl(e.target.value)}
+                            placeholder="https://example.com"
+                            className="flex-1 bg-transparent text-sm text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-650 focus:outline-none border-none p-0 min-w-0 w-full"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider ml-1">Username / Email</label>
+                        <input
+                          value={username}
+                          onChange={(e) => setUsername(e.target.value)}
+                          placeholder="username@gmail.com or user123"
+                          className="bg-[#f8f8f8] dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-650 focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-300 focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 transition-all w-full"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider ml-1">Password</label>
+                        <div className="flex items-center gap-2 bg-[#f8f8f8] dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-xl px-3 py-2 focus-within:border-zinc-900 dark:focus-within:border-zinc-300 focus-within:ring-2 focus-within:ring-black/5 dark:focus-within:ring-white/5 transition-all w-full">
+                          <input
+                            type={showComposerPass ? "text" : "password"}
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="••••••••••••••••"
+                            className="flex-1 bg-transparent text-sm text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-650 focus:outline-none border-none p-0 min-w-0 font-mono tracking-wide w-full"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowComposerPass(!showComposerPass)}
+                            className="text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 shrink-0 transition-colors cursor-pointer"
+                            title={showComposerPass ? "Hide password" : "Show password"}
+                          >
+                            {showComposerPass ? <EyeOff size={14} /> : <Eye size={14} />}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={generatePassword}
+                            className="text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 shrink-0 transition-colors cursor-pointer"
+                            title="Generate Secure Password"
+                          >
+                            <RefreshCw size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider ml-1">Notes (optional)</label>
+                      <textarea
+                        value={context}
+                        onChange={(e) => setContext(e.target.value)}
+                        placeholder="Security questions, recovery codes, account numbers..."
+                        rows={2}
+                        className="bg-[#f8f8f8] dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-650 focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-300 focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 transition-all resize-y w-full"
+                      />
+                    </div>
+
+                    <div className="flex justify-end pt-2">
+                      <button
+                        type="button"
+                        onClick={add}
+                        disabled={!title.trim() && !username.trim() && !password.trim()}
+                        className="flex items-center gap-1.5 px-5 py-2.5 bg-zinc-950 hover:bg-zinc-850 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-950 disabled:bg-zinc-200 dark:disabled:bg-zinc-800 disabled:text-zinc-400 dark:disabled:text-zinc-600 disabled:cursor-not-allowed rounded-xl text-xs font-bold transition-all shadow-sm hover:shadow active:scale-98 cursor-pointer"
+                      >
+                        <Plus size={14} /> Save Password
+                      </button>
+                    </div>
+                  </motion.div>
+                </div>
+              )}
+            </AnimatePresence>
 
             {/* Filter toggle */}
             {stash.some((i) => i.watched) && (
