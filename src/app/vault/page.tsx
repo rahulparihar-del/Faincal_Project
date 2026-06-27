@@ -20,20 +20,28 @@ import {
   Link2,
   X,
   Eye,
+  EyeOff,
   Clock,
   Lock,
   Play,
   CircleCheckBig,
   Loader2,
+  Key,
+  Copy,
+  Check,
+  RefreshCw,
 } from "lucide-react";
 
 /* ─── Types ─────────────────────────────────────────────────── */
 // Decrypted, in-memory shape used for display.
 interface StashItem {
   id: string;
+  type?: "link" | "credential";
   title: string;
   url: string;
   context: string;
+  username?: string;
+  password?: string;
   watched: boolean;
   createdAt: string;
 }
@@ -93,6 +101,34 @@ function StashCard({
   const fav = faviconOf(item.url);
   const open = () => item.url && window.open(item.url, "_blank", "noopener,noreferrer");
 
+  const [showPass, setShowPass] = useState(false);
+  const [copiedUser, setCopiedUser] = useState(false);
+  const [copiedPass, setCopiedPass] = useState(false);
+
+  const copyUsername = async () => {
+    if (!item.username) return;
+    try {
+      await navigator.clipboard.writeText(item.username);
+      setCopiedUser(true);
+      setTimeout(() => setCopiedUser(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy username", err);
+    }
+  };
+
+  const copyPassword = async () => {
+    if (!item.password) return;
+    try {
+      await navigator.clipboard.writeText(item.password);
+      setCopiedPass(true);
+      setTimeout(() => setCopiedPass(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy password", err);
+    }
+  };
+
+  const isCredential = item.type === "credential";
+
   return (
     <motion.div
       layout
@@ -108,13 +144,15 @@ function StashCard({
           {fav ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={fav} alt="" width={18} height={18} className="object-contain" />
+          ) : isCredential ? (
+            <Key size={15} className="text-amber-600" />
           ) : (
             <Bookmark size={15} className="text-[#999]" />
           )}
         </div>
         <div className="flex-1 min-w-0">
           <h3 className={`font-semibold text-sm text-black leading-snug ${item.watched ? "line-through" : ""}`}>
-            {item.title || hostnameOf(item.url) || "Saved note"}
+            {item.title || (isCredential ? "Unnamed Login" : hostnameOf(item.url) || "Saved note")}
           </h3>
           {item.url && (
             <button onClick={open} className="text-[11px] text-[#aaa] hover:text-blue-500 truncate flex items-center gap-1 mt-0.5 w-fit max-w-full">
@@ -122,24 +160,93 @@ function StashCard({
             </button>
           )}
         </div>
+        {isCredential && (
+          <span className="text-[9px] font-bold px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200/50 rounded-full shrink-0 uppercase tracking-wider">
+            Login
+          </span>
+        )}
       </div>
 
-      {item.context && (
+      {isCredential ? (
+        <div className="bg-[#fafafa] border border-[#f0f0f0] rounded-xl p-2.5 space-y-2 mt-0.5 text-xs text-[#444]">
+          <div className="flex items-center justify-between gap-2 min-w-0">
+            <span className="text-[#888] shrink-0 font-medium w-16">Username</span>
+            <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
+              <span className="truncate font-mono text-black select-all text-right w-full" title={item.username}>
+                {item.username || "—"}
+              </span>
+              {item.username && (
+                <button
+                  onClick={copyUsername}
+                  className="p-1 hover:bg-[#e8e8e8] text-[#888] hover:text-black rounded transition-colors shrink-0"
+                  title="Copy Username"
+                >
+                  {copiedUser ? <Check size={12} className="text-green-600" /> : <Copy size={12} />}
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center justify-between gap-2 min-w-0 border-t border-[#f0f0f0]/60 pt-2">
+            <span className="text-[#888] shrink-0 font-medium w-16">Password</span>
+            <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
+              <span className="font-mono text-black select-all tracking-wide text-right w-full">
+                {showPass ? item.password : "••••••••"}
+              </span>
+              <div className="flex items-center gap-0.5 shrink-0">
+                <button
+                  onClick={() => setShowPass(!showPass)}
+                  className="p-1 hover:bg-[#e8e8e8] text-[#888] hover:text-black rounded transition-colors"
+                  title={showPass ? "Hide Password" : "Show Password"}
+                >
+                  {showPass ? <EyeOff size={12} /> : <Eye size={12} />}
+                </button>
+                {item.password && (
+                  <button
+                    onClick={copyPassword}
+                    className="p-1 hover:bg-[#e8e8e8] text-[#888] hover:text-black rounded transition-colors"
+                    title="Copy Password"
+                  >
+                    {copiedPass ? <Check size={12} className="text-green-600" /> : <Copy size={12} />}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {!isCredential && item.context && (
         <p className="text-[13px] text-[#666] leading-relaxed whitespace-pre-wrap">{item.context}</p>
       )}
 
-      <div className="flex items-center justify-between gap-2 border-t border-[#f3f3f3] pt-2.5 mt-0.5">
+      {isCredential && item.context && (
+        <div className="mt-0.5">
+          <span className="text-[10px] font-semibold text-[#aaa] uppercase tracking-wider block mb-0.5">Notes</span>
+          <p className="text-[12px] text-[#555] leading-relaxed whitespace-pre-wrap">{item.context}</p>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between gap-2 border-t border-[#f3f3f3] pt-2.5 mt-auto">
         <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-[#bbb]">
           <Clock size={10} /> {timeAgo(item.createdAt)}
         </span>
         <div className="flex items-center gap-1">
-          {item.url && (
+          {item.url && !isCredential && (
             <button
               onClick={open}
               className="flex items-center gap-1 px-2.5 h-7 rounded-lg text-[11px] font-semibold text-[#555] hover:bg-[#f5f5f5] transition-colors"
               title="Open link"
             >
               <Play size={12} /> Resume
+            </button>
+          )}
+          {isCredential && item.url && (
+            <button
+              onClick={open}
+              className="flex items-center gap-1 px-2.5 h-7 rounded-lg text-[11px] font-semibold text-[#555] hover:bg-[#f5f5f5] transition-colors"
+              title="Open Website"
+            >
+              <ExternalLink size={11} /> Open
             </button>
           )}
           <button
@@ -181,13 +288,46 @@ export default function VaultPage() {
   const [context, setContext] = useState("");
   const [showWatched, setShowWatched] = useState(true);
 
+  const [composerTab, setComposerTab] = useState<"link" | "credential">("link");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [showComposerPass, setShowComposerPass] = useState(false);
+
   const hasMeta = records.some((r) => r.id === META_ID);
   const mode: "setup" | "unlock" = hasMeta ? "unlock" : "setup";
+
+  // Auto-initialize vault with PIN "2001" if it is completely uninitialized.
+  useEffect(() => {
+    if (!isReady) return;
+    const hasMetaRecord = records.some((r) => r.id === META_ID);
+    if (!hasMetaRecord) {
+      const initVault = async () => {
+        try {
+          const salt = randomBytes(16);
+          const key = await deriveKey("2001", salt);
+          const check = await encryptJSON(key, MAGIC);
+          const meta: VaultRecord = { id: META_ID, salt: bytesToB64(salt), check };
+          const items = records.filter((r) => r.id !== META_ID);
+          setRecords([meta, ...items]);
+        } catch (e) {
+          console.error("Auto-initialization of vault failed:", e);
+        }
+      };
+      initVault();
+    }
+  }, [isReady, records, setRecords]);
 
   /* Clear all decrypted material from memory. */
   const wipe = () => {
     keyRef.current = null;
     setStash([]);
+  };
+
+  const resetVault = () => {
+    if (window.confirm("Are you sure you want to reset the vault? This will permanently delete all encrypted items and credentials.")) {
+      setRecords([]); // clear all records, including metadata
+      wipe();
+    }
   };
 
   /* Decrypt every item record with the given key. */
@@ -196,12 +336,22 @@ export default function VaultPage() {
     for (const r of recs) {
       if (r.id === META_ID || !r.enc) continue;
       try {
-        const payload = await decryptJSON<{ title: string; url: string; context: string }>(key, r.enc);
+        const payload = await decryptJSON<{
+          type?: "link" | "credential";
+          title: string;
+          url: string;
+          context: string;
+          username?: string;
+          password?: string;
+        }>(key, r.enc);
         out.push({
           id: r.id,
+          type: payload.type || (payload.username || payload.password ? "credential" : "link"),
           title: payload.title || "",
           url: payload.url || "",
           context: payload.context || "",
+          username: payload.username || "",
+          password: payload.password || "",
           watched: !!r.watched,
           createdAt: r.createdAt || new Date(0).toISOString(),
         });
@@ -292,21 +442,81 @@ export default function VaultPage() {
     return () => clearTimeout(t);
   }, [autoLocked]);
 
+  const generatePassword = () => {
+    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+~`|}{[]:;?><,./-=";
+    const len = 16;
+    let pass = "";
+    const array = new Uint32Array(len);
+    window.crypto.getRandomValues(array);
+    for (let i = 0; i < len; i++) {
+      pass += chars[array[i] % chars.length];
+    }
+    setPassword(pass);
+    setShowComposerPass(true);
+  };
+
   /* Mutations */
   const add = async () => {
     const key = keyRef.current;
     if (!key) return;
-    const cleanUrl = normalizeUrl(url);
-    if (!cleanUrl && !title.trim() && !context.trim()) return;
+
     const id = `st-${Date.now()}`;
     const createdAt = new Date().toISOString();
-    const enc = await encryptJSON(key, { title: title.trim(), url: cleanUrl, context: context.trim() });
-    const rec: VaultRecord = { id, enc, watched: false, createdAt };
-    setRecords((prev) => [rec, ...prev]);
-    setStash((prev) => [{ id, title: title.trim(), url: cleanUrl, context: context.trim(), watched: false, createdAt }, ...prev]);
-    setUrl("");
-    setTitle("");
-    setContext("");
+
+    if (composerTab === "link") {
+      const cleanUrl = normalizeUrl(url);
+      if (!cleanUrl && !title.trim() && !context.trim()) return;
+
+      const payload = {
+        type: "link" as const,
+        title: title.trim(),
+        url: cleanUrl,
+        context: context.trim(),
+      };
+
+      const enc = await encryptJSON(key, payload);
+      const rec: VaultRecord = { id, enc, watched: false, createdAt };
+      setRecords((prev) => [rec, ...prev]);
+      setStash((prev) => [{ id, type: "link", title: title.trim(), url: cleanUrl, context: context.trim(), watched: false, createdAt }, ...prev]);
+      
+      setUrl("");
+      setTitle("");
+      setContext("");
+    } else {
+      if (!title.trim() && !username.trim() && !password.trim()) return;
+      const cleanUrl = url.trim() ? normalizeUrl(url) : "";
+
+      const payload = {
+        type: "credential" as const,
+        title: title.trim() || hostnameOf(cleanUrl) || "Unnamed Login",
+        url: cleanUrl,
+        username: username.trim(),
+        password: password,
+        context: context.trim(),
+      };
+
+      const enc = await encryptJSON(key, payload);
+      const rec: VaultRecord = { id, enc, watched: false, createdAt };
+      setRecords((prev) => [rec, ...prev]);
+      setStash((prev) => [{
+        id,
+        type: "credential",
+        title: payload.title,
+        url: cleanUrl,
+        username: username.trim(),
+        password: password,
+        context: context.trim(),
+        watched: false,
+        createdAt
+      }, ...prev]);
+
+      setUrl("");
+      setTitle("");
+      setUsername("");
+      setPassword("");
+      setContext("");
+      setShowComposerPass(false);
+    }
   };
 
   const remove = (id: string) => {
@@ -359,6 +569,7 @@ export default function VaultPage() {
               mode={mode}
               verify={verify}
               onUnlock={unlock}
+              onReset={resetVault}
               notice={autoLocked ? "Locked due to inactivity" : undefined}
             />
           )
@@ -387,40 +598,165 @@ export default function VaultPage() {
             </div>
 
             {/* Composer */}
-            <div className="bg-white rounded-2xl border border-[#e8e8e8] shadow-sm p-4 flex flex-col gap-2.5">
-              <div className="flex items-center gap-2 bg-[#f8f8f8] border border-[#e8e8e8] rounded-xl px-3 py-2.5 focus-within:border-black focus-within:ring-2 focus-within:ring-black/10 transition-all">
-                <Link2 size={15} className="text-[#bbb] shrink-0" />
-                <input
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") add(); }}
-                  placeholder="Paste a link (YouTube, article, anything)…"
-                  className="flex-1 bg-transparent text-sm text-black placeholder:text-[#bbb] focus:outline-none border-none p-0 min-w-0"
-                />
-                {url && (
-                  <button onClick={() => setUrl("")} className="text-[#ccc] hover:text-black shrink-0">
-                    <X size={14} />
-                  </button>
-                )}
+            <div className="bg-white rounded-2xl border border-[#e8e8e8] shadow-sm p-4 flex flex-col gap-3">
+              {/* Tabs */}
+              <div className="flex items-center gap-1 p-1 bg-[#f5f5f5] rounded-xl w-fit">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setComposerTab("link");
+                    setUrl("");
+                    setTitle("");
+                    setContext("");
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    composerTab === "link"
+                      ? "bg-white text-black shadow-sm"
+                      : "text-[#666] hover:text-black"
+                  }`}
+                >
+                  <Link2 size={13} />
+                  <span>Link / Note</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setComposerTab("credential");
+                    setUrl("");
+                    setTitle("");
+                    setContext("");
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    composerTab === "credential"
+                      ? "bg-white text-black shadow-sm"
+                      : "text-[#666] hover:text-black"
+                  }`}
+                >
+                  <Key size={13} />
+                  <span>Password / Login</span>
+                </button>
               </div>
-              <input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") add(); }}
-                placeholder="Title (optional)"
-                className="bg-[#f8f8f8] border border-[#e8e8e8] rounded-xl px-3 py-2.5 text-sm text-black placeholder:text-[#bbb] focus:outline-none focus:border-black focus:ring-2 focus:ring-black/10 transition-all"
-              />
-              <textarea
-                value={context}
-                onChange={(e) => setContext(e.target.value)}
-                placeholder="What were you doing? Where to resume, why you saved it…"
-                rows={2}
-                className="bg-[#f8f8f8] border border-[#e8e8e8] rounded-xl px-3 py-2.5 text-sm text-black placeholder:text-[#bbb] focus:outline-none focus:border-black focus:ring-2 focus:ring-black/10 transition-all resize-y"
-              />
+
+              {composerTab === "link" ? (
+                <>
+                  <div className="flex items-center gap-2 bg-[#f8f8f8] border border-[#e8e8e8] rounded-xl px-3 py-2.5 focus-within:border-black focus-within:ring-2 focus-within:ring-black/10 transition-all">
+                    <Link2 size={15} className="text-[#bbb] shrink-0" />
+                    <input
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") add(); }}
+                      placeholder="Paste a link (YouTube, article, anything)…"
+                      className="flex-1 bg-transparent text-sm text-black placeholder:text-[#bbb] focus:outline-none border-none p-0 min-w-0"
+                    />
+                    {url && (
+                      <button onClick={() => setUrl("")} className="text-[#ccc] hover:text-black shrink-0">
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") add(); }}
+                    placeholder="Title (optional)"
+                    className="bg-[#f8f8f8] border border-[#e8e8e8] rounded-xl px-3 py-2.5 text-sm text-black placeholder:text-[#bbb] focus:outline-none focus:border-black focus:ring-2 focus:ring-black/10 transition-all"
+                  />
+                  <textarea
+                    value={context}
+                    onChange={(e) => setContext(e.target.value)}
+                    placeholder="What were you doing? Where to resume, why you saved it…"
+                    rows={2}
+                    className="bg-[#f8f8f8] border border-[#e8e8e8] rounded-xl px-3 py-2.5 text-sm text-black placeholder:text-[#bbb] focus:outline-none focus:border-black focus:ring-2 focus:ring-black/10 transition-all resize-y"
+                  />
+                </>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[11px] font-bold text-[#888] uppercase tracking-wider ml-1">App / Site Name</label>
+                      <input
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        placeholder="Google, Netflix, Router, etc."
+                        className="bg-[#f8f8f8] border border-[#e8e8e8] rounded-xl px-3 py-2.5 text-sm text-black placeholder:text-[#bbb] focus:outline-none focus:border-black focus:ring-2 focus:ring-black/10 transition-all"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[11px] font-bold text-[#888] uppercase tracking-wider ml-1">Website URL (optional)</label>
+                      <div className="flex items-center gap-2 bg-[#f8f8f8] border border-[#e8e8e8] rounded-xl px-3 py-2.5 focus-within:border-black focus-within:ring-2 focus-within:ring-black/10 transition-all">
+                        <Link2 size={14} className="text-[#bbb] shrink-0" />
+                        <input
+                          value={url}
+                          onChange={(e) => setUrl(e.target.value)}
+                          placeholder="https://example.com"
+                          className="flex-1 bg-transparent text-sm text-black placeholder:text-[#bbb] focus:outline-none border-none p-0 min-w-0"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[11px] font-bold text-[#888] uppercase tracking-wider ml-1">Username / Email</label>
+                      <input
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        placeholder="username@gmail.com or user123"
+                        className="bg-[#f8f8f8] border border-[#e8e8e8] rounded-xl px-3 py-2.5 text-sm text-black placeholder:text-[#bbb] focus:outline-none focus:border-black focus:ring-2 focus:ring-black/10 transition-all"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[11px] font-bold text-[#888] uppercase tracking-wider ml-1">Password</label>
+                      <div className="flex items-center gap-2 bg-[#f8f8f8] border border-[#e8e8e8] rounded-xl px-3 py-2.5 focus-within:border-black focus-within:ring-2 focus-within:ring-black/10 transition-all">
+                        <input
+                          type={showComposerPass ? "text" : "password"}
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="••••••••••••••••"
+                          className="flex-1 bg-transparent text-sm text-black placeholder:text-[#bbb] focus:outline-none border-none p-0 min-w-0 font-mono"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowComposerPass(!showComposerPass)}
+                          className="text-[#ccc] hover:text-black shrink-0 transition-colors"
+                          title={showComposerPass ? "Hide password" : "Show password"}
+                        >
+                          {showComposerPass ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={generatePassword}
+                          className="text-[#ccc] hover:text-black shrink-0 transition-colors"
+                          title="Generate Secure Password"
+                        >
+                          <RefreshCw size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[11px] font-bold text-[#888] uppercase tracking-wider ml-1">Notes (optional)</label>
+                    <textarea
+                      value={context}
+                      onChange={(e) => setContext(e.target.value)}
+                      placeholder="Security questions, recovery codes, account numbers..."
+                      rows={2}
+                      className="bg-[#f8f8f8] border border-[#e8e8e8] rounded-xl px-3 py-2.5 text-sm text-black placeholder:text-[#bbb] focus:outline-none focus:border-black focus:ring-2 focus:ring-black/10 transition-all resize-y"
+                    />
+                  </div>
+                </>
+              )}
+
               <div className="flex justify-end">
                 <button
+                  type="button"
                   onClick={add}
-                  disabled={!url.trim() && !title.trim() && !context.trim()}
+                  disabled={
+                    composerTab === "link"
+                      ? !url.trim() && !title.trim() && !context.trim()
+                      : !title.trim() && !username.trim() && !password.trim()
+                  }
                   className="flex items-center gap-1.5 px-4 py-2.5 bg-black hover:bg-[#222] disabled:bg-[#ddd] disabled:cursor-not-allowed text-white rounded-xl text-sm font-semibold transition-colors"
                 >
                   <Plus size={15} /> Save to Vault

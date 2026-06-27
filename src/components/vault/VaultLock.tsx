@@ -18,11 +18,13 @@ export function VaultLock({
   verify,
   onUnlock,
   notice,
+  onReset,
 }: {
   mode: "setup" | "unlock";
   verify: (pin: string) => Promise<boolean>;
   onUnlock: () => void;
   notice?: string;
+  onReset?: () => void;
 }) {
   const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -36,8 +38,11 @@ export function VaultLock({
   // Keep latest callbacks without putting them in effect deps (avoids re-runs).
   const verifyRef = useRef(verify);
   const onUnlockRef = useRef(onUnlock);
-  verifyRef.current = verify;
-  onUnlockRef.current = onUnlock;
+
+  useEffect(() => {
+    verifyRef.current = verify;
+    onUnlockRef.current = onUnlock;
+  }, [verify, onUnlock]);
 
   const busy = working || success;
 
@@ -214,6 +219,15 @@ export function VaultLock({
           <Delete size={24} />
         </button>
       </div>
+
+      {onReset && (
+        <button
+          onClick={onReset}
+          className="mt-6 text-xs text-red-500 hover:text-red-700 hover:underline font-semibold transition-colors"
+        >
+          Reset Vault
+        </button>
+      )}
     </motion.div>
   );
 }
