@@ -23,6 +23,26 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "BizTrack",
   },
+  openGraph: {
+    title: "BizTrack | Business Management Suite",
+    description: "All-in-one business management app for e-commerce, wholesale, inventory, and bank tracking.",
+    siteName: "BizTrack",
+    images: [
+      {
+        url: "/og-image.jpg",
+        width: 1200,
+        height: 675,
+        alt: "BizTrack: Ultimate Business Management Suite",
+      },
+    ],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "BizTrack | Business Management Suite",
+    description: "All-in-one business management app for e-commerce, wholesale, inventory, and bank tracking.",
+    images: ["/og-image.jpg"],
+  },
 };
 
 export const viewport = {
