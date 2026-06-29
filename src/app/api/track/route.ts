@@ -46,9 +46,10 @@ export async function GET(req: NextRequest) {
       const shipment = json?.ShipmentData?.[0]?.Shipment;
 
       if (!shipment) {
+        const errorMsg = json?.message || "No shipment data found";
         return NextResponse.json({
           awb, courier: "Delhivery", trackingUrl,
-          error: "No shipment data found",
+          error: errorMsg,
           status: "Unknown", statusType: "", lastScan: "",
           lastLocation: "", lastDateTime: "", dispatchCount: 0, scans: [],
         });
