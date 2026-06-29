@@ -113,95 +113,115 @@ export class DataRepository {
     const snapshotsStr = await this.provider.getItem("biztrack_mm_snapshots");
     const syncStatusStr = await this.provider.getItem("biztrack_mm_sync_status");
 
+    const clearedFlag = await this.provider.getItem("biztrack_mm_clear_v2");
+    if (!clearedFlag) {
+      await this.provider.removeItem("biztrack_mm_orders");
+      await this.provider.removeItem("biztrack_mm_returns");
+      await this.provider.removeItem("biztrack_mm_claims");
+      await this.provider.removeItem("biztrack_mm_ads");
+      await this.provider.removeItem("biztrack_mm_payments");
+      await this.provider.removeItem("biztrack_mm_inventory");
+      await this.provider.removeItem("biztrack_mm_notifications");
+      await this.provider.removeItem("biztrack_mm_imports");
+      await this.provider.removeItem("biztrack_mm_snapshots");
+      await this.provider.removeItem("biztrack_mm_sync_status");
+      await this.provider.setItem("biztrack_mm_clear_v2", "1");
+    }
+
+    const ordersStr2 = await this.provider.getItem("biztrack_mm_orders");
+    const returnsStr2 = await this.provider.getItem("biztrack_mm_returns");
+    const claimsStr2 = await this.provider.getItem("biztrack_mm_claims");
+    const adsStr2 = await this.provider.getItem("biztrack_mm_ads");
+    const paymentsStr2 = await this.provider.getItem("biztrack_mm_payments");
+    const settingsStr2 = await this.provider.getItem("biztrack_mm_settings");
+    const inventoryStr2 = await this.provider.getItem("biztrack_mm_inventory");
+    const notificationsStr2 = await this.provider.getItem("biztrack_mm_notifications");
+    const importsStr2 = await this.provider.getItem("biztrack_mm_imports");
+    const snapshotsStr2 = await this.provider.getItem("biztrack_mm_snapshots");
+    const syncStatusStr2 = await this.provider.getItem("biztrack_mm_sync_status");
+
     // Orders
-    if (ordersStr) {
-      this.orders = JSON.parse(ordersStr);
+    if (ordersStr2) {
+      this.orders = JSON.parse(ordersStr2);
     } else {
-      this.orders = SEED_ORDERS;
-      await this.provider.setItem("biztrack_mm_orders", JSON.stringify(SEED_ORDERS));
-      this.syncStatus["orders"] = Date.now() - 3600000; // 1 hour ago
+      this.orders = [];
+      await this.provider.setItem("biztrack_mm_orders", JSON.stringify([]));
     }
 
     // Returns
-    if (returnsStr) {
-      this.returns = JSON.parse(returnsStr);
+    if (returnsStr2) {
+      this.returns = JSON.parse(returnsStr2);
     } else {
-      this.returns = SEED_RETURNS;
-      await this.provider.setItem("biztrack_mm_returns", JSON.stringify(SEED_RETURNS));
-      this.syncStatus["returns"] = Date.now() - 7200000; // 2 hours ago
+      this.returns = [];
+      await this.provider.setItem("biztrack_mm_returns", JSON.stringify([]));
     }
 
     // Claims
-    if (claimsStr) {
-      this.claims = JSON.parse(claimsStr);
+    if (claimsStr2) {
+      this.claims = JSON.parse(claimsStr2);
     } else {
-      this.claims = SEED_CLAIMS;
-      await this.provider.setItem("biztrack_mm_claims", JSON.stringify(SEED_CLAIMS));
-      this.syncStatus["claims"] = Date.now() - 10800000; // 3 hours ago
+      this.claims = [];
+      await this.provider.setItem("biztrack_mm_claims", JSON.stringify([]));
     }
 
     // Ads
-    if (adsStr) {
-      this.ads = JSON.parse(adsStr);
+    if (adsStr2) {
+      this.ads = JSON.parse(adsStr2);
     } else {
-      this.ads = SEED_CAMPAIGNS;
-      await this.provider.setItem("biztrack_mm_ads", JSON.stringify(SEED_CAMPAIGNS));
-      this.syncStatus["ads"] = Date.now() - 14400000; // 4 hours ago
+      this.ads = [];
+      await this.provider.setItem("biztrack_mm_ads", JSON.stringify([]));
     }
 
     // Payments
-    if (paymentsStr) {
-      this.payments = JSON.parse(paymentsStr);
+    if (paymentsStr2) {
+      this.payments = JSON.parse(paymentsStr2);
     } else {
-      this.payments = SEED_PAYMENTS;
-      await this.provider.setItem("biztrack_mm_payments", JSON.stringify(SEED_PAYMENTS));
-      this.syncStatus["payments"] = Date.now() - 86400000; // 1 day ago
+      this.payments = [];
+      await this.provider.setItem("biztrack_mm_payments", JSON.stringify([]));
     }
 
     // Settings
-    if (settingsStr) {
-      this.settings = JSON.parse(settingsStr);
+    if (settingsStr2) {
+      this.settings = JSON.parse(settingsStr2);
     } else {
       this.settings = DEFAULT_SETTINGS;
       await this.provider.setItem("biztrack_mm_settings", JSON.stringify(DEFAULT_SETTINGS));
     }
 
     // Inventory
-    if (inventoryStr) {
-      this.inventory = JSON.parse(inventoryStr);
+    if (inventoryStr2) {
+      this.inventory = JSON.parse(inventoryStr2);
     } else {
-      this.inventory = SEED_INVENTORY;
-      await this.provider.setItem("biztrack_mm_inventory", JSON.stringify(SEED_INVENTORY));
-      this.syncStatus["inventory"] = Date.now() - 600000; // 10 minutes ago
+      this.inventory = [];
+      await this.provider.setItem("biztrack_mm_inventory", JSON.stringify([]));
     }
 
     // Notifications
-    if (notificationsStr) {
-      this.notifications = JSON.parse(notificationsStr);
+    if (notificationsStr2) {
+      this.notifications = JSON.parse(notificationsStr2);
     } else {
-      this.notifications = SEED_NOTIFICATIONS;
-      await this.provider.setItem("biztrack_mm_notifications", JSON.stringify(SEED_NOTIFICATIONS));
+      this.notifications = [];
+      await this.provider.setItem("biztrack_mm_notifications", JSON.stringify([]));
     }
 
     // Imports
-    if (importsStr) {
-      this.imports = JSON.parse(importsStr);
+    if (importsStr2) {
+      this.imports = JSON.parse(importsStr2);
     } else {
       this.imports = [];
     }
 
     // Snapshots
-    if (snapshotsStr) {
-      this.snapshots = JSON.parse(snapshotsStr);
+    if (snapshotsStr2) {
+      this.snapshots = JSON.parse(snapshotsStr2);
     } else {
-      // Auto generate some mock snapshots for the past 7 days to power analytics
-      this.snapshots = this.generateInitialSnapshots();
-      await this.provider.setItem("biztrack_mm_snapshots", JSON.stringify(this.snapshots));
+      this.snapshots = [];
+      await this.provider.setItem("biztrack_mm_snapshots", JSON.stringify([]));
     }
 
     // Sync Status
-    if (syncStatusStr) {
-      this.syncStatus = JSON.parse(syncStatusStr);
+    if (syncStatusStr2) {
+      this.syncStatus = JSON.parse(syncStatusStr2);
     } else {
       await this.provider.setItem("biztrack_mm_sync_status", JSON.stringify(this.syncStatus));
     }
