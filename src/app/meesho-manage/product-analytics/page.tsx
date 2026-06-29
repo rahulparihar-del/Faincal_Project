@@ -7,10 +7,12 @@ import { DateRangeFilter } from "@/components/meesho/DateRangeFilter";
 import { KpiCard } from "@/components/meesho/KpiCard";
 import { DataTable } from "@/components/meesho/DataTable";
 import { BarChart } from "@/components/meesho/BarChart";
-import { DateFilter, SkuStats } from "@/components/meesho/types";
+import { DateFilter, SkuStats, MMInventoryItem } from "@/components/meesho/types";
+import { calculateSkuStats } from "@/lib/data/analytics";
+import { AlertTriangle, ShieldCheck, Warehouse } from "lucide-react";
 
 export default function ProductAnalyticsPage() {
-  const { orders, returns, isLoaded } = useMMData();
+  const { orders, returns, inventory, settings, adCampaigns, isLoaded } = useMMData();
 
   const [dateFilter, setDateFilter] = useState<DateFilter>({
     range: "30days",
@@ -21,64 +23,10 @@ export default function ProductAnalyticsPage() {
   const filteredOrders = useMemo(() => filterByDate(orders, dateFilter), [orders, dateFilter]);
   const filteredReturns = useMemo(() => filterByDate(returns, dateFilter), [returns, dateFilter]);
 
+  // Use centralized calculation
   const skuStatsList = useMemo(() => {
-    // Extract unique SKUs
-    const skus = Array.from(new Set(filteredOrders.map((o) => o.sku)));
-
-    const list: SkuStats[] = skus.map((sku) => {
-      const oList = filteredOrders.filter((o) => o.sku === sku);
-      const rList = filteredReturns.filter((r) => r.sku === sku);
-
-      const name = oList[0]?.productName || "Unknown Product";
-      const ordersCount = oList.length;
-
-      const revenue = oList
-        .filter((o) => o.status !== "rto" && o.status !== "cancelled" && o.status !== "returned")
-        .reduce((sum, o) => sum + o.sellingPrice, 0);
-
-      const returnsCount = rList.filter((r) => !r.isRTO).length;
-      const rto = rList.filter((r) => r.isRTO).length;
-
-      const adsCost = oList.reduce((sum, o) => sum + o.adSpend, 0);
-      const shippingCost = oList.reduce((sum, o) => sum + o.shippingCharge, 0);
-      const platformFees = oList.reduce((sum, o) => sum + o.platformFee, 0);
-      const cogs = oList.reduce((sum, o) => sum + o.costOfGoods, 0);
-
-      const returnLoss = rList.reduce((sum, r) => sum + r.financialLoss, 0);
-      const netProfit = revenue - adsCost - shippingCost - platformFees - cogs - returnLoss;
-
-      const returnRate = ordersCount ? (returnsCount / ordersCount) * 100 : 0;
-      const rtoRate = ordersCount ? (rto / ordersCount) * 100 : 0;
-
-      // Product Health score logic
-      let healthScore = 100;
-      healthScore -= returnRate * 2.5;
-      healthScore -= rtoRate * 1.5;
-      const margin = revenue ? (netProfit / revenue) * 100 : 0;
-      if (margin < 10) healthScore -= 20;
-      else if (margin < 20) healthScore -= 5;
-      healthScore = Math.max(0, Math.min(100, Math.round(healthScore)));
-
-      return {
-        sku,
-        productName: name,
-        revenue,
-        orders: ordersCount,
-        returns: returnsCount,
-        rto,
-        adsCost,
-        shippingCost,
-        platformFees,
-        cogs,
-        netProfit,
-        returnRate,
-        rtoRate,
-        healthScore,
-      };
-    });
-
-    return list;
-  }, [filteredOrders, filteredReturns]);
+    return calculateSkuStats(filteredOrders, filteredReturns, settings, adCampaigns);
+  }, [filteredOrders, filteredReturns, settings, adCampaigns]);
 
   const bestWorstProducts = useMemo(() => {
     if (skuStatsList.length === 0) return { best: "-", worst: "-" };
@@ -105,9 +53,34 @@ export default function ProductAnalyticsPage() {
     }));
   }, [skuStatsList]);
 
+  // Clickable SKU and Name Columns
   const columns = [
-    { key: "sku", label: "SKU", sortable: true },
-    { key: "productName", label: "Product Name", sortable: true },
+    {
+      key: "sku",
+      label: "SKU",
+      sortable: true,
+      render: (row: SkuStats) => (
+        <a
+          href={`/meesho-manage/product-360?sku=${row.sku}`}
+          style={{ color: "#7c3aed", fontWeight: 700, textDecoration: "none" }}
+        >
+          {row.sku}
+        </a>
+      )
+    },
+    {
+      key: "productName",
+      label: "Product Name",
+      sortable: true,
+      render: (row: SkuStats) => (
+        <a
+          href={`/meesho-manage/product-360?sku=${row.sku}`}
+          style={{ color: "#1e293b", fontWeight: 600, textDecoration: "none" }}
+        >
+          {row.productName}
+        </a>
+      )
+    },
     { key: "orders", label: "Orders", align: "center" as const, sortable: true },
     {
       key: "revenue",
@@ -155,6 +128,78 @@ export default function ProductAnalyticsPage() {
     },
   ];
 
+  // Inventory Table Columns
+  const inventoryColumns = [
+    {
+      key: "sku",
+      label: "SKU",
+      sortable: true,
+      render: (row: MMInventoryItem) => (
+        <a
+          href={`/meesho-manage/product-360?sku=${row.sku}`}
+          style={{ color: "#7c3aed", fontWeight: 700, textDecoration: "none" }}
+        >
+          {row.sku}
+        </a>
+      )
+    },
+    {
+      key: "productName",
+      label: "Product Name",
+      sortable: true,
+      render: (row: MMInventoryItem) => (
+        <a
+          href={`/meesho-manage/product-360?sku=${row.sku}`}
+          style={{ color: "#1e293b", fontWeight: 600, textDecoration: "none" }}
+        >
+          {row.productName}
+        </a>
+      )
+    },
+    { key: "currentStock", label: "Current Stock", align: "center" as const, sortable: true },
+    { key: "reservedStock", label: "Reserved", align: "center" as const },
+    { key: "availableStock", label: "Available", align: "center" as const, sortable: true },
+    { key: "avgDailySales", label: "Daily Sales", align: "center" as const, render: (row: MMInventoryItem) => `${row.avgDailySales.toFixed(1)}/day` },
+    {
+      key: "daysRemaining",
+      label: "Days Left",
+      align: "center" as const,
+      sortable: true,
+      render: (row: MMInventoryItem) => (
+        <span style={{ fontWeight: 700, color: row.daysRemaining < 7 ? "#ef4444" : "#10b981" }}>
+          {row.daysRemaining} days
+        </span>
+      )
+    },
+    {
+      key: "suggestedReorderDate",
+      label: "Sug. Reorder Date",
+      align: "center" as const,
+      render: (row: MMInventoryItem) => (
+        <span style={{ color: row.suggestedReorderDate ? "#d97706" : "#64748b", fontWeight: row.suggestedReorderDate ? 800 : 400 }}>
+          {row.suggestedReorderDate || "Stock Optimal"}
+        </span>
+      )
+    },
+    {
+      key: "health",
+      label: "Status",
+      align: "center" as const,
+      render: (row: MMInventoryItem) => {
+        const isLow = row.health === "low_stock";
+        const isOut = row.health === "out_of_stock";
+        const bg = isOut ? "#fee2e2" : isLow ? "#fffbeb" : "#f0fdf4";
+        const color = isOut ? "#b91c1c" : isLow ? "#b45309" : "#15803d";
+        const text = isOut ? "Out of Stock" : isLow ? "Low Stock" : "Healthy";
+        return (
+          <span style={{ padding: "2px 8px", fontSize: 9, fontWeight: 700, background: bg, color, borderRadius: 12 }}>
+            {text}
+          </span>
+        );
+      }
+    }
+  ];
+
   if (!isLoaded) {
     return (
       <div style={{ display: "flex", height: "100%", alignItems: "center", justifyContent: "center" }}>
@@ -186,10 +231,30 @@ export default function ProductAnalyticsPage() {
         <BarChart title="Net Contribution (Profit) by SKU" data={profitChartData} height={160} valuePrefix="₹" />
       </div>
 
-      {/* Grid listing SKUs details */}
-      <div style={{ marginBottom: 20 }}>
+      {/* SKU Product Ledger Table */}
+      <div style={{ background: "#ffffff", border: "1px solid #e8e8e8", borderRadius: 16, padding: 20, marginBottom: 24 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: "#1a1a1a", marginBottom: 12 }}>Product Ledger Metrics</div>
         <DataTable columns={columns} data={skuStatsList} pageSize={10} searchKeys={["sku", "productName"]} />
+      </div>
+
+      {/* NEW Section: Inventory Intelligence */}
+      <div style={{ background: "#ffffff", border: "1px solid #e8e8e8", borderRadius: 16, padding: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Warehouse size={16} style={{ color: "#7c3aed" }} />
+            <span style={{ fontSize: 14, fontWeight: 700, color: "#1e293b" }}>Inventory Intelligence & Stock Replenishment</span>
+          </div>
+
+          <div style={{ display: "flex", gap: 12 }}>
+            <span style={{ fontSize: 9, color: "#64748b", display: "flex", alignItems: "center", gap: 4 }}>
+              <AlertTriangle size={12} style={{ color: "#f59e0b" }} /> Low Stock Trigger: &lt; 7 Days
+            </span>
+            <span style={{ fontSize: 9, color: "#64748b", display: "flex", alignItems: "center", gap: 4 }}>
+              <ShieldCheck size={12} style={{ color: "#10b981" }} /> Safe Lead Time: 3 Days
+            </span>
+          </div>
+        </div>
+        <DataTable columns={inventoryColumns} data={inventory} pageSize={10} searchKeys={["sku", "productName"]} />
       </div>
     </motion.div>
   );

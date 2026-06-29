@@ -71,7 +71,16 @@ export default function OrdersPage() {
     { key: "orderNo", label: "Order No", sortable: true },
     { key: "date", label: "Date", sortable: true },
     { key: "productName", label: "Product", sortable: true },
-    { key: "sku", label: "SKU", sortable: true },
+    {
+      key: "sku",
+      label: "SKU",
+      sortable: true,
+      render: (row: MMOrder) => (
+        <a href={`/meesho-manage/product-360?sku=${row.sku}`} style={{ color: "#7c3aed", fontWeight: 700, textDecoration: "none" }}>
+          {row.sku}
+        </a>
+      )
+    },
     { key: "qty", label: "Qty", sortable: true, align: "center" as const },
     {
       key: "sellingPrice",

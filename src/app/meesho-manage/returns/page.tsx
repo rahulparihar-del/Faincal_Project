@@ -69,7 +69,15 @@ export default function ReturnsPage() {
     { key: "orderId", label: "Order ID", sortable: true },
     { key: "date", label: "Return Date", sortable: true },
     { key: "productName", label: "Product", sortable: true },
-    { key: "sku", label: "SKU" },
+    {
+      key: "sku",
+      label: "SKU",
+      render: (row: MMReturn) => (
+        <a href={`/meesho-manage/product-360?sku=${row.sku}`} style={{ color: "#7c3aed", fontWeight: 700, textDecoration: "none" }}>
+          {row.sku}
+        </a>
+      )
+    },
     {
       key: "reason",
       label: "Reason",

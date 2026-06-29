@@ -19,9 +19,16 @@ import {
   ScanLine,
   ChevronLeft,
   ChevronRight,
+  Bell,
+  FileSpreadsheet,
+  Check,
+  AlertTriangle,
+  Info,
+  X
 } from "lucide-react";
 import { gsap } from "gsap";
 import { useGSAP } from "@gsap/react";
+import { useMMData } from "./useMeeshoData";
 
 const SHELL_ITEMS = [
   { name: "Executive Dashboard", href: "/meesho-manage/dashboard", icon: LayoutDashboard },
@@ -35,6 +42,7 @@ const SHELL_ITEMS = [
   { name: "Profit Analytics", href: "/meesho-manage/profit-analytics", icon: DollarSign },
   { name: "Customer Returns", href: "/meesho-manage/customer-analytics", icon: Users },
   { name: "Reports", href: "/meesho-manage/reports", icon: FileText },
+  { name: "Import Center", href: "/meesho-manage/import-center", icon: FileSpreadsheet },
   { name: "Settings", href: "/meesho-manage/settings", icon: Settings },
 ];
 
@@ -45,7 +53,11 @@ interface Props {
 export function MeeshoShell({ children }: Props) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
+
+  const { notifications, markAllNotificationsAsRead } = useMMData();
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   useGSAP(
     () => {
@@ -81,12 +93,13 @@ export function MeeshoShell({ children }: Props) {
         <div
           style={{
             height: 48,
-            padding: "0 16px",
+            padding: "0 12px 0 16px",
             borderBottom: "1px solid #f0f0f0",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             overflow: "hidden",
+            position: "relative"
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -122,21 +135,139 @@ export function MeeshoShell({ children }: Props) {
             </span>
           </div>
 
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              color: "#aaa",
-              padding: 4,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            {collapsed ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            {/* Notification Bell Icon */}
+            <div style={{ position: "relative" }}>
+              <button
+                onClick={() => setShowNotifications(!showNotifications)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: unreadCount > 0 ? "#7c3aed" : "#aaa",
+                  padding: 4,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  position: "relative"
+                }}
+              >
+                <Bell size={14} />
+                {unreadCount > 0 && (
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      right: 0,
+                      background: "#ef4444",
+                      color: "#fff",
+                      borderRadius: "50%",
+                      width: 12,
+                      height: 12,
+                      fontSize: 8,
+                      fontWeight: 800,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center"
+                    }}
+                  >
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Notification Popover Dropdown */}
+              {showNotifications && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 28,
+                    left: 0,
+                    width: 280,
+                    maxHeight: 350,
+                    overflowY: "auto",
+                    background: "#ffffff",
+                    borderRadius: 12,
+                    boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)",
+                    border: "1px solid #e2e8f0",
+                    zIndex: 99,
+                    padding: 12
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, borderBottom: "1px solid #f1f5f9", paddingBottom: 6 }}>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: "#1e293b", textTransform: "uppercase" }}>Notifications</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      {unreadCount > 0 && (
+                        <button
+                          onClick={() => {
+                            markAllNotificationsAsRead();
+                          }}
+                          style={{ background: "none", border: "none", color: "#7c3aed", fontSize: 9, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 2 }}
+                        >
+                          <Check size={10} /> Mark read
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setShowNotifications(false)}
+                        style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer" }}
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {notifications.length === 0 ? (
+                    <div style={{ padding: "16px 0", textAlign: "center", fontSize: 11, color: "#94a3b8" }}>No active alerts</div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {notifications.map((notif) => (
+                        <div
+                          key={notif.id}
+                          style={{
+                            padding: 8,
+                            borderRadius: 6,
+                            background: notif.read ? "#f8fafc" : "#7c3aed0a",
+                            borderLeft: `3px solid ${notif.type === 'critical' ? '#ef4444' : notif.type === 'warning' ? '#f59e0b' : notif.type === 'opportunity' ? '#10b981' : '#3b82f6'}`,
+                            fontSize: 10,
+                            color: "#334155",
+                            position: "relative"
+                          }}
+                        >
+                          <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
+                            {notif.type === 'critical' || notif.type === 'warning' ? (
+                              <AlertTriangle size={12} style={{ color: notif.type === 'critical' ? '#ef4444' : '#f59e0b', marginTop: 1, flexShrink: 0 }} />
+                            ) : (
+                              <Info size={12} style={{ color: notif.type === 'opportunity' ? '#10b981' : '#3b82f6', marginTop: 1, flexShrink: 0 }} />
+                            )}
+                            <div>
+                              <div style={{ fontWeight: notif.read ? 500 : 700 }}>{notif.message}</div>
+                              <span style={{ fontSize: 8, color: "#94a3b8" }}>{new Date(notif.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => setCollapsed(!collapsed)}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "#aaa",
+                padding: 4,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {collapsed ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}
+            </button>
+          </div>
         </div>
 
         {/* Nav Items */}

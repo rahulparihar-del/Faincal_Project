@@ -166,3 +166,50 @@ export const RETURN_REASONS = {
   not_needed: "No Longer Needed",
   other: "Other Reason",
 };
+
+export interface MMInventoryItem {
+  sku: string;
+  productName: string;
+  currentStock: number;
+  reservedStock: number;
+  availableStock: number;
+  avgDailySales: number;
+  daysRemaining: number;
+  suggestedReorderDate?: string;
+  health: 'healthy' | 'low_stock' | 'out_of_stock';
+}
+
+export interface ImportRecord {
+  id: string;
+  fileName: string;
+  type: 'orders' | 'returns' | 'payments' | 'ads' | 'claims' | 'inventory';
+  importedRows: number;
+  failedRows: number;
+  duplicateRows: number;
+  importDate: string;
+}
+
+export interface MMNotification {
+  id: string;
+  timestamp: string;
+  type: 'critical' | 'warning' | 'opportunity' | 'info';
+  message: string;
+  read: boolean;
+}
+
+export interface BSSnapshot {
+  date: string; // YYYY-MM-DD
+  revenue: number;
+  profit: number;
+  orders: number;
+  delivered: number;
+  returns: number;
+  rto: number;
+  adsSpend: number;
+  shipping: number;
+  fees: number;
+  claims: number;
+  settlement: number;
+  inventoryValue: number;
+}
+

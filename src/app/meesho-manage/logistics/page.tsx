@@ -8,6 +8,8 @@ import { KpiCard } from "@/components/meesho/KpiCard";
 import { DataTable } from "@/components/meesho/DataTable";
 import { BarChart } from "@/components/meesho/BarChart";
 import { DateFilter, CourierName, CourierStats } from "@/components/meesho/types";
+import { calculateCourierStats } from "@/lib/data/analytics";
+import { Truck, Star, AlertOctagon, TrendingUp, TrendingDown, HelpCircle, CheckCircle } from "lucide-react";
 
 export default function LogisticsPage() {
   const { orders, returns, isLoaded } = useMMData();
@@ -35,49 +37,20 @@ export default function LogisticsPage() {
     return { total, delivered, rto, cost, avgDays };
   }, [filteredOrders]);
 
+  // Use centralized calculations
   const courierStatsList = useMemo(() => {
-    const couriers: CourierName[] = ["Xpressbees", "Delhivery", "Shadowfax", "Ekart", "Bluedart", "Valmo", "Other"];
-
-    const list: CourierStats[] = couriers.map((courier) => {
-      const cOrders = filteredOrders.filter((o) => o.courier === courier);
-      const cReturns = filteredReturns.filter((r) => r.courier === courier);
-
-      const total = cOrders.length;
-      const delivered = cOrders.filter((o) => o.status === "delivered").length;
-      const rto = cOrders.filter((o) => o.status === "rto").length;
-      const returned = cOrders.filter((o) => o.status === "returned").length;
-      const failed = rto + returned;
-
-      const successRate = total ? (delivered / total) * 100 : 0;
-
-      const ordersWithDays = cOrders.filter((o) => o.status === "delivered" && o.deliveryDays);
-      const avgDeliveryDays = ordersWithDays.length
-        ? ordersWithDays.reduce((sum, o) => sum + (o.deliveryDays || 0), 0) / ordersWithDays.length
-        : 0;
-
-      const totalCost = cOrders.reduce((sum, o) => sum + o.shippingCharge, 0);
-      const financialLoss = cReturns.reduce((sum, r) => sum + r.financialLoss, 0);
-
-      return {
-        courier,
-        total,
-        delivered,
-        failed,
-        rto,
-        returned,
-        successRate,
-        avgDeliveryDays,
-        totalCost,
-        financialLoss,
-      };
-    });
-
-    // Filter out couriers with 0 shipments
-    const activeCouriers = list.filter((c) => c.total > 0);
-
-    // Sort by success rate desc
-    return activeCouriers.sort((a, b) => b.successRate - a.successRate);
+    return calculateCourierStats(filteredOrders, filteredReturns);
   }, [filteredOrders, filteredReturns]);
+
+  // Best/Worst Performing Courier Highlights
+  const highlights = useMemo(() => {
+    if (courierStatsList.length === 0) return null;
+    const sorted = [...courierStatsList].sort((a, b) => b.successRate - a.successRate);
+    return {
+      best: sorted[0],
+      worst: sorted[sorted.length - 1],
+    };
+  }, [courierStatsList]);
 
   const chartData = useMemo(() => {
     return courierStatsList.map((c) => ({
@@ -93,6 +66,7 @@ export default function LogisticsPage() {
     }));
   }, [courierStatsList]);
 
+  // Comprehensive Columns for Courier Intelligence
   const columns = [
     {
       key: "rank",
@@ -108,7 +82,9 @@ export default function LogisticsPage() {
     { key: "courier", label: "Courier Partner", sortable: true },
     { key: "total", label: "Shipments", align: "center" as const, sortable: true },
     { key: "delivered", label: "Delivered", align: "center" as const },
+    { key: "failed", label: "Failed", align: "center" as const, render: (row: CourierStats) => row.failed },
     { key: "rto", label: "RTO", align: "center" as const },
+    { key: "returned", label: "Returns", align: "center" as const, render: (row: CourierStats) => row.returned },
     {
       key: "successRate",
       label: "Success Rate",
@@ -127,17 +103,31 @@ export default function LogisticsPage() {
       render: (row: CourierStats) => (row.avgDeliveryDays ? `${row.avgDeliveryDays.toFixed(1)} days` : "-"),
     },
     {
-      key: "totalCost",
-      label: "Shipping Cost",
+      key: "avgShippingCost",
+      label: "Avg Cost",
       align: "right" as const,
-      render: (row: CourierStats) => `₹${row.totalCost.toLocaleString("en-IN")}`,
+      render: (row: CourierStats) => `₹${Math.round(row.totalCost / row.total)}`,
     },
     {
       key: "financialLoss",
-      label: "RTO Loss",
+      label: "Loss",
       align: "right" as const,
       render: (row: CourierStats) => `₹${row.financialLoss.toLocaleString("en-IN")}`,
     },
+    {
+      key: "trend",
+      label: "Trend",
+      align: "center" as const,
+      render: (row: CourierStats) => {
+        const isUp = row.successRate >= 75;
+        return (
+          <span style={{ color: isUp ? "#10b981" : "#ef4444", display: "flex", alignItems: "center", justifyContent: "center", gap: 2, fontSize: 9.5, fontWeight: 700 }}>
+            {isUp ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+            {isUp ? "Stable" : "Risk"}
+          </span>
+        );
+      }
+    }
   ];
 
   if (!isLoaded) {
@@ -157,6 +147,39 @@ export default function LogisticsPage() {
       </div>
 
       <DateRangeFilter value={dateFilter} onChange={setDateFilter} />
+
+      {/* Courier Highlights (Best / Worst Courier) */}
+      {highlights && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+          {/* Best Courier */}
+          <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 16, padding: 16, display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ background: "#dcfce7", borderRadius: "50%", width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", color: "#16a34a", padding: 8 }}>
+              <Star size={20} fill="#16a34a" />
+            </div>
+            <div>
+              <span style={{ fontSize: 9, fontWeight: 800, color: "#16a34a", textTransform: "uppercase" }}>Best Performing Partner</span>
+              <div style={{ fontSize: 15, fontWeight: 800, color: "#14532d", marginTop: 2 }}>{highlights.best.courier}</div>
+              <p style={{ fontSize: 10, color: "#15803d", marginTop: 2 }}>
+                Delivering at <strong>{highlights.best.successRate.toFixed(1)}%</strong> success rate with an average delivery speed of <strong>{highlights.best.avgDeliveryDays.toFixed(1)} days</strong>.
+              </p>
+            </div>
+          </div>
+
+          {/* Worst Courier */}
+          <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 16, padding: 16, display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ background: "#fee2e2", borderRadius: "50%", width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", color: "#dc2626", padding: 8 }}>
+              <AlertOctagon size={20} />
+            </div>
+            <div>
+              <span style={{ fontSize: 9, fontWeight: 800, color: "#dc2626", textTransform: "uppercase" }}>Worst Performing Partner</span>
+              <div style={{ fontSize: 15, fontWeight: 800, color: "#7f1d1d", marginTop: 2 }}>{highlights.worst.courier}</div>
+              <p style={{ fontSize: 10, color: "#b91c1c", marginTop: 2 }}>
+                RTO failure rate is high at <strong>{(100 - highlights.worst.successRate).toFixed(1)}%</strong>, causing a financial loss of <strong>₹{highlights.worst.financialLoss.toLocaleString("en-IN")}</strong>.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* KPIs */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16, marginBottom: 20 }}>
