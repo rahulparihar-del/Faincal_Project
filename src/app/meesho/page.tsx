@@ -2317,7 +2317,7 @@ export default function MeeshoPage() {
                     }
 
                     const st = liveTracking.status?.toLowerCase();
-                    const isDelivered = st === "delivered";
+                    const isDelivered = st === "delivered" || st === "returned";
                     const isInTransit = st === "in transit";
                     const isPending = st === "pending";
                     const isRto = liveTracking.statusType === "RT";
