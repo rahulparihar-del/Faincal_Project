@@ -263,7 +263,7 @@ export default function RoadmapPage() {
         /* Cancel the AppShell padding so the canvas fills edge-to-edge */
         margin: "-1.25rem -1.25rem -2rem",
         height: "calc(100vh - 64px)",
-        background: "#0a0a12",
+        background: "#f5f5f5",
         position: "relative",
         overflow: "hidden",
       }}
@@ -273,7 +273,7 @@ export default function RoadmapPage() {
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Space+Grotesk:wght@400;600;700&family=Outfit:wght@400;600;700&family=Fira+Code:wght@400;500&family=DM+Serif+Display&display=swap');
         [contenteditable]:empty:before {
           content: attr(data-placeholder);
-          color: rgba(255,255,255,0.2);
+          color: #bbb;
           pointer-events: none;
         }
         input[type="range"] {

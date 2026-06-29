@@ -18,6 +18,7 @@ import {
   Settings,
   Copy,
   CheckCircle2,
+  ChevronDown,
 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 
@@ -254,7 +255,7 @@ function AddUrlBar({ onAdd, loading }: { onAdd: (url: string, category: string) 
         <span className="text-xs font-semibold uppercase tracking-wider">Add a website</span>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row gap-2">
         {/* URL input */}
         <div className="flex-1 flex items-center gap-2 bg-[#f8f8f8] border border-[#e8e8e8] rounded-xl px-3 py-2.5 focus-within:border-black focus-within:ring-2 focus-within:ring-black/10 transition-all">
           <Globe size={15} className="text-[#bbb] shrink-0" />
@@ -273,42 +274,46 @@ function AddUrlBar({ onAdd, loading }: { onAdd: (url: string, category: string) 
           )}
         </div>
 
-        {/* Category dropdown */}
-        <div className="relative">
-          <button
-            onClick={() => setShowCat((v) => !v)}
-            className="px-3 py-2.5 rounded-xl bg-[#f5f5f5] border border-[#e8e8e8] text-[#555] text-xs font-semibold hover:bg-[#eee] transition-colors whitespace-nowrap flex items-center gap-1"
-          >
-            {category}
-          </button>
-          {showCat && (
-            <div className="absolute right-0 top-full mt-1 bg-white rounded-xl border border-[#e8e8e8] shadow-lg py-1 z-50 min-w-[130px]">
-              {CATEGORIES.filter((c) => c !== "All").map((c) => (
-                <button
-                  key={c}
-                  onClick={() => { setCategory(c); setShowCat(false); }}
-                  className={`w-full text-left px-3 py-2 text-xs font-medium hover:bg-[#f5f5f5] transition-colors ${category === c ? "text-black font-semibold" : "text-[#555]"}`}
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        {/* Row for Category + Submit on mobile, inline on desktop */}
+        <div className="flex items-center gap-2 sm:shrink-0 w-full sm:w-auto">
+          {/* Category dropdown */}
+          <div className="relative flex-1 sm:flex-none">
+            <button
+              onClick={() => setShowCat((v) => !v)}
+              className="w-full sm:w-auto px-3 py-2.5 rounded-xl bg-[#f5f5f5] border border-[#e8e8e8] text-[#555] text-xs font-semibold hover:bg-[#eee] transition-colors whitespace-nowrap flex items-center justify-between sm:justify-start gap-1.5"
+            >
+              <span>{category}</span>
+              <ChevronDown size={13} className="opacity-60 shrink-0" />
+            </button>
+            {showCat && (
+              <div className="absolute right-0 top-full mt-1 bg-white rounded-xl border border-[#e8e8e8] shadow-lg py-1 z-50 min-w-[130px]">
+                {CATEGORIES.filter((c) => c !== "All").map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => { setCategory(c); setShowCat(false); }}
+                    className={`w-full text-left px-3 py-2 text-xs font-medium hover:bg-[#f5f5f5] transition-colors ${category === c ? "text-black font-semibold" : "text-[#555]"}`}
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
-        {/* Submit button */}
-        <button
-          onClick={submit}
-          disabled={loading || !input.trim()}
-          className="flex items-center gap-1.5 px-4 py-2.5 bg-black hover:bg-[#222] disabled:bg-[#ddd] disabled:cursor-not-allowed text-white rounded-xl text-sm font-semibold transition-colors shrink-0"
-        >
-          {loading ? (
-            <RefreshCw size={14} className="animate-spin" />
-          ) : (
-            <Plus size={15} />
-          )}
-          Add
-        </button>
+          {/* Submit button */}
+          <button
+            onClick={submit}
+            disabled={loading || !input.trim()}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 bg-black hover:bg-[#222] disabled:bg-[#ddd] disabled:cursor-not-allowed text-white rounded-xl text-sm font-semibold transition-colors shrink-0"
+          >
+            {loading ? (
+              <RefreshCw size={14} className="animate-spin" />
+            ) : (
+              <Plus size={15} />
+            )}
+            Add
+          </button>
+        </div>
       </div>
 
       <p className="text-[11px] text-[#bbb]">

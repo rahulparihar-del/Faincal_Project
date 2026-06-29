@@ -36,10 +36,10 @@ export function RoadmapToolbar({
 
   const btnCls = `
     flex items-center justify-center w-9 h-9 rounded-xl
-    text-white/60 hover:text-white
-    hover:bg-white/10 active:bg-white/20
+    text-[#555] hover:text-black
+    hover:bg-[#f0f0f0] active:bg-[#e8e8e8]
     transition-all duration-150 cursor-pointer border border-transparent
-    hover:border-white/10
+    hover:border-[#e0e0e0]
   `.trim();
 
   const zoomIn = () => {
@@ -74,19 +74,19 @@ export function RoadmapToolbar({
           gap: 8,
           padding: "8px 14px 8px 10px",
           background: "linear-gradient(135deg, #7c3aed, #5b21b6)",
-          border: "1px solid rgba(139,92,246,0.5)",
+          border: "1px solid rgba(124,58,237,0.3)",
           borderRadius: 12,
           color: "white",
           fontSize: 12,
           fontWeight: 700,
           cursor: "pointer",
-          boxShadow: "0 4px 20px rgba(124,58,237,0.4)",
+          boxShadow: "0 4px 16px rgba(124,58,237,0.3)",
           transition: "all 0.2s",
           letterSpacing: "-0.01em",
           whiteSpace: "nowrap",
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "0 6px 28px rgba(124,58,237,0.6)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
-        onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "0 4px 20px rgba(124,58,237,0.4)"; e.currentTarget.style.transform = "translateY(0)"; }}
+        onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "0 6px 24px rgba(124,58,237,0.45)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "0 4px 16px rgba(124,58,237,0.3)"; e.currentTarget.style.transform = "translateY(0)"; }}
       >
         <Plus size={15} />
         Add Node
@@ -95,15 +95,14 @@ export function RoadmapToolbar({
       {/* Control group */}
       <div
         style={{
-          background: "rgba(15,15,25,0.9)",
-          border: "1px solid rgba(255,255,255,0.08)",
+          background: "#ffffff",
+          border: "1px solid #e8e8e8",
           borderRadius: 14,
           padding: 6,
           display: "flex",
           flexDirection: "column",
           gap: 2,
-          backdropFilter: "blur(12px)",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+          boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
         }}
       >
         <button className={btnCls} onClick={zoomIn} title="Zoom in">
@@ -116,7 +115,7 @@ export function RoadmapToolbar({
             textAlign: "center",
             fontSize: 10,
             fontWeight: 700,
-            color: "rgba(255,255,255,0.35)",
+            color: "#aaa",
             padding: "2px 0",
             letterSpacing: "0.04em",
           }}
@@ -128,7 +127,7 @@ export function RoadmapToolbar({
           <ZoomOut size={16} />
         </button>
 
-        <div style={{ height: 1, background: "rgba(255,255,255,0.06)", margin: "2px 0" }} />
+        <div style={{ height: 1, background: "#f0f0f0", margin: "2px 0" }} />
 
         <button className={btnCls} onClick={onResetView} title="Reset view">
           <Maximize2 size={15} />
@@ -138,7 +137,7 @@ export function RoadmapToolbar({
           <LayoutTemplate size={15} />
         </button>
 
-        <div style={{ height: 1, background: "rgba(255,255,255,0.06)", margin: "2px 0" }} />
+        <div style={{ height: 1, background: "#f0f0f0", margin: "2px 0" }} />
 
         <button className={btnCls} onClick={onExportPng} title="Export as PNG">
           <Download size={15} />
@@ -148,21 +147,21 @@ export function RoadmapToolbar({
       {/* Stats pill */}
       <div
         style={{
-          background: "rgba(15,15,25,0.8)",
-          border: "1px solid rgba(255,255,255,0.06)",
+          background: "#ffffff",
+          border: "1px solid #e8e8e8",
           borderRadius: 10,
           padding: "6px 10px",
           display: "flex",
           gap: 10,
-          backdropFilter: "blur(12px)",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
         }}
       >
-        <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)" }}>
-          <span style={{ color: "rgba(255,255,255,0.6)" }}>{nodeCount}</span> nodes
+        <span style={{ fontSize: 10, fontWeight: 700, color: "#aaa" }}>
+          <span style={{ color: "#333" }}>{nodeCount}</span> nodes
         </span>
-        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.15)" }}>·</span>
-        <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)" }}>
-          <span style={{ color: "rgba(255,255,255,0.6)" }}>{edgeCount}</span> edges
+        <span style={{ fontSize: 10, color: "#ddd" }}>·</span>
+        <span style={{ fontSize: 10, fontWeight: 700, color: "#aaa" }}>
+          <span style={{ color: "#333" }}>{edgeCount}</span> edges
         </span>
       </div>
     </div>

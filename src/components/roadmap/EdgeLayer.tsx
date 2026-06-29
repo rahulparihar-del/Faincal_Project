@@ -94,7 +94,7 @@ export function EdgeLayer({ edges, nodes, getHandlePos, onEdgeDelete, pendingEdg
           refY="3.5"
           orient="auto"
         >
-          <polygon points="0 0, 10 3.5, 0 7" fill="rgba(139,92,246,0.8)" />
+          <polygon points="0 0, 10 3.5, 0 7" fill="#7c3aed" />
         </marker>
         <marker
           id="rm-arrow-hover"
@@ -104,7 +104,7 @@ export function EdgeLayer({ edges, nodes, getHandlePos, onEdgeDelete, pendingEdg
           refY="3.5"
           orient="auto"
         >
-          <polygon points="0 0, 10 3.5, 0 7" fill="#8b5cf6" />
+          <polygon points="0 0, 10 3.5, 0 7" fill="#6d28d9" />
         </marker>
         <filter id="rm-edge-glow">
           <feGaussianBlur stdDeviation="2" result="blur" />
@@ -143,7 +143,7 @@ export function EdgeLayer({ edges, nodes, getHandlePos, onEdgeDelete, pendingEdg
               className="rm-edge-path"
               d={path}
               fill="none"
-              stroke="rgba(139,92,246,0.15)"
+              stroke="rgba(124,58,237,0.12)"
               strokeWidth={6}
               style={{ pointerEvents: "none", filter: "url(#rm-edge-glow)" }}
             />
@@ -152,7 +152,7 @@ export function EdgeLayer({ edges, nodes, getHandlePos, onEdgeDelete, pendingEdg
               className="rm-edge-path"
               d={path}
               fill="none"
-              stroke="rgba(139,92,246,0.6)"
+              stroke="rgba(109,40,217,0.55)"
               strokeWidth={2}
               markerEnd="url(#rm-arrow)"
               style={{ pointerEvents: "none" }}
@@ -161,7 +161,7 @@ export function EdgeLayer({ edges, nodes, getHandlePos, onEdgeDelete, pendingEdg
             <path
               d={path}
               fill="none"
-              stroke="rgba(139,92,246,0.9)"
+              stroke="rgba(109,40,217,0.7)"
               strokeWidth={2}
               strokeDasharray="6 18"
               markerEnd="url(#rm-arrow-hover)"

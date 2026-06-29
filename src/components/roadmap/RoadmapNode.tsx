@@ -67,13 +67,13 @@ export function RoadmapNodeCard({
       style={{
         position: "relative",
         borderRadius: 16,
-        background: "linear-gradient(135deg, rgba(22,22,32,0.98) 0%, rgba(28,28,44,0.98) 100%)",
-        border: `1px solid rgba(255,255,255,0.08)`,
+        background: "#ffffff",
+        border: `1px solid #e8e8e8`,
         borderTop: `3px solid ${node.color}`,
-        boxShadow: `0 8px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.04), inset 0 1px 0 rgba(255,255,255,0.06)`,
+        boxShadow: `0 2px 12px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)`,
         cursor: "grab",
         userSelect: "none",
-        transition: "box-shadow 0.2s ease",
+        transition: "box-shadow 0.2s ease, transform 0.15s ease",
         minHeight: 120,
       }}
       className="rm-node group"
@@ -81,21 +81,6 @@ export function RoadmapNodeCard({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
     >
-      {/* Glow on hover */}
-      <div
-        style={{
-          position: "absolute",
-          inset: -2,
-          borderRadius: 18,
-          background: `${node.color}20`,
-          opacity: 0,
-          transition: "opacity 0.2s",
-          pointerEvents: "none",
-          zIndex: -1,
-        }}
-        className="rm-node-glow"
-      />
-
       {/* Handle dots */}
       {HANDLE_SIDES.map((side) => (
         <div
@@ -108,12 +93,12 @@ export function RoadmapNodeCard({
             height: 14,
             borderRadius: "50%",
             background: node.color,
-            border: "2px solid rgba(0,0,0,0.5)",
+            border: "2px solid #fff",
             cursor: "crosshair",
             opacity: 0,
             transition: "opacity 0.15s, transform 0.15s",
-            transform: `${HANDLE_POSITIONS[side].transform || ""} scale(0.8)`,
             zIndex: 20,
+            boxShadow: `0 2px 8px ${node.color}66`,
           }}
           className="rm-handle"
           onPointerDown={(e) => {
@@ -126,11 +111,11 @@ export function RoadmapNodeCard({
           }}
           onPointerEnter={(e) => {
             (e.currentTarget as HTMLElement).style.opacity = "1";
-            (e.currentTarget as HTMLElement).style.transform = `${HANDLE_POSITIONS[side].transform || ""} scale(1.2)`;
+            (e.currentTarget as HTMLElement).style.transform = `${(HANDLE_POSITIONS[side].transform as string) || ""} scale(1.3)`;
           }}
           onPointerLeave={(e) => {
             (e.currentTarget as HTMLElement).style.opacity = "0";
-            (e.currentTarget as HTMLElement).style.transform = `${HANDLE_POSITIONS[side].transform || ""} scale(0.8)`;
+            (e.currentTarget as HTMLElement).style.transform = `${(HANDLE_POSITIONS[side].transform as string) || ""} scale(1)`;
           }}
         />
       ))}
@@ -138,7 +123,7 @@ export function RoadmapNodeCard({
       {/* Card content */}
       <div style={{ padding: "14px 16px 12px" }}>
         {/* Top row: status + priority */}
-        <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 8 }}>
+        <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}>
           <span
             style={{
               fontSize: 10,
@@ -146,8 +131,8 @@ export function RoadmapNodeCard({
               letterSpacing: "0.06em",
               textTransform: "uppercase",
               color: statusMeta.color,
-              background: `${statusMeta.color}22`,
-              border: `1px solid ${statusMeta.color}44`,
+              background: statusMeta.bg,
+              border: `1px solid ${statusMeta.border}`,
               padding: "2px 7px",
               borderRadius: 99,
             }}
@@ -161,7 +146,7 @@ export function RoadmapNodeCard({
               letterSpacing: "0.06em",
               textTransform: "uppercase",
               color: priorityMeta.color,
-              background: `${priorityMeta.color}22`,
+              background: priorityMeta.bg,
               padding: "2px 7px",
               borderRadius: 99,
             }}
@@ -175,7 +160,7 @@ export function RoadmapNodeCard({
           style={{
             fontSize: 14,
             fontWeight: 700,
-            color: "rgba(255,255,255,0.92)",
+            color: "#1a1a1a",
             lineHeight: 1.3,
             marginBottom: 6,
             letterSpacing: "-0.01em",
@@ -189,7 +174,7 @@ export function RoadmapNodeCard({
           <div
             style={{
               fontSize: 11,
-              color: "rgba(255,255,255,0.4)",
+              color: "#888",
               lineHeight: 1.5,
               marginBottom: 10,
               overflow: "hidden",
@@ -208,7 +193,7 @@ export function RoadmapNodeCard({
             style={{
               height: 3,
               borderRadius: 99,
-              background: "rgba(255,255,255,0.08)",
+              background: "#f0f0f0",
               overflow: "hidden",
             }}
           >
@@ -228,7 +213,7 @@ export function RoadmapNodeCard({
               justifyContent: "space-between",
               marginTop: 4,
               fontSize: 9,
-              color: "rgba(255,255,255,0.3)",
+              color: "#bbb",
               fontWeight: 600,
             }}
           >
@@ -246,11 +231,12 @@ export function RoadmapNodeCard({
                 style={{
                   fontSize: 9,
                   fontWeight: 600,
-                  color: "rgba(255,255,255,0.45)",
-                  background: "rgba(255,255,255,0.06)",
+                  color: "#888",
+                  background: "#f5f5f5",
                   padding: "2px 6px",
                   borderRadius: 99,
                   letterSpacing: "0.04em",
+                  border: "1px solid #eee",
                 }}
               >
                 #{tag}
@@ -265,11 +251,9 @@ export function RoadmapNodeCard({
         .rm-node:hover .rm-handle {
           opacity: 1 !important;
         }
-        .rm-node:hover .rm-node-glow {
-          opacity: 1 !important;
-        }
         .rm-node:hover {
-          box-shadow: 0 12px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.1), inset 0 1px 0 rgba(255,255,255,0.1) !important;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06) !important;
+          transform: translateY(-1px);
         }
       `}</style>
     </div>

@@ -149,7 +149,7 @@ export default function ProfitAndLossPage() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-black tracking-tight">Profit & Loss</h2>
           <p className="text-sm text-[#888] mt-1">Auto-calculated from all modules</p>

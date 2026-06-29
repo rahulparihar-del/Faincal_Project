@@ -215,7 +215,7 @@ export function RoadmapCanvas({
     <div
       ref={containerRef}
       className="relative w-full h-full overflow-hidden select-none"
-      style={{ cursor: isPanningRef.current ? "grabbing" : "grab", background: "var(--rm-canvas-bg, #0f0f14)" }}
+      style={{ cursor: isPanningRef.current ? "grabbing" : "grab", background: "#f5f5f5" }}
       onPointerDown={onCanvasPointerDown}
       onPointerMove={onCanvasPointerMove}
       onPointerUp={onCanvasPointerUp}
@@ -237,7 +237,7 @@ export function RoadmapCanvas({
             height={gridSize}
             patternUnits="userSpaceOnUse"
           >
-            <circle cx={0} cy={0} r={0.8} fill="rgba(255,255,255,0.06)" />
+            <circle cx={0} cy={0} r={0.8} fill="rgba(0,0,0,0.12)" />
           </pattern>
         </defs>
         <rect width="100%" height="100%" fill="url(#rm-grid)" />
@@ -313,9 +313,9 @@ export function RoadmapCanvas({
       {nodes.length === 0 && (
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
           <div className="text-center">
-            <div className="text-6xl mb-4 opacity-20">🗺️</div>
-            <p className="text-white/20 text-lg font-semibold">Double-click anywhere to add a node</p>
-            <p className="text-white/10 text-sm mt-1">Or use the + button in the toolbar</p>
+            <div className="text-6xl mb-4 opacity-30">🗺️</div>
+            <p className="text-black/30 text-lg font-semibold">Double-click anywhere to add a node</p>
+            <p className="text-black/20 text-sm mt-1">Or use the + button in the toolbar</p>
           </div>
         </div>
       )}

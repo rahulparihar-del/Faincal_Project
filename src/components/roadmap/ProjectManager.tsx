@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Plus, X, Pencil, Check } from "lucide-react";
+import { Plus, X, Check } from "lucide-react";
 import { RoadmapProject, PROJECT_COLORS } from "./types";
 
 interface Props {
@@ -62,8 +62,8 @@ export function ProjectManager({
         gap: 6,
         padding: "0 20px",
         height: 52,
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
-        background: "rgba(10,10,18,0.95)",
+        borderBottom: "1px solid #e8e8e8",
+        background: "#ffffff",
         overflowX: "auto",
         scrollbarWidth: "none",
         flexShrink: 0,
@@ -89,12 +89,17 @@ export function ProjectManager({
               padding: "0 12px",
               height: 34,
               borderRadius: 9,
-              background: isActive ? `${project.color}20` : "rgba(255,255,255,0.04)",
-              border: isActive ? `1px solid ${project.color}50` : "1px solid rgba(255,255,255,0.06)",
+              background: isActive ? `${project.color}12` : "transparent",
+              border: isActive ? `1px solid ${project.color}30` : "1px solid transparent",
               cursor: "pointer",
               transition: "all 0.2s",
               flexShrink: 0,
-              position: "relative",
+            }}
+            onMouseEnter={(e) => {
+              if (!isActive) (e.currentTarget as HTMLElement).style.background = "#f5f5f5";
+            }}
+            onMouseLeave={(e) => {
+              if (!isActive) (e.currentTarget as HTMLElement).style.background = "transparent";
             }}
           >
             {/* Color dot */}
@@ -104,8 +109,9 @@ export function ProjectManager({
                 height: 7,
                 borderRadius: "50%",
                 background: project.color,
-                boxShadow: isActive ? `0 0 6px ${project.color}` : "none",
+                boxShadow: isActive ? `0 0 0 2px ${project.color}30` : "none",
                 flexShrink: 0,
+                transition: "box-shadow 0.2s",
               }}
             />
 
@@ -125,10 +131,10 @@ export function ProjectManager({
                   background: "transparent",
                   border: "none",
                   outline: "none",
-                  color: "rgba(255,255,255,0.9)",
+                  color: "#1a1a1a",
                   fontSize: 12,
                   fontWeight: 600,
-                  width: 80,
+                  width: 90,
                   fontFamily: "inherit",
                 }}
               />
@@ -137,7 +143,7 @@ export function ProjectManager({
                 style={{
                   fontSize: 12,
                   fontWeight: 600,
-                  color: isActive ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.45)",
+                  color: isActive ? "#1a1a1a" : "#888",
                   whiteSpace: "nowrap",
                   transition: "color 0.2s",
                 }}
@@ -152,8 +158,8 @@ export function ProjectManager({
                 style={{
                   fontSize: 9,
                   fontWeight: 700,
-                  color: isActive ? project.color : "rgba(255,255,255,0.25)",
-                  background: isActive ? `${project.color}20` : "rgba(255,255,255,0.05)",
+                  color: isActive ? project.color : "#bbb",
+                  background: isActive ? `${project.color}12` : "#f5f5f5",
                   padding: "1px 5px",
                   borderRadius: 99,
                 }}
@@ -173,16 +179,16 @@ export function ProjectManager({
                   width: 16,
                   height: 16,
                   borderRadius: 4,
-                  background: "rgba(255,255,255,0.05)",
+                  background: "transparent",
                   border: "none",
                   cursor: "pointer",
-                  color: "rgba(255,255,255,0.3)",
+                  color: "#ccc",
                   padding: 0,
                   marginLeft: 2,
                   transition: "all 0.15s",
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(239,68,68,0.2)"; e.currentTarget.style.color = "#ef4444"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.color = "rgba(255,255,255,0.3)"; }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = "#ef4444"; e.currentTarget.style.background = "#fef2f2"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = "#ccc"; e.currentTarget.style.background = "transparent"; }}
               >
                 <X size={10} />
               </button>
@@ -201,8 +207,8 @@ export function ProjectManager({
             padding: "0 10px",
             height: 34,
             borderRadius: 9,
-            background: "rgba(255,255,255,0.06)",
-            border: "1px solid rgba(255,255,255,0.12)",
+            background: "#f8f8f8",
+            border: "1px solid #e8e8e8",
             flexShrink: 0,
           }}
         >
@@ -217,7 +223,8 @@ export function ProjectManager({
                   height: 10,
                   borderRadius: "50%",
                   background: c,
-                  border: newColor === c ? "2px solid white" : "2px solid transparent",
+                  border: newColor === c ? `2px solid ${c}` : "2px solid transparent",
+                  outline: newColor === c ? `2px solid ${c}40` : "none",
                   cursor: "pointer",
                   padding: 0,
                 }}
@@ -237,7 +244,7 @@ export function ProjectManager({
               background: "transparent",
               border: "none",
               outline: "none",
-              color: "rgba(255,255,255,0.8)",
+              color: "#1a1a1a",
               fontSize: 12,
               fontWeight: 600,
               width: 110,
@@ -253,10 +260,10 @@ export function ProjectManager({
               width: 20,
               height: 20,
               borderRadius: 5,
-              background: "rgba(139,92,246,0.3)",
+              background: "#f0ebff",
               border: "none",
               cursor: "pointer",
-              color: "#a78bfa",
+              color: "#7c3aed",
               padding: 0,
             }}
           >
@@ -271,10 +278,10 @@ export function ProjectManager({
               width: 20,
               height: 20,
               borderRadius: 5,
-              background: "rgba(255,255,255,0.05)",
+              background: "#f5f5f5",
               border: "none",
               cursor: "pointer",
-              color: "rgba(255,255,255,0.3)",
+              color: "#aaa",
               padding: 0,
             }}
           >
@@ -292,8 +299,8 @@ export function ProjectManager({
             height: 30,
             borderRadius: 8,
             background: "transparent",
-            border: "1px dashed rgba(255,255,255,0.15)",
-            color: "rgba(255,255,255,0.35)",
+            border: "1px dashed #ddd",
+            color: "#bbb",
             fontSize: 11,
             fontWeight: 600,
             cursor: "pointer",
@@ -301,8 +308,8 @@ export function ProjectManager({
             flexShrink: 0,
             whiteSpace: "nowrap",
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(139,92,246,0.5)"; e.currentTarget.style.color = "#a78bfa"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"; e.currentTarget.style.color = "rgba(255,255,255,0.35)"; }}
+          onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#7c3aed"; e.currentTarget.style.color = "#7c3aed"; e.currentTarget.style.background = "#f5f3ff"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#ddd"; e.currentTarget.style.color = "#bbb"; e.currentTarget.style.background = "transparent"; }}
         >
           <Plus size={12} />
           New Project

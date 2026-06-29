@@ -684,7 +684,8 @@ export default function ManufacturerDetailPage() {
                           <div className="text-[10px] font-bold text-[#aaa] uppercase tracking-wider mb-2 flex items-center gap-1.5">
                             <Package size={11} /> Inventory Products
                           </div>
-                          <table className="w-full text-sm">
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm min-w-[500px]">
                             <thead>
                               <tr className="text-[11px] font-semibold text-[#999] uppercase tracking-wider border-b border-[#eee]">
                                 <th className="pb-1.5 text-left w-7">#</th>
@@ -726,6 +727,7 @@ export default function ManufacturerDetailPage() {
                             </tbody>
                           </table>
                         </div>
+                      </div>
 
                         {/* ── Additional Costs ── */}
                         {lc.pooledAdditionalCosts.length > 0 && (
@@ -733,7 +735,8 @@ export default function ManufacturerDetailPage() {
                             <div className="text-[10px] font-bold text-amber-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                               <Tag size={11} /> Additional Costs
                             </div>
-                            <table className="w-full text-sm">
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-sm min-w-[500px]">
                               <tbody className="divide-y divide-[#fdf0e0]">
                                 {lc.pooledAdditionalCosts.map((cost, idx) => (
                                   <tr key={idx} className="text-[#888]">
@@ -766,6 +769,7 @@ export default function ManufacturerDetailPage() {
                               </tbody>
                             </table>
                           </div>
+                        </div>
                         )}
 
                         {/* ── Invoice totals ── */}

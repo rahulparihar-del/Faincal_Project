@@ -33,9 +33,9 @@ const HIGHLIGHTS = [
 
 /* ── Text colors ──────────────────────────────────────── */
 const TEXT_COLORS = [
-  "#ffffff", "#e5e7eb", "#f87171", "#fb923c",
-  "#facc15", "#4ade80", "#60a5fa", "#c084fc",
-  "#f472b6", "#34d399", "#38bdf8", "#a78bfa",
+  "#1a1a1a", "#555555", "#ef4444", "#f97316",
+  "#eab308", "#22c55e", "#3b82f6", "#a855f7",
+  "#ec4899", "#10b981", "#0ea5e9", "#8b5cf6",
 ];
 
 interface Props {
@@ -155,7 +155,7 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
   const statusMeta = STATUS_META[node.status];
   const priorityMeta = PRIORITY_META[node.priority];
 
-  const toolbarBtnCls = "w-7 h-7 flex items-center justify-center rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer";
+  const toolbarBtnCls = "w-7 h-7 flex items-center justify-center rounded-lg text-[#555] hover:text-black hover:bg-[#f0f0f0] transition-all cursor-pointer";
 
   return (
     <AnimatePresence>
@@ -167,7 +167,7 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="absolute inset-0 z-40"
-            style={{ background: "rgba(0,0,0,0.4)", backdropFilter: "blur(2px)" }}
+            style={{ background: "rgba(0,0,0,0.15)", backdropFilter: "blur(2px)" }}
             onClick={onClose}
           />
 
@@ -180,9 +180,9 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
             className="absolute right-0 top-0 bottom-0 z-50 flex flex-col"
             style={{
               width: "min(520px, 90vw)",
-              background: "linear-gradient(180deg, #13131f 0%, #0e0e1a 100%)",
-              borderLeft: "1px solid rgba(255,255,255,0.08)",
-              boxShadow: "-24px 0 80px rgba(0,0,0,0.7)",
+              background: "#ffffff",
+              borderLeft: "1px solid #e8e8e8",
+              boxShadow: "-8px 0 40px rgba(0,0,0,0.08)",
               overflow: "hidden",
             }}
             onClick={(e) => e.stopPropagation()}
@@ -191,7 +191,7 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
             <div
               style={{
                 padding: "16px 20px 14px",
-                borderBottom: "1px solid rgba(255,255,255,0.06)",
+                borderBottom: "1px solid #f0f0f0",
                 display: "flex",
                 alignItems: "flex-start",
                 gap: 12,
@@ -221,7 +221,7 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
                   background: "transparent",
                   border: "none",
                   outline: "none",
-                  color: "rgba(255,255,255,0.92)",
+                  color: "#1a1a1a",
                   fontSize: 18,
                   fontWeight: 700,
                   letterSpacing: "-0.02em",
@@ -236,13 +236,13 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
                   width: 30,
                   height: 30,
                   borderRadius: 8,
-                  background: "rgba(255,255,255,0.06)",
+                  background: "#f5f5f5",
                   border: "none",
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  color: "rgba(255,255,255,0.5)",
+                  color: "#888",
                   flexShrink: 0,
                 }}
               >
@@ -250,11 +250,11 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
               </button>
             </div>
 
-            {/* ── Meta row ──────────────────────────────── */}
+            {/* ── Meta row ──────────────────────────── */}
             <div
               style={{
                 padding: "12px 20px",
-                borderBottom: "1px solid rgba(255,255,255,0.05)",
+                borderBottom: "1px solid #f0f0f0",
                 display: "flex",
                 gap: 8,
                 flexWrap: "wrap",
@@ -283,7 +283,7 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
                   }}
                 >
                   {(Object.keys(STATUS_META) as NodeStatus[]).map((s) => (
-                    <option key={s} value={s} style={{ background: "#1a1a2e", color: "#fff" }}>
+                    <option key={s} value={s} style={{ background: "#fff", color: "#1a1a1a" }}>
                       {STATUS_META[s].label}
                     </option>
                   ))}
@@ -310,7 +310,7 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
                 }}
               >
                 {(Object.keys(PRIORITY_META) as NodePriority[]).map((p) => (
-                  <option key={p} value={p} style={{ background: "#1a1a2e", color: "#fff" }}>
+                  <option key={p} value={p} style={{ background: "#fff", color: "#1a1a1a" }}>
                     {PRIORITY_META[p].label}
                   </option>
                 ))}
@@ -323,7 +323,7 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
                   alignItems: "center",
                   gap: 5,
                   fontSize: 11,
-                  color: "rgba(255,255,255,0.4)",
+                  color: "#888",
                   cursor: "pointer",
                 }}
               >
@@ -355,7 +355,7 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
                       height: 14,
                       borderRadius: "50%",
                       background: c,
-                      border: node.color === c ? "2px solid white" : "2px solid transparent",
+                      border: node.color === c ? `2px solid ${c}` : "2px solid transparent",
                       cursor: "pointer",
                       transition: "transform 0.15s",
                     }}
@@ -366,16 +366,16 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
               </div>
             </div>
 
-            {/* ── Rich Text Toolbar ─────────────────────── */}
+            {/* ── Rich Text Toolbar ───────────────── */}
             <div
               style={{
                 padding: "8px 12px",
-                borderBottom: "1px solid rgba(255,255,255,0.05)",
+                borderBottom: "1px solid #f0f0f0",
                 display: "flex",
                 alignItems: "center",
                 gap: 2,
                 flexWrap: "wrap",
-                background: "rgba(255,255,255,0.02)",
+                background: "#fafafa",
               }}
               onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
             >
@@ -398,13 +398,13 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
                       position: "absolute",
                       top: "calc(100% + 4px)",
                       left: 0,
-                      background: "#1e1e32",
-                      border: "1px solid rgba(255,255,255,0.1)",
+                      background: "#ffffff",
+                      border: "1px solid #e8e8e8",
                       borderRadius: 10,
                       padding: 6,
                       zIndex: 100,
                       minWidth: 180,
-                      boxShadow: "0 16px 48px rgba(0,0,0,0.6)",
+                      boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
                     }}
                   >
                     {FONTS.map((f) => (
@@ -419,8 +419,8 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
                           borderRadius: 7,
                           fontSize: 13,
                           fontFamily: f.value,
-                          color: "rgba(255,255,255,0.8)",
-                          background: activeFontFamily === f.value ? "rgba(139,92,246,0.2)" : "transparent",
+                          color: "#1a1a1a",
+                          background: activeFontFamily === f.value ? "#f5f0ff" : "transparent",
                           border: "none",
                           cursor: "pointer",
                         }}
@@ -443,10 +443,10 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
                   onChange={(e) => applyFontSize(Number(e.target.value))}
                   style={{
                     width: 32,
-                    background: "rgba(255,255,255,0.06)",
+                    background: "#f0f0f0",
                     border: "none",
                     borderRadius: 5,
-                    color: "rgba(255,255,255,0.7)",
+                    color: "#555",
                     textAlign: "center",
                     fontSize: 11,
                     outline: "none",
@@ -458,7 +458,7 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
                 </button>
               </div>
 
-              <div style={{ width: 1, height: 18, background: "rgba(255,255,255,0.1)", margin: "0 2px" }} />
+              <div style={{ width: 1, height: 18, background: "#e8e8e8", margin: "0 2px" }} />
 
               {/* Heading buttons */}
               {[1, 2, 3].map((level) => (
@@ -472,7 +472,7 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
                 </button>
               ))}
 
-              <div style={{ width: 1, height: 18, background: "rgba(255,255,255,0.1)", margin: "0 2px" }} />
+              <div style={{ width: 1, height: 18, background: "#e8e8e8", margin: "0 2px" }} />
 
               {/* Bold / Italic / Underline */}
               <button className={toolbarBtnCls} onMouseDown={(e) => { e.preventDefault(); exec("bold"); }}>
@@ -508,7 +508,7 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
                 <ListOrdered size={13} />
               </button>
 
-              <div style={{ width: 1, height: 18, background: "rgba(255,255,255,0.1)", margin: "0 2px" }} />
+              <div style={{ width: 1, height: 18, background: "#e8e8e8", margin: "0 2px" }} />
 
               {/* Text color */}
               <div style={{ position: "relative" }}>
@@ -525,12 +525,12 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
                       position: "absolute",
                       top: "calc(100% + 4px)",
                       left: 0,
-                      background: "#1e1e32",
-                      border: "1px solid rgba(255,255,255,0.1)",
+                      background: "#ffffff",
+                      border: "1px solid #e8e8e8",
                       borderRadius: 10,
                       padding: 8,
                       zIndex: 100,
-                      boxShadow: "0 16px 48px rgba(0,0,0,0.6)",
+                      boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
                       display: "grid",
                       gridTemplateColumns: "repeat(6, 1fr)",
                       gap: 4,
@@ -545,7 +545,7 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
                           height: 20,
                           borderRadius: "50%",
                           background: c,
-                          border: "2px solid rgba(255,255,255,0.1)",
+                          border: "2px solid #e8e8e8",
                           cursor: "pointer",
                         }}
                       />
@@ -570,12 +570,12 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
                       position: "absolute",
                       top: "calc(100% + 4px)",
                       left: 0,
-                      background: "#1e1e32",
-                      border: "1px solid rgba(255,255,255,0.1)",
+                      background: "#ffffff",
+                      border: "1px solid #e8e8e8",
                       borderRadius: 10,
                       padding: 8,
                       zIndex: 100,
-                      boxShadow: "0 16px 48px rgba(0,0,0,0.6)",
+                      boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
                       display: "flex",
                       gap: 4,
                       flexWrap: "wrap",
@@ -591,9 +591,9 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
                           borderRadius: 6,
                           fontSize: 10,
                           fontWeight: 700,
-                          background: h.bg,
-                          color: h.text === "inherit" ? "rgba(255,255,255,0.7)" : h.text,
-                          border: "1px solid rgba(0,0,0,0.1)",
+                          background: h.bg === "transparent" ? "#f5f5f5" : h.bg,
+                          color: h.text === "inherit" ? "#888" : h.text,
+                          border: "1px solid rgba(0,0,0,0.08)",
                           cursor: "pointer",
                         }}
                       >
@@ -621,11 +621,11 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
                 style={{
                   minHeight: 200,
                   outline: "none",
-                  color: "rgba(255,255,255,0.82)",
+                  color: "#1a1a1a",
                   fontSize: 14,
                   lineHeight: 1.7,
                   fontFamily: "Inter, sans-serif",
-                  caretColor: "#8b5cf6",
+                  caretColor: "#7c3aed",
                 }}
               />
             </div>
@@ -634,7 +634,7 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
             <div
               style={{
                 padding: "12px 20px",
-                borderTop: "1px solid rgba(255,255,255,0.05)",
+                borderTop: "1px solid #f0f0f0",
               }}
             >
               <div
@@ -645,7 +645,7 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
                   marginBottom: 8,
                 }}
               >
-                <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.08em" }}>
                   Progress
                 </span>
                 <span style={{ fontSize: 12, fontWeight: 700, color: node.color }}>
@@ -671,7 +671,7 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
             <div
               style={{
                 padding: "12px 20px",
-                borderTop: "1px solid rgba(255,255,255,0.05)",
+                borderTop: "1px solid #f0f0f0",
               }}
             >
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
@@ -684,16 +684,17 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
                       gap: 5,
                       fontSize: 11,
                       fontWeight: 600,
-                      color: "rgba(255,255,255,0.55)",
-                      background: "rgba(255,255,255,0.06)",
+                      color: "#555",
+                      background: "#f5f5f5",
                       padding: "3px 8px",
                       borderRadius: 99,
+                      border: "1px solid #e8e8e8",
                     }}
                   >
                     #{tag}
                     <button
                       onClick={() => removeTag(tag)}
-                      style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.3)", padding: 0 }}
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "#bbb", padding: 0 }}
                     >
                       <X size={10} />
                     </button>
@@ -707,13 +708,13 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
                     display: "flex",
                     alignItems: "center",
                     gap: 6,
-                    background: "rgba(255,255,255,0.05)",
-                    border: "1px solid rgba(255,255,255,0.08)",
+                    background: "#f8f8f8",
+                    border: "1px solid #e8e8e8",
                     borderRadius: 8,
                     padding: "6px 10px",
                   }}
                 >
-                  <Tag size={11} style={{ color: "rgba(255,255,255,0.3)", flexShrink: 0 }} />
+                  <Tag size={11} style={{ color: "#bbb", flexShrink: 0 }} />
                   <input
                     value={tagInput}
                     onChange={(e) => setTagInput(e.target.value)}
@@ -724,7 +725,7 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
                       background: "transparent",
                       border: "none",
                       outline: "none",
-                      color: "rgba(255,255,255,0.7)",
+                      color: "#1a1a1a",
                       fontSize: 12,
                       fontFamily: "inherit",
                     }}
@@ -734,10 +735,10 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
                   onClick={addTag}
                   style={{
                     padding: "6px 12px",
-                    background: "rgba(255,255,255,0.06)",
-                    border: "1px solid rgba(255,255,255,0.08)",
+                    background: "#f5f5f5",
+                    border: "1px solid #e8e8e8",
                     borderRadius: 8,
-                    color: "rgba(255,255,255,0.6)",
+                    color: "#555",
                     fontSize: 11,
                     fontWeight: 700,
                     cursor: "pointer",
@@ -752,7 +753,7 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
             <div
               style={{
                 padding: "12px 20px",
-                borderTop: "1px solid rgba(255,255,255,0.06)",
+                borderTop: "1px solid #f0f0f0",
                 display: "flex",
                 justifyContent: "flex-end",
               }}
