@@ -233,6 +233,68 @@ export function useMMData() {
     return newLog;
   }, []);
 
+  const importExcelData = useCallback(async (fileName: string, fileBuffer: ArrayBuffer) => {
+    const { parseMeeshoExcel } = await import("@/lib/data/excel-importer");
+    const cogsMap = repository.getSettings().cogsMap;
+    const res = await parseMeeshoExcel(fileBuffer, fileName, cogsMap);
+
+    if (res.orders.length > 0) {
+      const existingOrders = repository.getOrders();
+      const newOrders = res.orders.filter(o => !existingOrders.some(eo => eo.orderNo === o.orderNo));
+      const nextOrders = [...newOrders, ...existingOrders];
+      await repository.saveOrders(nextOrders);
+      setOrdersState(nextOrders);
+    }
+
+    if (res.ads.length > 0) {
+      const existingAds = repository.getAdCampaigns();
+      const newAds = res.ads.filter(a => !existingAds.some(ea => ea.name === a.name));
+      const nextAds = [...newAds, ...existingAds];
+      await repository.saveAdCampaigns(nextAds);
+      setAdCampaignsState(nextAds);
+    }
+
+    if (res.claims.length > 0) {
+      const existingClaims = repository.getClaims();
+      const newClaims = res.claims.filter(c => !existingClaims.some(ec => ec.orderId === c.orderId));
+      const nextClaims = [...newClaims, ...existingClaims];
+      await repository.saveClaims(nextClaims);
+      setClaimsState(nextClaims);
+    }
+
+    if (res.payments.length > 0) {
+      const existingPayments = repository.getPaymentCycles();
+      const newPayments = res.payments.filter(p => !existingPayments.some(ep => ep.utr === p.utr));
+      const nextPayments = [...newPayments, ...existingPayments];
+      await repository.savePaymentCycles(nextPayments);
+      setPaymentCyclesState(nextPayments);
+    }
+
+    const newLog: ImportRecord = {
+      id: "imp_" + Date.now(),
+      fileName,
+      type: "orders",
+      importedRows: res.orders.length,
+      failedRows: 0,
+      duplicateRows: 0,
+      importDate: new Date().toISOString()
+    };
+
+    const nextLogs = [newLog, ...repository.getImportHistory()];
+    await repository.saveImportHistory(nextLogs);
+    setImportsState(nextLogs);
+
+    const todayStr = new Date().toISOString().split("T")[0];
+    await repository.createDailySnapshot(todayStr);
+
+    setSnapshotsState(repository.getSnapshots());
+    setSyncStatusState({ ...repository.getSyncStatus() });
+    setInventoryState(repository.getInventory());
+    setNotificationsState(repository.getNotifications());
+
+    return res;
+  }, []);
+
   return {
     orders,
     returns,
@@ -255,6 +317,7 @@ export function useMMData() {
     markAllNotificationsAsRead,
     addNotification,
     importCSVData,
+    importExcelData,
     isLoaded
   };
 }

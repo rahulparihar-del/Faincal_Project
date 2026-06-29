@@ -27,7 +27,7 @@ const IMPORT_OPTIONS: { value: ImportType; label: string; description: string }[
 ];
 
 export default function ImportCenterPage() {
-  const { imports, syncStatus, importCSVData, isLoaded } = useMMData();
+  const { imports, syncStatus, importCSVData, importExcelData, isLoaded } = useMMData();
   const [selectedType, setSelectedType] = useState<ImportType>('orders');
   const [dragActive, setDragActive] = useState(false);
   const [feedback, setFeedback] = useState<{ status: 'success' | 'error'; msg: string } | null>(null);
@@ -80,8 +80,11 @@ export default function ImportCenterPage() {
   };
 
   const processFile = async (file: File) => {
-    if (!file.name.endsWith('.csv')) {
-      setFeedback({ status: 'error', msg: 'Invalid file type. Please upload a CSV file.' });
+    const isXlsx = file.name.endsWith('.xlsx');
+    const isCsv = file.name.endsWith('.csv');
+
+    if (!isCsv && !isXlsx) {
+      setFeedback({ status: 'error', msg: 'Invalid file type. Please upload a CSV or XLSX file.' });
       return;
     }
 
@@ -89,25 +92,51 @@ export default function ImportCenterPage() {
     setFeedback(null);
 
     try {
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        const text = event.target?.result as string;
-        if (text) {
-          const log = await importCSVData(selectedType, file.name, text);
-          setFeedback({
-            status: 'success',
-            msg: `Successfully imported ${log.importedRows} rows. Skipped ${log.duplicateRows} duplicates. Failed ${log.failedRows} rows.`
-          });
-        } else {
-          setFeedback({ status: 'error', msg: 'Empty file contents.' });
-        }
-        setIsLoading(false);
-      };
-      reader.onerror = () => {
-        setFeedback({ status: 'error', msg: 'Error reading file.' });
-        setIsLoading(false);
-      };
-      reader.readAsText(file);
+      if (isXlsx) {
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          const buffer = event.target?.result as ArrayBuffer;
+          if (buffer) {
+            try {
+              const res = await importExcelData(file.name, buffer);
+              setFeedback({
+                status: 'success',
+                msg: `Processed Excel: Store ID: ${res.sellerId} | Type: ${res.statementType} | Period: ${res.startDate} to ${res.endDate}. Captured disclaimer verbatim. Imported ${res.orders.length} orders, ${res.ads.length} ads entries, ${res.claims.length} safety compensations, and ${res.payments.length} referral payouts.`
+              });
+            } catch (err: any) {
+              setFeedback({ status: 'error', msg: `Error parsing Excel workbook sheets: ${err.message || err}` });
+            }
+          } else {
+            setFeedback({ status: 'error', msg: 'Empty Excel file buffer.' });
+          }
+          setIsLoading(false);
+        };
+        reader.onerror = () => {
+          setFeedback({ status: 'error', msg: 'Error reading Excel file.' });
+          setIsLoading(false);
+        };
+        reader.readAsArrayBuffer(file);
+      } else {
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          const text = event.target?.result as string;
+          if (text) {
+            const log = await importCSVData(selectedType, file.name, text);
+            setFeedback({
+              status: 'success',
+              msg: `Successfully imported ${log.importedRows} rows. Skipped ${log.duplicateRows} duplicates. Failed ${log.failedRows} rows.`
+            });
+          } else {
+            setFeedback({ status: 'error', msg: 'Empty file contents.' });
+          }
+          setIsLoading(false);
+        };
+        reader.onerror = () => {
+          setFeedback({ status: 'error', msg: 'Error reading file.' });
+          setIsLoading(false);
+        };
+        reader.readAsText(file);
+      }
     } catch (e) {
       setFeedback({ status: 'error', msg: 'Error processing file upload.' });
       setIsLoading(false);
