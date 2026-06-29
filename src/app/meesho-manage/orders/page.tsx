@@ -94,7 +94,12 @@ export default function OrdersPage() {
       label: "Status",
       sortable: true,
       render: (row: MMOrder) => {
-        const meta = STATUS_META[row.status];
+        const meta = STATUS_META[row.status] || {
+          label: row.status ? String(row.status).toUpperCase() : "PENDING",
+          bg: "rgba(107,114,128,0.1)",
+          color: "#6b7280",
+          border: "rgba(107,114,128,0.25)"
+        };
         return (
           <span
             style={{
