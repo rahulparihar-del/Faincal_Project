@@ -68,22 +68,25 @@ export function useSupabaseTable<T extends { id: string }>(
             }
           })();
 
-          if (records.length === 0 && !alreadyMigrated) {
+          if (records.length === 0) {
             const local = readLocal();
             if (local.length > 0) {
-              const { error: seedError } = await supabase
-                .from(table)
-                .upsert(local.map((r) => ({ id: r.id, data: r })), { onConflict: "id" });
-              if (!seedError) {
-                records = local;
-              } else {
-                console.error(`Supabase migration failed for "${table}":`, seedError.message);
+              // Load the local cache as fallback so client view is never wiped
+              records = local;
+
+              if (!alreadyMigrated) {
+                const { error: seedError } = await supabase
+                  .from(table)
+                  .upsert(local.map((r) => ({ id: r.id, data: r })), { onConflict: "id" });
+                if (seedError) {
+                  console.warn(`Supabase sync failed for "${table}" (likely RLS policy block):`, seedError.message);
+                }
+                try {
+                  window.localStorage.setItem(migratedFlag, "1");
+                } catch {
+                  /* ignore */
+                }
               }
-            }
-            try {
-              window.localStorage.setItem(migratedFlag, "1");
-            } catch {
-              /* ignore */
             }
           }
 
@@ -108,12 +111,14 @@ export function useSupabaseTable<T extends { id: string }>(
   // ── Persist a diff to Supabase (or localStorage fallback) ──
   const persist = useCallback(
     (prev: T[], next: T[]) => {
+      // Always write to localStorage as a cache mirror to prevent data loss
+      try {
+        window.localStorage.setItem(storageKey, JSON.stringify(next));
+      } catch (error) {
+        console.warn(`Error writing localStorage cache for key "${storageKey}":`, error);
+      }
+
       if (!isSupabaseConfigured || !supabase) {
-        try {
-          window.localStorage.setItem(storageKey, JSON.stringify(next));
-        } catch (error) {
-          console.warn(`Error writing localStorage key "${storageKey}":`, error);
-        }
         return;
       }
 
@@ -142,7 +147,10 @@ export function useSupabaseTable<T extends { id: string }>(
             if (error) throw error;
           }
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
+          let message = String(error);
+          if (error && typeof error === "object") {
+            message = (error as any).message || (error as any).details || JSON.stringify(error);
+          }
           console.error(`Supabase sync failed for "${table}":`, message);
         }
       })();

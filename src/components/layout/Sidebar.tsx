@@ -3,6 +3,7 @@
 import React, { useRef, useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -22,6 +23,8 @@ import {
   Stamp,
   GitBranch,
   TrendingUp,
+  ChevronDown,
+  LayoutGrid,
 } from "lucide-react";
 import { gsap } from "gsap";
 import { useGSAP } from "@gsap/react";
@@ -31,6 +34,17 @@ const NAV_ITEMS = [
   { name: "Manufacturers", href: "/manufacturers", icon: Users,           mobileName: "Mfg" },
   { name: "Purchases",     href: "/purchases",     icon: FileText,        mobileName: "Purchases" },
   { name: "E-commerce",    href: "/ecom",          icon: ShoppingCart,    mobileName: "E-com" },
+  {
+    name: "Platforms",
+    href: "/platforms",
+    icon: LayoutGrid,
+    mobileName: "Platforms",
+    subItems: [
+      { name: "Meesho", href: "/meesho" },
+      { name: "Flipkart", href: "/flipkart" },
+      { name: "Amazon", href: "/amazon" }
+    ]
+  },
   { name: "Wholesale",     href: "/wholesale",     icon: Truck,           mobileName: "Wholesale" },
   { name: "Expenses",      href: "/expenses",      icon: Receipt,         mobileName: "Expenses" },
   { name: "P&L",           href: "/pl",            icon: BarChart3,       mobileName: "P&L" },
@@ -46,9 +60,9 @@ const NAV_ITEMS = [
 const SECTION_AT: Record<number, string> = {
   0: "Overview",
   1: "Operations",
-  7: "Finance",
-  9: "Inventory",
-  10: "Tools",
+  8: "Finance",
+  10: "Inventory",
+  11: "Tools",
 };
 
 /* ─── Desktop Sidebar ──────────────────────────────────────────────────────── */
@@ -64,6 +78,13 @@ export function Sidebar({
   const sidebarRef = useRef<HTMLElement>(null);
   const [dateStr, setDateStr] = useState("");
   const [dayName, setDayName] = useState("");
+  const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({
+    Platforms: true
+  });
+
+  const toggleMenu = (name: string) => {
+    setExpandedMenus(prev => ({ ...prev, [name]: !prev[name] }));
+  };
 
   useEffect(() => {
     const updateDateTime = () => {
@@ -128,6 +149,8 @@ export function Sidebar({
             {NAV_ITEMS.map((item, index) => {
               const isActive = pathname === item.href;
               const section = SECTION_AT[index];
+              const hasSubItems = 'subItems' in item && item.subItems;
+
               return (
                 <React.Fragment key={item.name}>
                   {section && (
@@ -135,21 +158,76 @@ export function Sidebar({
                       {section}
                     </div>
                   )}
-                  <Link
-                    href={item.href}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                      isActive
-                        ? "bg-black text-white shadow-[0_2px_8px_rgba(0,0,0,0.12)] focus:ring-black"
-                        : "text-[#666] hover:bg-[#f5f5f5] hover:text-black focus:ring-gray-400"
-                    }`}
-                    aria-current={isActive ? "page" : undefined}
-                  >
-                    <item.icon
-                      size={18}
-                      className={`shrink-0 transition-colors ${isActive ? "text-white" : "text-[#888] group-hover:text-black"}`}
-                    />
-                    <span className="nav-label whitespace-nowrap font-medium text-[0.8125rem]">{item.name}</span>
-                  </Link>
+
+                  {hasSubItems ? (
+                    <>
+                      <button
+                        onClick={() => toggleMenu(item.name)}
+                        className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[#666] hover:bg-[#f5f5f5] hover:text-black transition-all duration-200 group focus:outline-none focus:ring-2 focus:ring-gray-400"
+                      >
+                        <div className="flex items-center gap-3">
+                          <item.icon
+                            size={18}
+                            className="shrink-0 text-[#888] group-hover:text-black transition-colors"
+                          />
+                          <span className="nav-label whitespace-nowrap font-medium text-[0.8125rem]">{item.name}</span>
+                        </div>
+                        <motion.div
+                          animate={{ rotate: expandedMenus[item.name] ? 180 : 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="nav-label text-[#888]"
+                        >
+                          <ChevronDown size={14} />
+                        </motion.div>
+                      </button>
+
+                      <AnimatePresence initial={false}>
+                        {expandedMenus[item.name] && !collapsed && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.25, ease: "easeInOut" }}
+                            style={{ overflow: "hidden" }}
+                            className="mt-1 ml-4 pl-3 border-l border-[#e8e8e8] space-y-0.5 nav-label"
+                          >
+                            {item.subItems.map((sub) => {
+                              const isSubActive = pathname === sub.href;
+                              return (
+                                <Link
+                                  key={sub.name}
+                                  href={sub.href}
+                                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 focus:outline-none ${
+                                    isSubActive
+                                      ? "bg-black text-white shadow-sm"
+                                      : "text-[#666] hover:bg-[#f5f5f5] hover:text-black"
+                                  }`}
+                                >
+                                  <span className="whitespace-nowrap font-medium text-[0.75rem]">{sub.name}</span>
+                                </Link>
+                              );
+                            })}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </>
+                  ) : (
+                    <Link
+                      href={item.href}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                        isActive
+                          ? "bg-black text-white shadow-[0_2px_8px_rgba(0,0,0,0.12)] focus:ring-black"
+                          : "text-[#666] hover:bg-[#f5f5f5] hover:text-black focus:ring-gray-400"
+                      }`}
+                      aria-current={isActive ? "page" : undefined}
+                    >
+                      <item.icon
+                        size={18}
+                        className={`shrink-0 transition-colors ${isActive ? "text-white" : "text-[#888] group-hover:text-black"}`}
+                      />
+                      <span className="nav-label whitespace-nowrap font-medium text-[0.8125rem]">{item.name}</span>
+                    </Link>
+                  )}
                 </React.Fragment>
               );
             })}
@@ -177,8 +255,9 @@ export function Sidebar({
 // Only visible on mobile (< lg). Native-app feel — pill indicator + labels.
 export function MobileTabBar() {
   const pathname = usePathname();
-  // Show: Dashboard, E-commerce, Meesho Orders, Wholesale, Purchases
-  const PRIMARY = NAV_ITEMS.slice(0, 5);
+  // Exclude Platforms item (which is a submenu button, not a direct page link)
+  const PRIMARY = NAV_ITEMS.filter(item => !('subItems' in item)).slice(0, 5);
+  const EXTRA = NAV_ITEMS.filter(item => !PRIMARY.includes(item));
 
   return (
     <nav
@@ -216,8 +295,7 @@ export function MobileTabBar() {
         );
       })}
 
-      {/* "More" tab for Manufacturers (item 6) */}
-      <MoreTab extraItems={NAV_ITEMS.slice(5)} pathname={pathname} />
+      <MoreTab extraItems={EXTRA} pathname={pathname} />
     </nav>
   );
 }
@@ -225,7 +303,14 @@ export function MobileTabBar() {
 function MoreTab({ extraItems, pathname }: { extraItems: typeof NAV_ITEMS; pathname: string }) {
   const [open, setOpen] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
-  const isExtraActive = extraItems.some((i) => i.href === pathname);
+  
+  // Custom check for active items (checks subItems as well)
+  const isExtraActive = extraItems.some((item) => {
+    if ('subItems' in item && item.subItems) {
+      return item.subItems.some(sub => pathname === sub.href);
+    }
+    return item.href === pathname;
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -245,9 +330,34 @@ function MoreTab({ extraItems, pathname }: { extraItems: typeof NAV_ITEMS; pathn
       {open && (
         <div
           ref={sheetRef}
-          className="absolute bottom-full right-0 mb-1 mr-1 bg-white rounded-2xl border border-[#e8e8e8] shadow-[0_8px_32px_rgba(0,0,0,0.12)] p-2 min-w-[180px] z-50"
+          className="absolute bottom-full right-0 mb-1 mr-1 bg-white rounded-2xl border border-[#e8e8e8] shadow-[0_8px_32px_rgba(0,0,0,0.12)] p-2 min-w-[180px] z-50 max-h-[70vh] overflow-y-auto"
         >
           {extraItems.map((item) => {
+            if ('subItems' in item && item.subItems) {
+              return (
+                <div key={item.name} className="py-1 border-b border-[#f5f5f5] last:border-0">
+                  <div className="px-3 py-1 text-[9px] font-bold uppercase tracking-wider text-[#aaa]">
+                    {item.name}
+                  </div>
+                  {item.subItems.map((sub) => {
+                    const isSubActive = pathname === sub.href;
+                    return (
+                      <Link
+                        key={sub.href}
+                        href={sub.href}
+                        onClick={() => setOpen(false)}
+                        className={`flex items-center gap-3 px-3 py-2 rounded-xl transition-all ${
+                          isSubActive ? "bg-black text-white shadow-sm" : "text-[#555] hover:bg-[#f5f5f5]"
+                        }`}
+                      >
+                        <span className="text-xs font-semibold pl-2">{sub.name}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              );
+            }
+
             const isActive = pathname === item.href;
             return (
               <Link
