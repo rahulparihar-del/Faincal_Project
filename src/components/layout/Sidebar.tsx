@@ -21,6 +21,7 @@ import {
   Package,
   Stamp,
   GitBranch,
+  TrendingUp,
 } from "lucide-react";
 import { gsap } from "gsap";
 import { useGSAP } from "@gsap/react";
@@ -31,6 +32,7 @@ const NAV_ITEMS = [
   { name: "Purchases",     href: "/purchases",     icon: FileText,        mobileName: "Purchases" },
   { name: "E-commerce",    href: "/ecom",          icon: ShoppingCart,    mobileName: "E-com" },
   { name: "Meesho Orders", href: "/meesho",        icon: ScanLine,        mobileName: "Meesho" },
+  { name: "Meesho Manage", href: "/meesho-manage", icon: TrendingUp,      mobileName: "Meesho BI" },
   { name: "Wholesale",     href: "/wholesale",     icon: Truck,           mobileName: "Wholesale" },
   { name: "Expenses",      href: "/expenses",      icon: Receipt,         mobileName: "Expenses" },
   { name: "P&L",           href: "/pl",            icon: BarChart3,       mobileName: "P&L" },
@@ -46,9 +48,9 @@ const NAV_ITEMS = [
 const SECTION_AT: Record<number, string> = {
   0: "Overview",
   1: "Operations",
-  6: "Finance",
-  8: "Inventory",
-  9: "Tools",
+  7: "Finance",
+  9: "Inventory",
+  10: "Tools",
 };
 
 /* ─── Desktop Sidebar ──────────────────────────────────────────────────────── */
