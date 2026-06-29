@@ -15,9 +15,10 @@ import {
 } from "lucide-react";
 import { useMMData } from "@/components/meesho/useMeeshoData";
 
-type ImportType = 'orders' | 'returns' | 'payments' | 'ads' | 'claims' | 'inventory';
+type ImportType = 'orders' | 'returns' | 'payments' | 'ads' | 'claims' | 'inventory' | 'meesho_xlsx';
 
 const IMPORT_OPTIONS: { value: ImportType; label: string; description: string }[] = [
+  { value: 'meesho_xlsx', label: 'Meesho Settlement (XLSX)', description: 'Upload the 5-sheet orders, ads, and payments Excel workbook' },
   { value: 'orders', label: 'Orders CSV', description: 'Upload sub-orders, selling price, fee, and shipping details' },
   { value: 'returns', label: 'Returns & RTO CSV', description: 'Upload returned customer packages and RTO delivery failures' },
   { value: 'payments', label: 'Payments Settlement CSV', description: 'Upload bank settlement UTR logs and platform commission deductions' },
@@ -121,7 +122,12 @@ export default function ImportCenterPage() {
         reader.onload = async (event) => {
           const text = event.target?.result as string;
           if (text) {
-            const log = await importCSVData(selectedType, file.name, text);
+            if (selectedType === "meesho_xlsx") {
+              setFeedback({ status: 'error', msg: 'Cannot upload a CSV file under the Meesho Settlement (XLSX) option. Please select a CSV option or upload an XLSX workbook.' });
+              setIsLoading(false);
+              return;
+            }
+            const log = await importCSVData(selectedType as any, file.name, text);
             setFeedback({
               status: 'success',
               msg: `Successfully imported ${log.importedRows} rows. Skipped ${log.duplicateRows} duplicates. Failed ${log.failedRows} rows.`
@@ -211,14 +217,14 @@ export default function ImportCenterPage() {
               <input
                 type="file"
                 id="csv-file-input"
-                accept=".csv"
+                accept=".csv,.xlsx"
                 onChange={handleFileChange}
                 style={{ display: "none" }}
               />
               <label htmlFor="csv-file-input" style={{ cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
                 <UploadCloud size={32} style={{ color: dragActive ? "#7c3aed" : "#94a3b8" }} />
                 <span style={{ fontSize: 12, fontWeight: 700, color: "#334155" }}>
-                  {isLoading ? "Parsing CSV File..." : `Drag & Drop your ${IMPORT_OPTIONS.find(o => o.value === selectedType)?.label} here`}
+                  {isLoading ? "Parsing File..." : `Drag & Drop your ${IMPORT_OPTIONS.find(o => o.value === selectedType)?.label} here`}
                 </span>
                 <span style={{ fontSize: 10, color: "#64748b" }}>or click to browse from files</span>
               </label>
