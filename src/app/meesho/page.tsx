@@ -2272,8 +2272,22 @@ export default function MeeshoPage() {
                   )}
 
                   {liveTracking && !liveTracking.loading && liveTracking.error && (
-                    <div style={{ fontSize: 10, color: "#ef4444", padding: "6px 10px", background: isDark ? "#3f1515" : "#fef2f2", borderRadius: 8 }}>
-                      Could not fetch: {liveTracking.error}
+                    <div style={{
+                      display: "flex",
+                      alignItems: "start",
+                      gap: 8,
+                      fontSize: 10.5,
+                      lineHeight: 1.4,
+                      color: isDark ? "#fbbf24" : "#b45309",
+                      padding: "8px 12px",
+                      background: isDark ? "rgba(217, 119, 6, 0.1)" : "#fffbeb",
+                      border: isDark ? "1px solid rgba(217, 119, 6, 0.2)" : "1px solid #fde68a",
+                      borderRadius: 10
+                    }}>
+                      <AlertTriangle size={14} style={{ marginTop: 2, flexShrink: 0 }} />
+                      <div>
+                        <strong>Notice:</strong> {liveTracking.error}
+                      </div>
                     </div>
                   )}
 
