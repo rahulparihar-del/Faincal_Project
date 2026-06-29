@@ -31,7 +31,6 @@ const NAV_ITEMS = [
   { name: "Manufacturers", href: "/manufacturers", icon: Users,           mobileName: "Mfg" },
   { name: "Purchases",     href: "/purchases",     icon: FileText,        mobileName: "Purchases" },
   { name: "E-commerce",    href: "/ecom",          icon: ShoppingCart,    mobileName: "E-com" },
-  { name: "Meesho Orders", href: "/meesho",        icon: ScanLine,        mobileName: "Meesho" },
   { name: "Wholesale",     href: "/wholesale",     icon: Truck,           mobileName: "Wholesale" },
   { name: "Expenses",      href: "/expenses",      icon: Receipt,         mobileName: "Expenses" },
   { name: "P&L",           href: "/pl",            icon: BarChart3,       mobileName: "P&L" },
