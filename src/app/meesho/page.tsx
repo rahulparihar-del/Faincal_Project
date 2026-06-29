@@ -73,6 +73,9 @@ interface MeeshoReturn {
   returnPriceType: string;
   returnReason: string;
   detailedReturnReason: string;
+  deliveredDate?: string;
+  proofOfDelivery?: string;
+  otpVerifiedAt?: string;
 }
 
 const DEFAULT_RETURNS: MeeshoReturn[] = [
@@ -551,6 +554,9 @@ export default function MeeshoPage() {
           else if (val.includes("price type")) colMap["returnPriceType"] = idx;
           else if (val.includes("detailed return")) colMap["detailedReturnReason"] = idx;
           else if (val.includes("return reason")) colMap["returnReason"] = idx;
+          else if (val.includes("delivered date")) colMap["deliveredDate"] = idx;
+          else if (val.includes("proof of delivery") || val.includes("proof")) colMap["proofOfDelivery"] = idx;
+          else if (val.includes("otp verified")) colMap["otpVerifiedAt"] = idx;
         });
         break;
       }
@@ -589,12 +595,15 @@ export default function MeeshoPage() {
           expectedDeliveryDate: getVal("expectedDeliveryDate"),
           courierPartner: getVal("courierPartner"),
           awbNumber: getVal("awbNumber"),
-          status: getVal("status"),
+          status: getVal("status") || "Delivered",
           attempt: getVal("attempt"),
           trackingLink: getVal("trackingLink"),
           returnPriceType: getVal("returnPriceType"),
           returnReason: getVal("returnReason"),
-          detailedReturnReason: getVal("detailedReturnReason")
+          detailedReturnReason: getVal("detailedReturnReason"),
+          deliveredDate: getVal("deliveredDate"),
+          proofOfDelivery: getVal("proofOfDelivery"),
+          otpVerifiedAt: getVal("otpVerifiedAt")
         });
       }
     }
@@ -649,6 +658,9 @@ export default function MeeshoPage() {
           else if (val.includes("price type")) colMap["returnPriceType"] = colNumber;
           else if (val.includes("detailed return")) colMap["detailedReturnReason"] = colNumber;
           else if (val.includes("return reason")) colMap["returnReason"] = colNumber;
+          else if (val.includes("delivered date")) colMap["deliveredDate"] = colNumber;
+          else if (val.includes("proof of delivery") || val.includes("proof")) colMap["proofOfDelivery"] = colNumber;
+          else if (val.includes("otp verified")) colMap["otpVerifiedAt"] = colNumber;
         });
       }
     });
@@ -693,12 +705,15 @@ export default function MeeshoPage() {
           expectedDeliveryDate: getVal("expectedDeliveryDate"),
           courierPartner: getVal("courierPartner"),
           awbNumber: getVal("awbNumber"),
-          status: getVal("status"),
+          status: getVal("status") || "Delivered",
           attempt: getVal("attempt"),
           trackingLink: getVal("trackingLink"),
           returnPriceType: getVal("returnPriceType"),
           returnReason: getVal("returnReason"),
-          detailedReturnReason: getVal("detailedReturnReason")
+          detailedReturnReason: getVal("detailedReturnReason"),
+          deliveredDate: getVal("deliveredDate"),
+          proofOfDelivery: getVal("proofOfDelivery"),
+          otpVerifiedAt: getVal("otpVerifiedAt")
         });
       }
     }
