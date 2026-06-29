@@ -20,6 +20,7 @@ import {
   LockKeyhole,
   Package,
   Stamp,
+  GitBranch,
 } from "lucide-react";
 import { gsap } from "gsap";
 import { useGSAP } from "@gsap/react";
@@ -37,6 +38,7 @@ const NAV_ITEMS = [
   { name: "My Sites",      href: "/sites",         icon: Globe,           mobileName: "Sites" },
   { name: "Catalog",       href: "/catalog",       icon: Boxes,           mobileName: "Catalog" },
   { name: "Branding",      href: "/branding",      icon: Stamp,           mobileName: "Branding" },
+  { name: "Roadmap",       href: "/roadmap",       icon: GitBranch,       mobileName: "Roadmap" },
   { name: "Vault",         href: "/vault",         icon: LockKeyhole,     mobileName: "Vault" },
 ];
 
