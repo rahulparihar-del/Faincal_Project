@@ -154,6 +154,55 @@ function calcDuration(from: string, to: string): string {
   return `~${Math.round(diffDays / 30)} months`;
 }
 
+function isSameOrder(a: MeeshoManualOrder, b: MeeshoManualOrder): boolean {
+  return (
+    a.subOrderNo === b.subOrderNo &&
+    a.productName === b.productName &&
+    a.orderId === b.orderId &&
+    a.sku === b.sku &&
+    a.catalogId === b.catalogId &&
+    a.qty === b.qty &&
+    a.size === b.size &&
+    a.orderDate === b.orderDate &&
+    a.reasonForCreditEntry === b.reasonForCreditEntry &&
+    a.orderSource === b.orderSource &&
+    a.customerState === b.customerState &&
+    a.supplierListedPrice === b.supplierListedPrice &&
+    a.supplierDiscountedPrice === b.supplierDiscountedPrice &&
+    a.packetId === b.packetId
+  );
+}
+
+function isSameReturn(a: MeeshoReturn, b: MeeshoReturn): boolean {
+  return (
+    a.sNo === b.sNo &&
+    a.productName === b.productName &&
+    a.sku === b.sku &&
+    a.variation === b.variation &&
+    a.meeshoPid === b.meeshoPid &&
+    a.category === b.category &&
+    a.qty === b.qty &&
+    a.orderNumber === b.orderNumber &&
+    a.suborderNumber === b.suborderNumber &&
+    a.dispatchDate === b.dispatchDate &&
+    a.returnCreatedDate === b.returnCreatedDate &&
+    a.typeOfReturn === b.typeOfReturn &&
+    a.subType === b.subType &&
+    a.expectedDeliveryDate === b.expectedDeliveryDate &&
+    a.courierPartner === b.courierPartner &&
+    a.awbNumber === b.awbNumber &&
+    a.status === b.status &&
+    a.attempt === b.attempt &&
+    a.trackingLink === b.trackingLink &&
+    a.returnPriceType === b.returnPriceType &&
+    a.returnReason === b.returnReason &&
+    a.detailedReturnReason === b.detailedReturnReason &&
+    a.deliveredDate === b.deliveredDate &&
+    a.proofOfDelivery === b.proofOfDelivery &&
+    a.otpVerifiedAt === b.otpVerifiedAt
+  );
+}
+
 export default function MeeshoPage() {
   const [orders, setOrders, isReady] = useSupabaseTable<MeeshoManualOrder>(
     "meesho_orders",
@@ -780,8 +829,10 @@ export default function MeeshoPage() {
                   newReturns.forEach(nr => {
                     const idx = merged.findIndex(er => er.suborderNumber === nr.suborderNumber);
                     if (idx !== -1) {
-                      merged[idx] = nr;
-                      updatedCount++;
+                      if (!isSameReturn(merged[idx], nr)) {
+                        merged[idx] = { ...nr, id: merged[idx].id };
+                        updatedCount++;
+                      }
                     } else {
                       merged.unshift(nr);
                       addedCount++;
@@ -828,8 +879,10 @@ export default function MeeshoPage() {
                   newReturns.forEach(nr => {
                     const idx = merged.findIndex(er => er.suborderNumber === nr.suborderNumber);
                     if (idx !== -1) {
-                      merged[idx] = nr;
-                      updatedCount++;
+                      if (!isSameReturn(merged[idx], nr)) {
+                        merged[idx] = { ...nr, id: merged[idx].id };
+                        updatedCount++;
+                      }
                     } else {
                       merged.unshift(nr);
                       addedCount++;
@@ -882,8 +935,10 @@ export default function MeeshoPage() {
                 newOrders.forEach(no => {
                   const idx = merged.findIndex(eo => eo.subOrderNo === no.subOrderNo);
                   if (idx !== -1) {
-                    merged[idx] = no;
-                    updatedCount++;
+                    if (!isSameOrder(merged[idx], no)) {
+                      merged[idx] = { ...no, id: merged[idx].id };
+                      updatedCount++;
+                    }
                   } else {
                     merged.unshift(no);
                     addedCount++;
@@ -921,8 +976,10 @@ export default function MeeshoPage() {
                 newOrders.forEach(no => {
                   const idx = merged.findIndex(eo => eo.subOrderNo === no.subOrderNo);
                   if (idx !== -1) {
-                    merged[idx] = no;
-                    updatedCount++;
+                    if (!isSameOrder(merged[idx], no)) {
+                      merged[idx] = { ...no, id: merged[idx].id };
+                      updatedCount++;
+                    }
                   } else {
                     merged.unshift(no);
                     addedCount++;
