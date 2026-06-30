@@ -2342,8 +2342,8 @@ export default function MeeshoPage() {
                       borderRadius: 10
                     }}>
                       <AlertTriangle size={14} style={{ marginTop: 2, flexShrink: 0 }} />
-                      <div>
-                        <strong>Notice:</strong> {liveTracking.error}
+                      <div style={{ whiteSpace: "pre-line" }}>
+                        <strong>Notice:</strong> {liveTracking.error.replace(/<br\s*\/?>/gi, "\n")}
                       </div>
                     </div>
                   )}
