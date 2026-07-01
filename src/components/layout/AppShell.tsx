@@ -12,11 +12,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [isMobileOpen, setMobileOpen] = useState(false);
   const { isReady } = useData();
 
-  // WMS routes handle their own layout — render bare container only
-  if (pathname.startsWith('/warehouse')) {
-    return <div className="flex h-screen w-full overflow-hidden">{children}</div>;
-  }
-
   React.useEffect(() => {
     const updateTableLabels = () => {
       document.querySelectorAll("table").forEach((table) => {
@@ -57,6 +52,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
     return () => observer.disconnect();
   }, [isReady]);
+
+  // WMS routes handle their own layout — render bare container only
+  if (pathname.startsWith('/warehouse')) {
+    return <div className="flex h-screen w-full overflow-hidden">{children}</div>;
+  }
 
   if (!isReady) {
     return (
