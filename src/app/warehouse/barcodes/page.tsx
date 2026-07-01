@@ -4,7 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { useMasterData } from '@/lib/wms/hooks/useMasterData';
 import { getProducts } from '@/lib/wms/services/productService';
 import { BarcodeDisplay } from '@/components/wms/ui/BarcodeDisplay';
+import { generateBarcodeDataUrl } from '@/lib/wms/barcode-generator';
 import { useWmsToast } from '@/components/wms/ui/WmsToast';
+import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase/client';
 import { Printer, RefreshCw, Clipboard, Plus, Trash2, List } from 'lucide-react';
 import { WmsProduct, WmsProductVariant, WmsBarcodePrintLog } from '@/lib/wms/types';
@@ -19,6 +21,7 @@ interface QueueItem {
 export default function BarcodeCenterPage() {
   const { templates, loading: masterLoading } = useMasterData();
   const { success, error: toastError, warning } = useWmsToast();
+  const { userEmail } = useAuth();
 
   const [products, setProducts] = useState<WmsProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -125,6 +128,10 @@ export default function BarcodeCenterPage() {
     if (!supabase) return;
 
     try {
+      const template = templates.find((t) => t.id === selectedTemplateId);
+      const widthMm = template?.width_mm ?? 50;
+      const heightMm = template?.height_mm ?? 25;
+
       // 1. Record logs inside wms_barcode_print_log
       for (const item of printQueue) {
         await supabase.from('wms_barcode_print_log').insert({
@@ -133,40 +140,62 @@ export default function BarcodeCenterPage() {
           barcode: item.variant.barcode,
           template_id: selectedTemplateId || null,
           copies: item.copies,
-          printed_by: 'Admin Operator',
+          printed_by: userEmail || 'Admin Operator',
         });
       }
 
-      success('Print logs recorded. Opening browser print dialogue...');
+      success('Print logs recorded. Pre-generating barcodes...');
 
-      // 2. Trigger browser native printing on a clean overlay layout
+      // 2. Pre-generate barcode PNG data URLs
+      const dataUrls: Record<string, string> = {};
+      for (const item of printQueue) {
+        const barcodeVal = item.variant.barcode;
+        if (!dataUrls[barcodeVal]) {
+          try {
+            const dataUrl = await generateBarcodeDataUrl(barcodeVal, {
+              width: 2,
+              height: 50,
+              fontSize: 10,
+              displayValue: false, // We render the alphanumeric text separately
+              margin: 4,
+            });
+            dataUrls[barcodeVal] = dataUrl;
+          } catch (e) {
+            console.error('Failed to generate print dataUrl:', e);
+          }
+        }
+      }
+
+      success('Opening browser print dialogue...');
+
+      // 3. Trigger browser native printing on a clean overlay layout
       const printWindow = window.open('', '_blank');
       if (printWindow) {
         printWindow.document.write('<html><head><title>Print Labels</title><style>');
         printWindow.document.write(`
-          @page { size: auto; margin: 0; }
-          body { font-family: monospace; margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; }
-          .label-card { width: 50mm; height: 25mm; padding: 2mm; border: 1px dashed #ccc; margin-bottom: 5mm; display: flex; flex-direction: column; align-items: center; justify-content: center; page-break-inside: avoid; }
-          .title { font-[9px]; font-weight: bold; margin-bottom: 2px; text-transform: uppercase; text-align: center; }
-          .barcode-img { width: 42mm; height: 12mm; }
-          .meta { display: flex; justify-content: space-between; width: 100%; font-size: 8px; margin-top: 2px; }
+          @page { size: ${widthMm}mm ${heightMm}mm; margin: 0; }
+          body { font-family: monospace; margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; width: ${widthMm}mm; height: ${heightMm}mm; box-sizing: border-box; }
+          .label-card { width: ${widthMm}mm; height: ${heightMm}mm; padding: 2.5mm 2mm 1.5mm 2mm; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: space-between; page-break-inside: avoid; page-break-after: always; text-align: center; }
+          .title { font-size: 8px; font-weight: bold; text-transform: uppercase; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; width: 100%; margin-bottom: 1px; }
+          .barcode-img { width: auto; max-width: 90%; height: 9mm; object-fit: contain; }
+          .barcode-val { font-size: 8px; font-weight: bold; margin-top: 1px; letter-spacing: 0.5px; }
+          .meta { display: flex; justify-content: space-between; width: 100%; font-size: 7px; margin-top: 1px; border-top: 0.5px solid #ccc; padding-top: 1px; }
         `);
         printWindow.document.write('</style></head><body>');
 
         for (const item of printQueue) {
           const barcodeVal = item.variant.barcode;
-          // Format label elements: render jsbarcode inline in print window
+          const dataUrl = dataUrls[barcodeVal] || '';
           for (let c = 0; c < item.copies; c++) {
             printWindow.document.write(`
               <div class="label-card">
-                <div class="title">${item.productName.slice(0, 22)}</div>
-                <div style="font-size: 9px; font-weight: bold; font-family: monospace; letter-spacing: 0.5px; border: 1px solid #000; padding: 2px 4px; margin-bottom: 2px;">
-                  ${barcodeVal}
-                </div>
+                <div class="title">${item.productName.slice(0, 24)}</div>
+                ${dataUrl ? `<img class="barcode-img" src="${dataUrl}" />` : `<div style="font-size: 9px; font-weight: bold; border: 1px solid #000; padding: 2px;">${barcodeVal}</div>`}
+                <div class="barcode-val">${barcodeVal}</div>
                 <div class="meta">
                   <span>SKU: ${item.variant.sku}</span>
                   <span>SZ: ${item.variant.size?.label || 'N/A'}</span>
-                  <span>MRP: INR ${item.variant.mrp}</span>
+                  <span>MRP: ₹${item.variant.mrp}</span>
                 </div>
               </div>
             `);
@@ -179,7 +208,7 @@ export default function BarcodeCenterPage() {
         setTimeout(() => {
           printWindow.print();
           printWindow.close();
-        }, 300);
+        }, 500);
       }
 
       setPrintQueue([]);

@@ -70,7 +70,7 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
 
       if (error) throw error;
       if (data) {
-        setProduct(data as any);
+        setProduct(data as unknown as WmsProduct);
         setEditForm({
           product_name: data.product_name,
           print_name: data.print_name,
@@ -159,9 +159,9 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
     }
   };
 
-  if (loading && !product) {
+  if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex items-center justify-center py-32">
         <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -171,7 +171,7 @@ export default function ProductDetailClient({ productId }: ProductDetailClientPr
     return (
       <div className="text-center py-16 bg-white dark:bg-[#1e293b] rounded-2xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm">
         <h2 className="text-sm font-bold text-slate-800 dark:text-white">Product not found</h2>
-        <p className="text-xs text-slate-400 mt-2">The product might have been deleted or doesn't exist.</p>
+        <p className="text-xs text-slate-400 mt-2">The product might have been deleted or doesn&apos;t exist.</p>
         <Link
           href="/warehouse/products"
           className="mt-4 inline-flex items-center gap-1.5 text-xs text-indigo-600 hover:underline"

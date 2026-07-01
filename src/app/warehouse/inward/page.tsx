@@ -40,7 +40,7 @@ export default function InwardListPage() {
 
       const { data, error } = await query;
       if (error) throw error;
-      setInwards((data as any[]) ?? []);
+      setInwards((data as unknown as WmsInward[]) ?? []);
     } catch (err) {
       console.error('Failed to load inwards list:', err);
     } finally {

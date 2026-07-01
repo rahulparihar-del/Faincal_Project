@@ -46,16 +46,28 @@ export default function ReturnsPage() {
     },
   ];
 
+  interface MockReturn {
+    id: string;
+    channel: string;
+    orderRef: string;
+    sku: string;
+    productName: string;
+    qty: number;
+    status: string;
+    qcStatus: string;
+    date: string;
+  }
+
   const columns = [
     {
       key: 'id',
       header: 'Return ID',
-      render: (row: any) => <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{row.id}</span>,
+      render: (row: MockReturn) => <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{row.id}</span>,
     },
     {
       key: 'channel',
       header: 'Sales Channel',
-      render: (row: any) => (
+      render: (row: MockReturn) => (
         <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-300">
           {row.channel}
         </span>
@@ -64,7 +76,7 @@ export default function ReturnsPage() {
     {
       key: 'sku',
       header: 'SKU / Product',
-      render: (row: any) => (
+      render: (row: MockReturn) => (
         <div className="flex flex-col gap-0.5">
           <SkuTag sku={row.sku} copyable={false} size="sm" />
           <span className="text-[10px] text-slate-450 truncate max-w-[160px]">{row.productName}</span>
@@ -75,17 +87,17 @@ export default function ReturnsPage() {
       key: 'qty',
       header: 'Returned Qty',
       align: 'center' as const,
-      render: (row: any) => <span className="font-bold text-slate-800 dark:text-white">{row.qty} units</span>,
+      render: (row: MockReturn) => <span className="font-bold text-slate-800 dark:text-white">{row.qty} units</span>,
     },
     {
       key: 'date',
       header: 'Date Logged',
-      render: (row: any) => <span className="text-slate-450">{row.date}</span>,
+      render: (row: MockReturn) => <span className="text-slate-450">{row.date}</span>,
     },
     {
       key: 'qcStatus',
       header: 'QC Inspection Notes',
-      render: (row: any) => (
+      render: (row: MockReturn) => (
         <span className={`font-semibold ${row.qcStatus.includes('Damaged') || row.qcStatus.includes('Wrong') ? 'text-rose-500' : 'text-emerald-500'}`}>
           {row.qcStatus}
         </span>
@@ -94,13 +106,13 @@ export default function ReturnsPage() {
     {
       key: 'status',
       header: 'Status',
-      render: (row: any) => {
-        const colors: any = {
+      render: (row: MockReturn) => {
+        const colors: Record<string, string> = {
           qc_pending: 'bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-950/20 dark:border-amber-900/30',
           qc_done: 'bg-indigo-50 text-indigo-600 border-indigo-100 dark:bg-indigo-950/20 dark:border-indigo-900/30',
           closed: 'bg-slate-50 text-slate-500 border-slate-200 dark:bg-slate-900 dark:border-slate-800',
         };
-        const labels: any = {
+        const labels: Record<string, string> = {
           qc_pending: 'QC PENDING',
           qc_done: 'QC DONE',
           closed: 'CLOSED',

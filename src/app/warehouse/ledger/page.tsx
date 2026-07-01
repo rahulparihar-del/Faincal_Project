@@ -61,7 +61,7 @@ export default function StockLedgerPage() {
 
       const { data, count, error } = await query;
       if (error) throw error;
-      setMovements((data as any[]) ?? []);
+      setMovements((data as unknown as WmsStockMovement[]) ?? []);
       setTotal(count ?? 0);
     } catch (err) {
       console.error('Failed to load ledger movements:', err);

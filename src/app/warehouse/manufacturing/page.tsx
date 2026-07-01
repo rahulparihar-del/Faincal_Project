@@ -11,14 +11,14 @@ export default function ManufacturingPage() {
   ];
 
   const columns = [
-    { key: 'id', header: 'MFG Order ID', render: (row: any) => <span className="font-mono font-bold">{row.id}</span> },
-    { key: 'variant', header: 'SKU Variant', render: (row: any) => <span className="font-mono">{row.variant}</span> },
+    { key: 'id', header: 'MFG Order ID', render: (row: { id: string }) => <span className="font-mono font-bold">{row.id}</span> },
+    { key: 'variant', header: 'SKU Variant', render: (row: { variant: string }) => <span className="font-mono">{row.variant}</span> },
     { key: 'planned', header: 'Planned Qty', align: 'center' as const },
     { key: 'produced', header: 'Produced Qty', align: 'center' as const },
     {
       key: 'status',
       header: 'Status',
-      render: (row: any) => (
+      render: (row: { status: string }) => (
         <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold border ${
           row.status === 'completed'
             ? 'bg-emerald-50 text-emerald-600 border-emerald-100'

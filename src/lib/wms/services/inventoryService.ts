@@ -26,7 +26,7 @@ export async function getInventorySnapshot(
 
     const { data, error } = await query;
     if (error) throw error;
-    return (data as any[]) ?? [];
+    return (data as unknown as WmsInventorySnapshot[]) ?? [];
   } catch (err) {
     console.error('Failed to get inventory snapshot:', err);
     return [];
@@ -42,6 +42,26 @@ export async function getLowStockItems(
     const limit = item.variant?.low_stock_threshold ?? threshold ?? 10;
     return (item.available ?? 0) <= limit;
   });
+}
+
+interface SnapshotRow {
+  available: number | null;
+  reserved: number | null;
+  packed: number | null;
+  dispatched: number | null;
+  qc_pending: number | null;
+  returned: number | null;
+  damaged: number | null;
+  wrong_return: number | null;
+  lost: number | null;
+  transfer: number | null;
+  rto: number | null;
+  blocked: number | null;
+  total_stock: number | null;
+  variant: {
+    cost_price: number | null;
+    low_stock_threshold: number | null;
+  } | null;
 }
 
 export async function getDashboardStats(warehouseId?: string) {
@@ -96,7 +116,7 @@ export async function getDashboardStats(warehouseId?: string) {
     };
 
     if (snapshotData) {
-      snapshotData.forEach((row: any) => {
+      (snapshotData as unknown as SnapshotRow[]).forEach((row) => {
         stats.totalStock += row.total_stock ?? 0;
         stats.available += row.available ?? 0;
         stats.reserved += row.reserved ?? 0;

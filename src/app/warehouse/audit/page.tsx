@@ -10,13 +10,13 @@ export default function StockAuditPage() {
   ];
 
   const columns = [
-    { key: 'id', header: 'Audit Code', render: (row: any) => <span className="font-mono font-bold">{row.id}</span> },
+    { key: 'id', header: 'Audit Code', render: (row: { id: string }) => <span className="font-mono font-bold">{row.id}</span> },
     { key: 'warehouse', header: 'Warehouse' },
     { key: 'startedBy', header: 'Auditor' },
     {
       key: 'status',
       header: 'Status',
-      render: (row: any) => (
+      render: (row: { status: string }) => (
         <span className="px-2 py-0.5 rounded-full text-[9px] font-bold border bg-amber-50 text-amber-600 border-amber-100">
           {row.status.toUpperCase()}
         </span>

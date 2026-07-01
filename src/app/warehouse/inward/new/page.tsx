@@ -12,6 +12,7 @@ import { SkuTag } from '@/components/wms/ui/SkuTag';
 import { Trash2, ArrowLeft, Plus, ScanLine, Keyboard } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 
 interface InwardItem {
   variantId: string;
@@ -28,6 +29,7 @@ export default function NewInwardPage() {
   const { selectedWarehouseId, warehouses } = useWms();
   const { suppliers, loading: masterLoading } = useMasterData();
   const { success, error: toastError, warning } = useWmsToast();
+  const { userEmail } = useAuth();
 
   const [type, setType] = useState<'production' | 'purchase' | 'transfer' | 'return'>('production');
   const [warehouseId, setWarehouseId] = useState('');
@@ -35,6 +37,12 @@ export default function NewInwardPage() {
   const [referenceNo, setReferenceNo] = useState('');
   const [receivedBy, setReceivedBy] = useState('Admin Operator');
   const [notes, setNotes] = useState('');
+
+  useEffect(() => {
+    if (userEmail) {
+      setReceivedBy(userEmail.split('@')[0]);
+    }
+  }, [userEmail]);
 
   const [items, setItems] = useState<InwardItem[]>([]);
   const [scanActive, setScanActive] = useState(false);
@@ -256,7 +264,7 @@ export default function NewInwardPage() {
                 <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">Inward Type *</label>
                 <select
                   value={type}
-                  onChange={(e) => setType(e.target.value as any)}
+                  onChange={(e) => setType(e.target.value as 'production' | 'purchase' | 'transfer' | 'return')}
                   className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl"
                 >
                   <option value="production">Production Inward (Internal)</option>

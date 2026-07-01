@@ -238,7 +238,7 @@ export default function ProductsPage() {
             Products Catalog
           </h1>
           <p className="text-xs text-slate-400 mt-0.5 font-medium">
-            Manage KiddieKa's apparel product hierarchy and generate SKU variants.
+            Manage KiddieKa&apos;s apparel product hierarchy and generate SKU variants.
           </p>
         </div>
         <button

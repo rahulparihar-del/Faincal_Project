@@ -75,7 +75,7 @@ export function DataTable<T>({
 
   const getRowId = (row: T, index: number): string => {
     if (rowKey) return rowKey(row);
-    if (row && typeof row === 'object' && 'id' in row) return String((row as any).id);
+    if (row && typeof row === 'object' && 'id' in row) return String((row as Record<string, unknown>).id);
     return String(index);
   };
 
@@ -106,8 +106,8 @@ export function DataTable<T>({
     if (!sortKey) return filteredData;
 
     return [...filteredData].sort((a, b) => {
-      const aVal = (a as any)[sortKey];
-      const bVal = (b as any)[sortKey];
+      const aVal = (a as Record<string, unknown>)[sortKey];
+      const bVal = (b as Record<string, unknown>)[sortKey];
 
       if (aVal === undefined || aVal === null) return 1;
       if (bVal === undefined || bVal === null) return -1;
@@ -266,7 +266,7 @@ export function DataTable<T>({
                         key={col.key}
                         className={`px-4 py-2.5 whitespace-nowrap text-slate-600 dark:text-slate-400 font-medium ${alignClasses[col.align ?? 'left']}`}
                       >
-                        {col.render ? col.render(row) : String((row as any)[col.key] ?? '')}
+                        {col.render ? col.render(row) : String((row as Record<string, unknown>)[col.key] ?? '')}
                       </td>
                     ))}
                     {actions && (

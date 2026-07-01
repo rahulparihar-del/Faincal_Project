@@ -13,6 +13,8 @@ import { SkuTag } from '@/components/wms/ui/SkuTag';
 import { Trash2, ArrowLeft, ScanLine, Keyboard, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { StockMovementType } from '@/lib/wms/types';
+import { useAuth } from '@/context/AuthContext';
 
 interface OutwardItem {
   variantId: string;
@@ -28,12 +30,19 @@ export default function NewOutwardPage() {
   const { selectedWarehouseId, warehouses } = useWms();
   const { channels, loading: masterLoading } = useMasterData();
   const { success, error: toastError, warning } = useWmsToast();
+  const { userEmail } = useAuth();
 
   const [channelId, setChannelId] = useState('');
   const [warehouseId, setWarehouseId] = useState('');
   const [orderReference, setOrderReference] = useState('');
   const [dispatchedBy, setDispatchedBy] = useState('Admin Operator');
   const [notes, setNotes] = useState('');
+
+  useEffect(() => {
+    if (userEmail) {
+      setDispatchedBy(userEmail.split('@')[0]);
+    }
+  }, [userEmail]);
 
   const [items, setItems] = useState<OutwardItem[]>([]);
   const [scanActive, setScanActive] = useState(false);
@@ -235,7 +244,7 @@ export default function NewOutwardPage() {
       const channel = channels.find((c) => c.id === channelId);
       const chCode = channel?.code || 'OFF';
       // Dynamically select movement type based on channel code: sale_amazon, sale_flipkart, etc.
-      const movementType = `sale_${chCode.toLowerCase()}` as any;
+      const movementType = `sale_${chCode.toLowerCase()}` as StockMovementType;
 
       for (const item of items) {
         // (a) Record Stock Movement ledger: Dispatch from Available to Dispatched bucket

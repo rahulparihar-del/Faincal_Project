@@ -6,6 +6,7 @@ import { getDashboardStats, getInventorySnapshot, getLowStockItems } from '@/lib
 import { StatCard } from '@/components/wms/ui/StatCard';
 import { StockBadge } from '@/components/wms/ui/StockBadge';
 import { SkuTag } from '@/components/wms/ui/SkuTag';
+import { WmsInventorySnapshot, WmsStockMovement } from '@/lib/wms/types';
 import {
   Boxes,
   IndianRupee,
@@ -26,13 +27,42 @@ import {
 import { supabase } from '@/lib/supabase/client';
 import Link from 'next/link';
 
+interface DashboardStats {
+  totalStock: number;
+  inventoryValue: number;
+  available: number;
+  reserved: number;
+  qcPending: number;
+  damaged: number;
+  wrongReturn: number;
+  rto: number;
+  lowStockCount: number;
+  todayInward: number;
+  todayOutward: number;
+  todayReturns: number;
+  todayRto: number;
+}
+
+interface DashboardRecentMovement {
+  id: string;
+  movement_type: string;
+  quantity: number;
+  performed_at: string;
+  variant: {
+    sku: string;
+    product: {
+      product_name: string;
+    } | null;
+  } | null;
+}
+
 export default function WmsDashboard() {
   const { selectedWarehouseId, warehouses } = useWms();
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<any>(null);
-  const [lowStock, setLowStock] = useState<any[]>([]);
-  const [categoryData, setCategoryData] = useState<any[]>([]);
-  const [recentMovements, setRecentMovements] = useState<any[]>([]);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [lowStock, setLowStock] = useState<WmsInventorySnapshot[]>([]);
+  const [categoryData, setCategoryData] = useState<{ name: string; stock: number }[]>([]);
+  const [recentMovements, setRecentMovements] = useState<DashboardRecentMovement[]>([]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -49,7 +79,7 @@ export default function WmsDashboard() {
 
       // 2. Aggregate snapshot data by category for category chart
       const catMap: Record<string, number> = {};
-      snapshotRes.forEach((item: any) => {
+      snapshotRes.forEach((item) => {
         const catName = item.variant?.product?.category?.name || 'Unassigned';
         catMap[catName] = (catMap[catName] || 0) + (item.available || 0);
       });
@@ -77,7 +107,37 @@ export default function WmsDashboard() {
           query = query.eq('warehouse_id', selectedWarehouseId);
         }
         const { data: movs } = await query;
-        setRecentMovements(movs || []);
+
+        const rawMovs = (movs as unknown as {
+          id: string;
+          movement_type: string;
+          quantity: number;
+          performed_at: string;
+          variant: {
+            sku: string;
+            product: {
+              product_name: string;
+            }[] | null;
+          }[] | null;
+        }[]) || [];
+
+        const formatted = rawMovs.map((m) => {
+          // In Supabase client select, relationships return as arrays
+          const v = m.variant && m.variant[0];
+          const p = v?.product && v.product[0];
+          return {
+            id: m.id,
+            movement_type: m.movement_type,
+            quantity: m.quantity,
+            performed_at: m.performed_at,
+            variant: v ? {
+              sku: v.sku,
+              product: p ? { product_name: p.product_name } : null
+            } : null
+          };
+        });
+
+        setRecentMovements(formatted);
       }
     } catch (err) {
       console.error('Failed to load WMS dashboard data:', err);
@@ -92,9 +152,9 @@ export default function WmsDashboard() {
 
   // SVG Donut calculation helpers
   const totalStockForDonut = stats?.totalStock || 0;
-  const availablePct = totalStockForDonut > 0 ? (stats?.available / totalStockForDonut) * 100 : 0;
-  const reservedPct = totalStockForDonut > 0 ? (stats?.reserved / totalStockForDonut) * 100 : 0;
-  const otherPct = totalStockForDonut > 0 ? ((totalStockForDonut - (stats?.available + stats?.reserved)) / totalStockForDonut) * 100 : 0;
+  const availablePct = totalStockForDonut > 0 ? ((stats?.available ?? 0) / totalStockForDonut) * 100 : 0;
+  const reservedPct = totalStockForDonut > 0 ? ((stats?.reserved ?? 0) / totalStockForDonut) * 100 : 0;
+  const otherPct = totalStockForDonut > 0 ? ((totalStockForDonut - ((stats?.available ?? 0) + (stats?.reserved ?? 0))) / totalStockForDonut) * 100 : 0;
 
   const selectedWarehouse = warehouses.find((w) => w.id === selectedWarehouseId);
 
@@ -192,7 +252,7 @@ export default function WmsDashboard() {
               value={stats?.lowStockCount ?? '0'}
               icon={<AlertTriangle className="w-5 h-5 text-slate-950 dark:text-white" />}
               iconBg="bg-slate-100 dark:bg-slate-850"
-              highlight={stats?.lowStockCount > 0}
+              highlight={(stats?.lowStockCount ?? 0) > 0}
               subtitle="Items below threshold"
             />
           </div>
@@ -200,7 +260,7 @@ export default function WmsDashboard() {
           {/* Row 2: Today's Transaction metrics */}
           <div className="space-y-3">
             <h2 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">
-              Today's Activity
+              Today&apos;s Activity
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <StatCard
@@ -418,7 +478,7 @@ export default function WmsDashboard() {
                           Available ({availablePct.toFixed(0)}%)
                         </span>
                         <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold">
-                          {stats?.available.toLocaleString('en-IN')} units
+                          {(stats?.available ?? 0).toLocaleString('en-IN')} units
                         </span>
                       </div>
                     </div>
@@ -429,7 +489,7 @@ export default function WmsDashboard() {
                           Reserved ({reservedPct.toFixed(0)}%)
                         </span>
                         <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold">
-                          {stats?.reserved.toLocaleString('en-IN')} units
+                          {(stats?.reserved ?? 0).toLocaleString('en-IN')} units
                         </span>
                       </div>
                     </div>
@@ -440,7 +500,7 @@ export default function WmsDashboard() {
                           Other buckets ({otherPct.toFixed(0)}%)
                         </span>
                         <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold">
-                          {(totalStockForDonut - (stats?.available + stats?.reserved)).toLocaleString('en-IN')} units
+                          {(totalStockForDonut - ((stats?.available ?? 0) + (stats?.reserved ?? 0))).toLocaleString('en-IN')} units
                         </span>
                       </div>
                     </div>

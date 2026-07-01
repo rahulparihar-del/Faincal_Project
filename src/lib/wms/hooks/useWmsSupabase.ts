@@ -23,9 +23,9 @@ export function useWmsTable<T>(tableName: string) {
 
       if (err) throw err;
       setData((result as T[]) ?? []);
-    } catch (err: any) {
+    } catch (err) {
       console.error(`Error fetching table ${tableName}:`, err);
-      setError(err.message || 'Failed to fetch data');
+      setError(err instanceof Error ? err.message : 'Failed to fetch data');
     } finally {
       setLoading(false);
     }
@@ -51,9 +51,9 @@ export function useWmsTable<T>(tableName: string) {
       if (err) throw err;
       await fetch(); // reload
       return result as T;
-    } catch (err: any) {
+    } catch (err) {
       console.error(`Error inserting into ${tableName}:`, err);
-      setError(err.message || 'Insert failed');
+      setError(err instanceof Error ? err.message : 'Insert failed');
       return null;
     }
   };
@@ -72,9 +72,9 @@ export function useWmsTable<T>(tableName: string) {
       if (err) throw err;
       await fetch(); // reload
       return true;
-    } catch (err: any) {
+    } catch (err) {
       console.error(`Error updating row in ${tableName}:`, err);
-      setError(err.message || 'Update failed');
+      setError(err instanceof Error ? err.message : 'Update failed');
       return false;
     }
   };
@@ -92,9 +92,9 @@ export function useWmsTable<T>(tableName: string) {
       if (err) throw err;
       await fetch();
       return true;
-    } catch (err: any) {
+    } catch (err) {
       console.error(`Error deleting row in ${tableName}:`, err);
-      setError(err.message || 'Delete failed');
+      setError(err instanceof Error ? err.message : 'Delete failed');
       return false;
     }
   };

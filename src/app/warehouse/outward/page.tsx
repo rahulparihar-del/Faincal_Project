@@ -40,7 +40,7 @@ export default function OutwardListPage() {
 
       const { data, error } = await query;
       if (error) throw error;
-      setOutwards((data as any[]) ?? []);
+      setOutwards((data as unknown as WmsOutward[]) ?? []);
     } catch (err) {
       console.error('Failed to load outwards list:', err);
     } finally {

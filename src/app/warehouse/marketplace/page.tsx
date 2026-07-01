@@ -12,11 +12,11 @@ export default function MarketplacePage() {
   const columns = [
     { key: 'sku', header: 'WMS SKU' },
     { key: 'channel', header: 'Marketplace Channel' },
-    { key: 'marketplaceSku', header: 'Marketplace SKU (Listing ID)', render: (row: any) => <span className="font-mono">{row.marketplaceSku}</span> },
+    { key: 'marketplaceSku', header: 'Marketplace SKU (Listing ID)', render: (row: { marketplaceSku: string }) => <span className="font-mono">{row.marketplaceSku}</span> },
     {
       key: 'active',
       header: 'Sync Status',
-      render: (row: any) => (
+      render: (row: { active: boolean }) => (
         <span className="px-2 py-0.5 rounded-full text-[9px] font-bold border bg-emerald-50 text-emerald-600 border-emerald-100">
           ACTIVE SYNC
         </span>

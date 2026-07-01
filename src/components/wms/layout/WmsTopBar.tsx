@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Bell, Menu, Search, Warehouse, X, AlertTriangle, CheckCircle2, Info } from 'lucide-react';
 import { useWms } from '@/context/WmsContext';
+import { useAuth } from '@/context/AuthContext';
 
 // ─── Breadcrumb helper ────────────────────────────────────────────────────────
 
@@ -51,8 +52,13 @@ export function WmsTopBar({ onMenuClick }: WmsTopBarProps) {
   const pageTitle = getPageTitle(pathname);
 
   const { warehouses, selectedWarehouseId } = useWms();
+  const { userEmail } = useAuth();
   const selectedWarehouse = warehouses.find((w) => w.id === selectedWarehouseId);
   const warehouseLabel = selectedWarehouse?.name ?? 'Main Warehouse';
+
+  const userName = userEmail ? userEmail.split('@')[0] : 'Admin';
+  const initial = userName.charAt(0).toUpperCase();
+  const displayName = userName.charAt(0).toUpperCase() + userName.slice(1);
 
   // Notifications State
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -217,10 +223,10 @@ export function WmsTopBar({ onMenuClick }: WmsTopBarProps) {
           className="flex items-center gap-2 flex-shrink-0 cursor-pointer group bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-2.5 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
         >
           <div className="w-6 h-6 rounded-lg bg-slate-950 dark:bg-white flex items-center justify-center text-white dark:text-slate-950 text-[10px] font-black shadow-sm">
-            A
+            {initial}
           </div>
           <span className="hidden lg:inline text-xs font-bold text-slate-700 dark:text-slate-350 group-hover:text-slate-950 dark:group-hover:text-white transition-colors">
-            Admin
+            {displayName}
           </span>
         </div>
       </div>

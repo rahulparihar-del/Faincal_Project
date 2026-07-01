@@ -25,13 +25,17 @@ export function BarcodeScanner({
   const [cameraLoading, setCameraLoading] = useState(false);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   
+  interface ScannerControls {
+    stop: () => void;
+  }
+
   const videoRef = useRef<HTMLVideoElement>(null);
-  const controlsRef = useRef<any>(null);
+  const controlsRef = useRef<ScannerControls | null>(null);
 
   // Play audio beeps using browser AudioContext
   const playBeep = (frequency: number, duration: number) => {
     try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      const AudioCtx = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (!AudioCtx) return;
       const ctx = new AudioCtx();
       const osc = ctx.createOscillator();
@@ -117,12 +121,13 @@ export function BarcodeScanner({
         } else {
           controls.stop();
         }
-      } catch (err: any) {
+      } catch (err) {
         console.error('Camera startup failed:', err);
         if (active) {
           setHasPermission(false);
-          setCameraError(err.message || 'Failed to initialize camera.');
-          triggerError(err.message || 'Camera error');
+          const msg = err instanceof Error ? err.message : 'Failed to initialize camera.';
+          setCameraError(msg);
+          triggerError(msg);
         }
       } finally {
         if (active) setCameraLoading(false);

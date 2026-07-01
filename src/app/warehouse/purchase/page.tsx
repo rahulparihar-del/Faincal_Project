@@ -10,14 +10,14 @@ export default function PurchasePage() {
   ];
 
   const columns = [
-    { key: 'id', header: 'Purchase Order ID', render: (row: any) => <span className="font-mono font-bold">{row.id}</span> },
+    { key: 'id', header: 'Purchase Order ID', render: (row: { id: string }) => <span className="font-mono font-bold">{row.id}</span> },
     { key: 'supplier', header: 'Supplier Name' },
     { key: 'expected', header: 'Expected Delivery' },
     { key: 'items', header: 'Items Count', align: 'center' as const },
     {
       key: 'status',
       header: 'Status',
-      render: (row: any) => (
+      render: (row: { status: string }) => (
         <span className="px-2 py-0.5 rounded-full text-[9px] font-bold border bg-indigo-50 text-indigo-600 border-indigo-100">
           {row.status.toUpperCase()}
         </span>

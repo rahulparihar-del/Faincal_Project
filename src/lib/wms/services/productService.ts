@@ -224,7 +224,7 @@ export async function getVariantByBarcode(
 
     if (error) return null;
     return data as WmsProductVariant;
-  } catch (err) {
+  } catch {
     return null;
   }
 }
@@ -246,7 +246,7 @@ export async function getVariantBySku(sku: string): Promise<WmsProductVariant | 
 
     if (error) return null;
     return data as WmsProductVariant;
-  } catch (err) {
+  } catch {
     return null;
   }
 }

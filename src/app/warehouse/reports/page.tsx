@@ -12,7 +12,7 @@ export default function ReportsPage() {
   ];
 
   const columns = [
-    { key: 'name', header: 'Report Name', render: (row: any) => <span className="font-semibold text-slate-800 dark:text-slate-200">{row.name}</span> },
+    { key: 'name', header: 'Report Name', render: (row: { name: string }) => <span className="font-semibold text-slate-800 dark:text-slate-200">{row.name}</span> },
     { key: 'type', header: 'Report Type' },
     { key: 'lastRun', header: 'Last Calculated' },
   ];
