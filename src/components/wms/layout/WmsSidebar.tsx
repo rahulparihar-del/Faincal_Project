@@ -10,6 +10,7 @@ import {
   Boxes,
   BookOpen,
   ChevronDown,
+  Camera,
   ClipboardCheck,
   Database,
   Factory,
@@ -74,6 +75,7 @@ const NAV: NavSection[] = [
     items: [
       { label: 'Products', href: '/warehouse/products', icon: <Package size={16} /> },
       { label: 'Barcode Center', href: '/warehouse/barcodes', icon: <QrCode size={16} /> },
+      { label: 'CamScan Terminal', href: '/warehouse/scan', icon: <Camera size={16} /> },
     ],
   },
   {

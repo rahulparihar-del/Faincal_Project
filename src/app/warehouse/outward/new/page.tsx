@@ -52,12 +52,53 @@ export default function NewOutwardPage() {
   const [manualSkuInput, setManualSkuInput] = useState('');
   const [manualQtyInput, setManualQtyInput] = useState(1);
 
-  // Load selected warehouse
   useEffect(() => {
     if (selectedWarehouseId) {
       setWarehouseId(selectedWarehouseId);
     }
   }, [selectedWarehouseId]);
+
+  // Prefill from URL scan parameter
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const prefillSku = searchParams.get('prefill_sku');
+    const prefillBarcode = searchParams.get('prefill_barcode');
+    
+    const prefillItem = async () => {
+      let variant = null;
+      if (prefillSku) {
+        variant = await getVariantBySku(prefillSku);
+      } else if (prefillBarcode) {
+        variant = await getVariantByBarcode(prefillBarcode);
+      }
+      
+      if (variant) {
+        const currentWh = warehouseId || selectedWarehouseId || '';
+        const currentStock = currentWh ? await fetchStockLevel(variant.id, currentWh) : 0;
+
+        setItems((prev) => {
+          const existing = prev.find((item) => item.variantId === variant.id);
+          if (existing) {
+            return prev;
+          }
+          return [
+            ...prev,
+            {
+              variantId: variant.id,
+              sku: variant.sku,
+              productName: variant.product?.product_name || 'Unknown',
+              sizeLabel: variant.size?.label || 'N/A',
+              availableQty: currentStock,
+              quantity: 1,
+            },
+          ];
+        });
+        success(`Prefilled scanned item: ${variant.sku}`);
+      }
+    };
+    
+    prefillItem();
+  }, [success, warehouseId, selectedWarehouseId]);
 
   // Fetch stock level for a variant in selected warehouse
   const fetchStockLevel = async (variantId: string, whId: string): Promise<number> => {
