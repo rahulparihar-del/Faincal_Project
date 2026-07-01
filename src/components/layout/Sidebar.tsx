@@ -25,6 +25,7 @@ import {
   TrendingUp,
   ChevronDown,
   LayoutGrid,
+  Warehouse,
 } from "lucide-react";
 import { gsap } from "gsap";
 import { useGSAP } from "@gsap/react";
@@ -45,6 +46,7 @@ const NAV_ITEMS = [
       { name: "Amazon", href: "/amazon" }
     ]
   },
+  { name: "Warehouse",     href: "/warehouse",     icon: Warehouse,       mobileName: "WMS" },
   { name: "Wholesale",     href: "/wholesale",     icon: Truck,           mobileName: "Wholesale" },
   { name: "Expenses",      href: "/expenses",      icon: Receipt,         mobileName: "Expenses" },
   { name: "P&L",           href: "/pl",            icon: BarChart3,       mobileName: "P&L" },
@@ -60,9 +62,9 @@ const NAV_ITEMS = [
 const SECTION_AT: Record<number, string> = {
   0: "Overview",
   1: "Operations",
-  8: "Finance",
-  10: "Inventory",
-  11: "Tools",
+  9: "Finance",
+  11: "Inventory",
+  12: "Tools",
 };
 
 /* ─── Desktop Sidebar ──────────────────────────────────────────────────────── */

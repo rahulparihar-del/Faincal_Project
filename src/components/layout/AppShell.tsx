@@ -1,14 +1,21 @@
 "use client";
 
 import React, { useState } from "react";
+import { usePathname } from "next/navigation";
 import { Sidebar, MobileTabBar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { PageTransition } from "../ui/PageTransition";
 import { useData } from "@/context/DataContext";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [isMobileOpen, setMobileOpen] = useState(false);
   const { isReady } = useData();
+
+  // WMS routes handle their own layout — render bare container only
+  if (pathname.startsWith('/warehouse')) {
+    return <div className="flex h-screen w-full overflow-hidden">{children}</div>;
+  }
 
   React.useEffect(() => {
     const updateTableLabels = () => {
