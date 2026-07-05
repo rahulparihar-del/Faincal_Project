@@ -6,46 +6,7 @@
 //     row 3 = formula legend, row 4+ = data
 //   Sheet "Ads Cost": row 1 = title, row 2 = headers, row 3 = legend, row 4+ = data
 
-export interface MeeshoPaymentRow {
-  id: string; // subOrderNo | paymentDate (a suborder can settle across multiple payouts)
-  subOrderNo: string;
-  orderDate: string; // YYYY-MM-DD
-  dispatchDate: string;
-  productName: string;
-  sku: string;
-  liveOrderStatus: string; // Delivered | Return | RTO | Exchange | Cancelled | Shipped ...
-  listingPrice: number;
-  qty: number;
-  transactionId: string;
-  paymentDate: string; // YYYY-MM-DD — future date means upcoming payment
-  settlementAmount: number; // Final Settlement Amount
-  saleAmount: number; // Total Sale Amount (Incl. Shipping & GST)
-  returnAmount: number; // Total Sale Return Amount
-  priceType: string;
-}
-
-export interface MeeshoAdsRow {
-  id: string; // deductionDuration | deductionDate | campaignId
-  deductionDuration: string; // the day the ads actually ran
-  deductionDate: string; // YYYY-MM-DD
-  campaignId: string;
-  adCost: number; // base ad cost (positive)
-  gst: number;
-  totalAdsCost: number; // total incl GST (positive number = money spent)
-}
-
-export interface MeeshoOrderLogRow {
-  id: string; // subOrderNo
-  subOrderNo: string;
-  orderDate: string; // YYYY-MM-DD
-  status: string;
-  productName: string;
-  sku: string;
-  size: string;
-  qty: number;
-  price: number;
-  state: string;
-}
+import { MeeshoOrder, MeeshoPaymentRow, MeeshoAdsRow, MeeshoOrderLogRow } from "./types";
 
 // ── helpers ─────────────────────────────────────────────────────────
 
@@ -354,7 +315,7 @@ export function todayISO(): string {
 export function buildDailyRows(
   rawPayments: MeeshoPaymentRow[],
   rawAds: MeeshoAdsRow[],
-  orderLog: MeeshoOrderLogRow[]
+  orderLog: MeeshoOrder[]
 ): DailyRow[] {
   const payments = resolvePayments(rawPayments);
   const ads = resolveAds(rawAds);
@@ -383,11 +344,11 @@ export function buildDailyRows(
   // Orders per day: prefer the uploaded orders log; fill gaps from payment rows.
   const seenOrders = new Set<string>();
   for (const o of orderLog) {
-    if (!o.orderDate || seenOrders.has(o.subOrderNo)) continue;
-    seenOrders.add(o.subOrderNo);
-    const r = get(o.orderDate);
+    if (!o.order_date || seenOrders.has(o.sub_order_no)) continue;
+    seenOrders.add(o.sub_order_no);
+    const r = get(o.order_date);
     r.ordersPlaced += 1;
-    r.orderValue += o.price * (o.qty || 1);
+    r.orderValue += (o.selling_price || 0) * (o.qty || 1);
   }
   for (const p of payments) {
     if (!p.orderDate || seenOrders.has(p.subOrderNo)) continue;
@@ -441,13 +402,13 @@ export interface PaymentsSummary {
 export function buildSummary(
   rawPayments: MeeshoPaymentRow[],
   rawAds: MeeshoAdsRow[],
-  orderLog: MeeshoOrderLogRow[]
+  orderLog: MeeshoOrder[]
 ): PaymentsSummary {
   const payments = resolvePayments(rawPayments);
   const ads = resolveAds(rawAds);
   const today = todayISO();
   const orderIds = new Set<string>();
-  for (const o of orderLog) orderIds.add(o.subOrderNo);
+  for (const o of orderLog) orderIds.add(o.sub_order_no);
   for (const p of payments) {
     if (!isAggregateRow(p)) orderIds.add(p.subOrderNo);
   }

@@ -6,7 +6,7 @@ const $ = (id) => document.getElementById(id);
 
 const TABLES = [
   { storageKey: "bt_payments", table: "meesho_payments", label: "payments" },
-  { storageKey: "bt_orders", table: "meesho_order_log", label: "orders" },
+  { storageKey: "bt_orders", table: "meesho_orders", label: "orders" },
   { storageKey: "bt_ads", table: "meesho_ads", label: "ads rows" },
 ];
 
@@ -81,7 +81,12 @@ $("syncBtn").addEventListener("click", async () => {
 
     for (const t of TABLES) {
       const map = data[t.storageKey] || {};
-      const records = Object.values(map).map((r) => ({ id: r.id, data: r }));
+      const records = Object.values(map).map((r) => {
+        if (t.table === "meesho_orders") {
+          return r; // Send structured columns directly
+        }
+        return { id: r.id, data: r };
+      });
       if (records.length === 0) continue;
       for (let i = 0; i < records.length; i += 400) {
         await upsertChunk(baseUrl, key, t.table, records.slice(i, i + 400));

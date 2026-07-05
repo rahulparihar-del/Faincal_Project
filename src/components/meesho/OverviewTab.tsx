@@ -19,17 +19,15 @@ import {
 import { useTheme } from "@/context/ThemeContext";
 import { useSupabaseTable } from "@/lib/hooks/useSupabaseTable";
 import {
-  MeeshoPaymentRow,
-  MeeshoAdsRow,
-  MeeshoOrderLogRow,
   formatINR,
 } from "@/lib/meesho/paymentsParser";
+import { MeeshoPaymentRow, MeeshoAdsRow } from "@/lib/meesho/types";
 import { buildAnalytics, analyticsToAISummary, GrowthMetric } from "@/lib/meesho/insights";
 import { AnimatedCounter } from "@/components/ui/AnimatedCounter";
+import { useMeeshoOrders } from "@/lib/hooks/useMeeshoOrders";
 
 const EMPTY_PAYMENTS: MeeshoPaymentRow[] = [];
 const EMPTY_ADS: MeeshoAdsRow[] = [];
-const EMPTY_ORDERS: MeeshoOrderLogRow[] = [];
 
 // ── small UI atoms ──────────────────────────────────────────────────
 
@@ -238,11 +236,7 @@ export default function OverviewTab() {
     EMPTY_PAYMENTS
   );
   const [ads] = useSupabaseTable<MeeshoAdsRow>("meesho_ads", "biztrack_meesho_ads", EMPTY_ADS);
-  const [orderLog] = useSupabaseTable<MeeshoOrderLogRow>(
-    "meesho_order_log",
-    "biztrack_meesho_order_log",
-    EMPTY_ORDERS
-  );
+  const [orderLog] = useMeeshoOrders();
 
   const [aiText, setAiText] = useState<string>("");
   const [aiLoading, setAiLoading] = useState(false);

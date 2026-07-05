@@ -2,13 +2,11 @@
 // Pure math over parsed payment/ads/order rows — no AI needed here.
 
 import {
-  MeeshoPaymentRow,
-  MeeshoAdsRow,
-  MeeshoOrderLogRow,
   todayISO,
   resolvePayments,
   resolveAds,
 } from "./paymentsParser";
+import { MeeshoOrder, MeeshoPaymentRow, MeeshoAdsRow } from "./types";
 
 export interface PeriodStats {
   key: string; // e.g. "2026-W23" or "2026-06"
@@ -102,7 +100,7 @@ function growth(current: number, previous: number): GrowthMetric {
 export function buildAnalytics(
   rawPayments: MeeshoPaymentRow[],
   rawAds: MeeshoAdsRow[],
-  orderLog: MeeshoOrderLogRow[]
+  orderLog: MeeshoOrder[]
 ): Analytics {
   const payments = resolvePayments(rawPayments);
   const ads = resolveAds(rawAds);
@@ -120,14 +118,14 @@ export function buildAnalytics(
   }
   const orderMap = new Map<string, OrderView>();
   for (const o of orderLog) {
-    if (!o.orderDate) continue;
-    orderMap.set(o.subOrderNo, {
-      subOrderNo: o.subOrderNo,
-      orderDate: o.orderDate,
+    if (!o.order_date) continue;
+    orderMap.set(o.sub_order_no, {
+      subOrderNo: o.sub_order_no,
+      orderDate: o.order_date,
       status: o.status,
-      value: o.price * (o.qty || 1),
+      value: (o.selling_price || 0) * (o.qty || 1),
       sku: o.sku,
-      productName: o.productName,
+      productName: o.product_name,
       settled: 0,
     });
   }
