@@ -320,6 +320,20 @@ export function resolvePayments(payments: MeeshoPaymentRow[]): MeeshoPaymentRow[
   return payments.filter((p) => !isAggregateRow(p) || !detailDates.has(p.paymentDate));
 }
 
+// Same idea for ads: the extension stores a day-level "PAYOUT_RECOVERY" row per
+// payout date. If detailed ads rows (from the xlsx Ads Cost sheet) exist for
+// that same deduction date, the day-level row is dropped.
+export function isAggregateAdsRow(a: MeeshoAdsRow): boolean {
+  return a.campaignId === "PAYOUT_RECOVERY";
+}
+
+export function resolveAds(ads: MeeshoAdsRow[]): MeeshoAdsRow[] {
+  const detailDates = new Set(
+    ads.filter((a) => !isAggregateAdsRow(a)).map((a) => a.deductionDate)
+  );
+  return ads.filter((a) => !isAggregateAdsRow(a) || !detailDates.has(a.deductionDate));
+}
+
 export interface DailyRow {
   date: string; // YYYY-MM-DD
   ordersPlaced: number; // unique suborders ordered that day
@@ -339,10 +353,11 @@ export function todayISO(): string {
 
 export function buildDailyRows(
   rawPayments: MeeshoPaymentRow[],
-  ads: MeeshoAdsRow[],
+  rawAds: MeeshoAdsRow[],
   orderLog: MeeshoOrderLogRow[]
 ): DailyRow[] {
   const payments = resolvePayments(rawPayments);
+  const ads = resolveAds(rawAds);
   const map = new Map<string, DailyRow>();
   const get = (date: string): DailyRow => {
     let r = map.get(date);
@@ -425,10 +440,11 @@ export interface PaymentsSummary {
 
 export function buildSummary(
   rawPayments: MeeshoPaymentRow[],
-  ads: MeeshoAdsRow[],
+  rawAds: MeeshoAdsRow[],
   orderLog: MeeshoOrderLogRow[]
 ): PaymentsSummary {
   const payments = resolvePayments(rawPayments);
+  const ads = resolveAds(rawAds);
   const today = todayISO();
   const orderIds = new Set<string>();
   for (const o of orderLog) orderIds.add(o.subOrderNo);

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "BizTrack Sync for Meesho",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Captures orders, payments and ads data from the Meesho Supplier Panel while you browse, and syncs it into your BizTrack Supabase database.",
   "permissions": ["storage"],
   "host_permissions": [

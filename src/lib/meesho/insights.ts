@@ -7,7 +7,7 @@ import {
   MeeshoOrderLogRow,
   todayISO,
   resolvePayments,
-  isAggregateRow,
+  resolveAds,
 } from "./paymentsParser";
 
 export interface PeriodStats {
@@ -101,10 +101,11 @@ function growth(current: number, previous: number): GrowthMetric {
 
 export function buildAnalytics(
   rawPayments: MeeshoPaymentRow[],
-  ads: MeeshoAdsRow[],
+  rawAds: MeeshoAdsRow[],
   orderLog: MeeshoOrderLogRow[]
 ): Analytics {
   const payments = resolvePayments(rawPayments);
+  const ads = resolveAds(rawAds);
   const today = todayISO();
 
   // Unified per-order view (unique suborder): orderDate, status, price, sku

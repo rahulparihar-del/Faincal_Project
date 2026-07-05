@@ -118,7 +118,7 @@
   const RE = {
     subOrder: [/suborder/],
     orderDate: [/orderdate/, /ordercreat/, /createdat/, /createdon/, /orderedat/, /creatediso/, /^created$/, /orderts/, /^ts$/],
-    status: [/reasonforcredit/, /orderstatus/, /liveorderstatus/, /^status$/, /statustype/],
+    status: [/reasonforcredit/, /orderstatus/, /liveorderstatus/, /^status$/, /statustype/, /contribution/],
     product: [/productname/, /^name$/, /title/],
     sku: [/^sku$/, /suppliersku/, /skuid/],
     size: [/^size$/, /variation/],
@@ -126,7 +126,7 @@
     price: [/discountedprice/, /listingprice/, /sellingprice/, /totalamount/, /^price$/, /^amount$/],
     state: [/customerstate/, /^state$/],
     payDate: [/paymentdate/, /settlementdate/, /disbursementdate/, /payoutdate/],
-    settleAmt: [/finalsettlement/, /settlementamount/, /netamount/, /payableamount/, /settlementvalue/],
+    settleAmt: [/finalsettlement/, /settlementamount/, /^netorderamount$/, /^netamount$/, /payableamount/, /settlementvalue/],
     campaign: [/campaignid/, /^campaign/],
     dedDate: [/deductiondate/, /debitdate/, /^date$/],
     dedDur: [/deductionduration/, /duration/, /spenddate/, /addate/],
@@ -134,13 +134,15 @@
     gst: [/^gst$/, /gstamount/],
   };
 
-  function classifyAndMap(arr) {
+  function classifyAndMap(arr, urlDate) {
     const first = arr[0];
     const keySet = Object.keys(first).map(normKey);
     const keys = keySet.join("|");
 
     const hasSub = /suborder/.test(keys);
-    const isPayment = hasSub && /(finalsettlement|settlementamount|settlementdate|paymentdate|netamount|payableamount)/.test(keys);
+    const isPayment =
+      hasSub &&
+      /(finalsettlement|settlementamount|settlementdate|paymentdate|netamount|payableamount|netorderamount|orderamount)/.test(keys);
     const isOrder = hasSub && !isPayment && /(orderdate|createdat|createdon|ordercreat|creatediso|orderts|productname|productdetails|reasonforcredit)/.test(keys);
     const isAds = /campaign/.test(keys) && /(cost|spend|deduction|amount)/.test(keys);
     // Meesho payouts APIs (previous-payments / upcoming-payments / panel-graph-overview):
@@ -161,15 +163,19 @@
           row.date_iso ?? pick(row, [/^dateiso$/, /^paymentdate$/, /^date$/])
         );
         if (!date) continue;
-        let amount = 0;
-        for (const key of Object.keys(row)) {
-          if (normKey(key) === "netamount") {
-            amount = toNumber(row[key]);
-            break;
-          }
-        }
-        if (!amount) continue;
+        // exact-key lookups so netOrderAmount isn't confused with netAmount
+        const exact = {};
+        for (const key of Object.keys(row)) exact[normKey(key)] = row[key];
+        const bankNet = toNumber(exact["netamount"] ?? exact["netamount"]);
+        const orderAmount = toNumber(exact["netorderamount"]); // orders se aaya (sales & returns net)
+        const recovery = Math.abs(toNumber(exact["netplatformrecovery"])); // ads/program cost
+        const compensation = toNumber(exact["netplatformcompensation"]);
+        if (!bankNet && !orderAmount) continue;
         const transferId = String(pick(row, [/transferid/]) ?? "");
+
+        // Settlement is stored BEFORE ads (like the xlsx per-order rows), so the
+        // dashboard's Net (= payments − ads) equals the real bank transfer.
+        const settlement = orderAmount || compensation ? orderAmount + compensation : bankNet;
         const rec = {
           id: `payout|${date}`,
           subOrderNo: `PAYOUT_${date}`,
@@ -182,18 +188,34 @@
           qty: 1,
           transactionId: transferId,
           paymentDate: date,
-          settlementAmount: amount,
-          saleAmount: 0,
+          settlementAmount: settlement,
+          saleAmount: bankNet, // reference: actual bank transfer amount
           returnAmount: 0,
           priceType: "PAYOUT_AGGREGATE",
         };
         payments[rec.id] = rec;
+
+        // Ads/recovery ka paisa — separate ads row so Ads Spend charts fill up
+        if (recovery > 0) {
+          const adRec = {
+            id: `payoutads|${date}`,
+            deductionDuration: date,
+            deductionDate: date,
+            campaignId: "PAYOUT_RECOVERY",
+            adCost: recovery,
+            gst: 0,
+            totalAdsCost: recovery,
+          };
+          ads[adRec.id] = adRec;
+        }
       }
     } else if (isPayment) {
       for (const row of arr) {
         const sub = String(pick(row, RE.subOrder) ?? "").trim();
         if (!sub || !/\d{6,}/.test(sub)) continue;
-        const paymentDate = toISODate(pick(row, RE.payDate));
+        // per-order rows on a payout-date detail page carry no date of their
+        // own — the date lives in the page URL, passed in as urlDate
+        const paymentDate = toISODate(pick(row, RE.payDate)) || urlDate || "";
         const rec = {
           id: `${sub}|${paymentDate}`,
           subOrderNo: sub,
@@ -302,9 +324,13 @@
     findObjectArrays(json, arrays, 0, "");
     if (arrays.length === 0) return;
 
+    // date in the request URL (e.g. payout detail pages for one payment date)
+    const urlDateMatch = String(msg.url).match(/(\d{4}-\d{2}-\d{2})/);
+    const urlDate = urlDateMatch ? urlDateMatch[1] : "";
+
     let captured = false;
     for (const entry of arrays) {
-      const { payments, orders, ads } = classifyAndMap(entry.arr);
+      const { payments, orders, ads } = classifyAndMap(entry.arr, urlDate);
       const nP = Object.keys(payments).length;
       const nO = Object.keys(orders).length;
       const nA = Object.keys(ads).length;
