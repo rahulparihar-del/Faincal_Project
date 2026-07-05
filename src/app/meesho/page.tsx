@@ -2,9 +2,12 @@
 
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Package, Clock, AlertTriangle, Image as ImageIcon, X, Calendar, Download, FileSpreadsheet, FileText, Upload, CheckCircle, MapPin, Tag, Search } from "lucide-react";
+import { Plus, Package, Clock, AlertTriangle, Image as ImageIcon, X, Calendar, Download, FileSpreadsheet, FileText, Upload, CheckCircle, MapPin, Tag, Search, LayoutDashboard, Wallet, RotateCcw, Store } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { useSupabaseTable } from "@/lib/hooks/useSupabaseTable";
+import PaymentsTab from "@/components/meesho/PaymentsTab";
+import OverviewTab from "@/components/meesho/OverviewTab";
+import { AnimatedCounter } from "@/components/ui/AnimatedCounter";
 
 interface MeeshoManualOrder {
   id: string;
@@ -232,7 +235,7 @@ export default function MeeshoPage() {
   );
   const { theme } = useTheme();
   const isDark = theme === "dark";
-  const [activeTab, setActiveTab] = useState<"dispatch" | "return">("dispatch");
+  const [activeTab, setActiveTab] = useState<"overview" | "dispatch" | "return" | "payments">("overview");
   const [returnSubTab, setReturnSubTab] = useState<"in-transit" | "out-for-delivery" | "delivered">("in-transit");
   const [selectedOrder, setSelectedOrder] = useState<MeeshoManualOrder | null>(null);
   const [selectedReturn, setSelectedReturn] = useState<MeeshoReturn | null>(null);
@@ -1223,97 +1226,228 @@ export default function MeeshoPage() {
 
   return (
     <div style={{ padding: "24px 30px", background: isDark ? "#09090b" : "#fcfcfc", minHeight: "100vh", transition: "background 0.2s" }}>
-      {/* Top Banner / Heading */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", marginBottom: 24 }}>
-        <div>
-          <h1 style={{ fontSize: 22, fontWeight: 900, color: isDark ? "#f8fafc" : "#111", letterSpacing: "-0.03em" }}>Meesho Console</h1>
-          <p style={{ fontSize: 11, color: isDark ? "#94a3b8" : "#666", marginTop: 2 }}>
-            {activeTab === "return" 
-              ? "Log, track, and reconcile customer and RTO package returns verbatim"
-              : "Log, track, and dispatch manual customer packages verbatim"}
-          </p>
-        </div>
-        
-        {/* Action Controls */}
-        <div style={{ display: "flex", gap: 8 }}>
-          <input
-            type="file"
-            id="meesho-orders-upload"
-            accept=".csv,.xlsx,.xls"
-            onChange={handleFileChange}
-            style={{ display: "none" }}
-          />
-          <button
-            onClick={() => document.getElementById("meesho-orders-upload")?.click()}
-            style={{
-              background: isDark ? "#ffffff" : "#000000",
-              color: isDark ? "#09090b" : "white",
-              border: "none",
-              borderRadius: 12,
-              padding: "10px 18px",
-              fontSize: 12,
-              fontWeight: 800,
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              cursor: "pointer",
-              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
-              transition: "all 0.2s"
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = isDark ? "#f1f5f9" : "#1f1f1f";
-              e.currentTarget.style.transform = "translateY(-1px)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = isDark ? "#ffffff" : "#000000";
-              e.currentTarget.style.transform = "translateY(0)";
-            }}
-          >
-            <Upload size={14} />
-            {isLoading 
-              ? "Ingesting..." 
-              : activeTab === "return" 
-                ? `Upload ${returnSubTab === "in-transit" ? "In Transit" : returnSubTab === "out-for-delivery" ? "Out for Delivery" : "Delivered"} Excel/CSV` 
-                : "Upload Excel/CSV"}
-          </button>
-        </div>
-      </div>
+      {/* ── Command Bar ── */}
+      <motion.div
+        initial={{ opacity: 0, y: -16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        style={{
+          position: "relative",
+          borderRadius: 22,
+          padding: "22px 26px",
+          marginBottom: 16,
+          background: isDark
+            ? "linear-gradient(115deg, #0a0a0b 0%, #131316 55%, #1c1c21 100%)"
+            : "linear-gradient(115deg, #000000 0%, #141414 55%, #262626 100%)",
+          border: isDark ? "1px solid #27272a" : "1px solid #000",
+          overflow: "hidden",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.25)",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            top: -70,
+            right: -30,
+            width: 260,
+            height: 260,
+            borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(255,255,255,0.09), transparent 70%)",
+            pointerEvents: "none",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            bottom: -90,
+            left: "35%",
+            width: 220,
+            height: 220,
+            borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(255,255,255,0.05), transparent 70%)",
+            pointerEvents: "none",
+          }}
+        />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 14, position: "relative" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 12,
+                background: "rgba(255,255,255,0.1)",
+                border: "1px solid rgba(255,255,255,0.2)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                backdropFilter: "blur(4px)",
+              }}
+            >
+              <Store size={18} color="#ffffff" />
+            </div>
+            <div>
+              <h1 style={{ fontSize: 21, fontWeight: 900, color: "#fff", letterSpacing: "-0.03em", lineHeight: 1.15 }}>Meesho Hub</h1>
+              <p style={{ fontSize: 10.5, color: "rgba(255,255,255,0.65)", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                KiddieKa · Supplier Command Center
+              </p>
+            </div>
+          </div>
 
-      {/* Navigation Tabs */}
-      <div style={{ display: "flex", gap: 8, borderBottom: isDark ? "1px solid #27272a" : "1px solid #e2e8f0", paddingBottom: 10, marginBottom: 20 }}>
-        <button
-          onClick={() => setActiveTab("dispatch")}
-          style={{
-            background: "transparent",
-            border: "none",
-            borderBottom: activeTab === "dispatch" ? (isDark ? "2px solid #ffffff" : "2px solid #000000") : "2px solid transparent",
-            color: activeTab === "dispatch" ? (isDark ? "#ffffff" : "#000000") : "#64748b",
-            padding: "8px 16px",
-            fontSize: 12,
-            fontWeight: 800,
-            cursor: "pointer",
-            transition: "all 0.2s"
-          }}
-        >
-          Forward Dispatch
-        </button>
-        <button
-          onClick={() => setActiveTab("return")}
-          style={{
-            background: "transparent",
-            border: "none",
-            borderBottom: activeTab === "return" ? (isDark ? "2px solid #ffffff" : "2px solid #000000") : "2px solid transparent",
-            color: activeTab === "return" ? (isDark ? "#ffffff" : "#000000") : "#64748b",
-            padding: "8px 16px",
-            fontSize: 12,
-            fontWeight: 800,
-            cursor: "pointer",
-            transition: "all 0.2s"
-          }}
-        >
-          Customer Returns
-        </button>
-      </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            {[
+              { label: "dispatch orders", value: orders.length },
+              { label: "returns tracked", value: inTransitList.length + outForDeliveryList.length + deliveredList.length },
+            ].map((c, ci) => (
+              <motion.div
+                key={c.label}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.2 + ci * 0.1, duration: 0.35 }}
+                style={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  gap: 6,
+                  background: "rgba(255,255,255,0.08)",
+                  border: "1px solid rgba(255,255,255,0.16)",
+                  borderRadius: 12,
+                  padding: "8px 14px",
+                  backdropFilter: "blur(4px)",
+                }}
+              >
+                <span style={{ fontSize: 16, fontWeight: 900, color: "#fff", fontVariantNumeric: "tabular-nums" }}>
+                  <AnimatedCounter value={c.value} />
+                </span>
+                <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  {c.label}
+                </span>
+              </motion.div>
+            ))}
+
+            {/* Dispatch/Return uploader (payments & overview tabs have their own) */}
+            <div style={{ display: activeTab === "dispatch" || activeTab === "return" ? "flex" : "none", gap: 8 }}>
+              <input
+                type="file"
+                id="meesho-orders-upload"
+                accept=".csv,.xlsx,.xls"
+                onChange={handleFileChange}
+                style={{ display: "none" }}
+              />
+              <button
+                onClick={() => document.getElementById("meesho-orders-upload")?.click()}
+                style={{
+                  background: "rgba(255,255,255,0.96)",
+                  color: "#000000",
+                  border: "none",
+                  borderRadius: 12,
+                  padding: "10px 18px",
+                  fontSize: 12,
+                  fontWeight: 800,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  cursor: "pointer",
+                  boxShadow: "0 4px 14px rgba(0,0,0,0.2)",
+                  transition: "all 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "translateY(-1px)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                }}
+              >
+                <Upload size={14} />
+                {isLoading
+                  ? "Ingesting..."
+                  : activeTab === "return"
+                    ? `Upload ${returnSubTab === "in-transit" ? "In Transit" : returnSubTab === "out-for-delivery" ? "Out for Delivery" : "Delivered"} Excel/CSV`
+                    : "Upload Excel/CSV"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* ── Tab Rail ── */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15, duration: 0.4, ease: "easeOut" }}
+        style={{
+          display: "inline-flex",
+          gap: 4,
+          padding: 4,
+          borderRadius: 15,
+          background: isDark ? "#18181b" : "#ffffff",
+          border: isDark ? "1px solid #27272a" : "1px solid #ececec",
+          boxShadow: isDark ? "none" : "0 1px 3px rgba(0,0,0,0.04)",
+          marginBottom: 20,
+          flexWrap: "wrap",
+        }}
+      >
+        {(
+          [
+            { id: "overview", label: "Overview", icon: LayoutDashboard },
+            { id: "payments", label: "Payments & Ads", icon: Wallet },
+            { id: "dispatch", label: "Forward Dispatch", icon: Package },
+            { id: "return", label: "Customer Returns", icon: RotateCcw },
+          ] as const
+        ).map((t) => {
+          const isActive = activeTab === t.id;
+          return (
+            <button
+              key={t.id}
+              onClick={() => setActiveTab(t.id)}
+              style={{
+                position: "relative",
+                display: "flex",
+                alignItems: "center",
+                gap: 7,
+                background: "transparent",
+                color: isActive ? (isDark ? "#09090b" : "#ffffff") : isDark ? "#a1a1aa" : "#64748b",
+                border: "none",
+                borderRadius: 11,
+                padding: "9px 16px",
+                fontSize: 12,
+                fontWeight: 800,
+                cursor: "pointer",
+                zIndex: 1,
+              }}
+            >
+              {isActive && (
+                <motion.span
+                  layoutId="meesho-tab-pill"
+                  transition={{ type: "spring", stiffness: 400, damping: 32 }}
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    borderRadius: 11,
+                    background: isDark ? "#fafafa" : "#000000",
+                    boxShadow: "0 3px 10px rgba(0,0,0,0.25)",
+                    zIndex: -1,
+                  }}
+                />
+              )}
+              <t.icon size={13} />
+              {t.label}
+            </button>
+          );
+        })}
+      </motion.div>
+
+      {/* Overview Dashboard */}
+      {activeTab === "overview" && (
+        <motion.div key="overview" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, ease: "easeOut" }}>
+          <OverviewTab />
+        </motion.div>
+      )}
+
+      {/* Payments & Ads Dashboard */}
+      {activeTab === "payments" && (
+        <motion.div key="payments" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, ease: "easeOut" }}>
+          <PaymentsTab />
+        </motion.div>
+      )}
 
       {/* Return Sub-Tabs */}
       {activeTab === "return" && (

@@ -1,0 +1,76 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; }
+    body { width: 340px; background: #fcfcfc; color: #111; }
+    .head {
+      background: linear-gradient(115deg, #000, #262626);
+      color: #fff; padding: 14px 16px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .head h1 { font-size: 13px; font-weight: 900; letter-spacing: -0.02em; }
+    .head p { font-size: 9.5px; color: rgba(255,255,255,0.6); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+    .dot { width: 8px; height: 8px; border-radius: 999px; background: #52525b; }
+    .dot.ok { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
+    .body { padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .stat { background: #fff; border: 1px solid #e8e8e8; border-radius: 12px; padding: 10px; text-align: center; }
+    .stat b { display: block; font-size: 18px; font-weight: 900; font-variant-numeric: tabular-nums; }
+    .stat span { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; }
+    label { font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; display: block; margin-bottom: 4px; }
+    input { width: 100%; border: 1px solid #d4d4d8; border-radius: 10px; padding: 8px 10px; font-size: 11.5px; background: #fff; }
+    input:focus { outline: 2px solid #111; border-color: #111; }
+    .row { display: flex; gap: 8px; }
+    button { border: none; border-radius: 10px; padding: 10px 12px; font-size: 11.5px; font-weight: 800; cursor: pointer; }
+    #syncBtn { flex: 1; background: #000; color: #fff; }
+    #syncBtn:disabled { opacity: 0.55; cursor: wait; }
+    .ghost { background: #fff; border: 1px solid #d4d4d8 !important; color: #334155; border: 1px solid; }
+    .ghost.danger { color: #dc2626; border-color: rgba(220,38,38,0.35) !important; }
+    #status { font-size: 11px; font-weight: 700; line-height: 1.5; border-radius: 10px; padding: 9px 11px; display: none; }
+    #status.ok { display: block; background: #f0fdf4; border: 1px solid #dcfce7; color: #16a34a; }
+    #status.err { display: block; background: #fef2f2; border: 1px solid #fee2e2; color: #dc2626; }
+    .meta { font-size: 9.5px; color: #94a3b8; text-align: center; }
+    a { color: #334155; }
+  </style>
+</head>
+<body>
+  <div class="head">
+    <div>
+      <h1>BizTrack Sync</h1>
+      <p>Meesho Supplier Panel</p>
+    </div>
+    <div id="connDot" class="dot" title="Supabase not configured"></div>
+  </div>
+
+  <div class="body">
+    <div class="stats">
+      <div class="stat"><b id="cPayments">0</b><span>Payments</span></div>
+      <div class="stat"><b id="cOrders">0</b><span>Orders</span></div>
+      <div class="stat"><b id="cAds">0</b><span>Ads Rows</span></div>
+    </div>
+    <div class="meta" id="lastCapture">No data captured yet — browse Orders / Payments / Ads pages on the supplier panel.</div>
+
+    <div>
+      <label for="sbUrl">Supabase URL</label>
+      <input id="sbUrl" type="url" placeholder="https://xxxx.supabase.co" />
+    </div>
+    <div>
+      <label for="sbKey">Supabase publishable key</label>
+      <input id="sbKey" type="password" placeholder="sb_publishable_… / anon key" />
+    </div>
+
+    <div class="row">
+      <button id="syncBtn">Sync to BizTrack</button>
+      <button id="exportBtn" class="ghost" title="Export captured data + API samples as JSON (for debugging)">Export</button>
+      <button id="clearBtn" class="ghost danger" title="Clear captured data">Clear</button>
+    </div>
+
+    <div id="status"></div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
