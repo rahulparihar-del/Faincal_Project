@@ -80,24 +80,44 @@
   }
 
   // Recursively collect arrays of plain objects from a JSON payload.
-  function findObjectArrays(node, out, depth) {
-    if (depth > 6 || !node) return;
+  // Each entry: { arr, path } so debug samples can show where data lives.
+  // For nested container arrays (e.g. groups each holding an `orders` array),
+  // the inner arrays of ALL items are merged so nothing is missed.
+  function findObjectArrays(node, out, depth, path) {
+    if (depth > 7 || !node) return;
     if (Array.isArray(node)) {
       if (node.length > 0 && typeof node[0] === "object" && node[0] !== null && !Array.isArray(node[0])) {
-        out.push(node);
+        out.push({ arr: node, path });
+
+        // merge same-named nested arrays across ALL items (grouped lists)
+        const nestedByKey = {};
+        for (const item of node) {
+          if (!item || typeof item !== "object") continue;
+          for (const k of Object.keys(item)) {
+            const v = item[k];
+            if (Array.isArray(v) && v.length > 0 && typeof v[0] === "object" && v[0] !== null && !Array.isArray(v[0])) {
+              (nestedByKey[k] = nestedByKey[k] || []).push(...v);
+            } else if (v && typeof v === "object" && !Array.isArray(v)) {
+              findObjectArrays(v, out, depth + 1, `${path}[].${k}`);
+            }
+          }
+        }
+        for (const k of Object.keys(nestedByKey)) {
+          findObjectArrays(nestedByKey[k], out, depth + 1, `${path}[].${k}`);
+        }
+        return;
       }
-      // also inspect nested
-      for (const item of node.slice(0, 3)) findObjectArrays(item, out, depth + 1);
+      for (const item of node) findObjectArrays(item, out, depth + 1, `${path}[]`);
       return;
     }
     if (typeof node === "object") {
-      for (const k of Object.keys(node)) findObjectArrays(node[k], out, depth + 1);
+      for (const k of Object.keys(node)) findObjectArrays(node[k], out, depth + 1, path ? `${path}.${k}` : k);
     }
   }
 
   const RE = {
     subOrder: [/suborder/],
-    orderDate: [/orderdate/, /ordercreat/, /createdat/, /createdon/, /orderedat/],
+    orderDate: [/orderdate/, /ordercreat/, /createdat/, /createdon/, /orderedat/, /creatediso/, /^created$/, /orderts/, /^ts$/],
     status: [/reasonforcredit/, /orderstatus/, /liveorderstatus/, /^status$/, /statustype/],
     product: [/productname/, /^name$/, /title/],
     sku: [/^sku$/, /suppliersku/, /skuid/],
@@ -116,18 +136,60 @@
 
   function classifyAndMap(arr) {
     const first = arr[0];
-    const keys = Object.keys(first).map(normKey).join("|");
+    const keySet = Object.keys(first).map(normKey);
+    const keys = keySet.join("|");
 
     const hasSub = /suborder/.test(keys);
     const isPayment = hasSub && /(finalsettlement|settlementamount|settlementdate|paymentdate|netamount|payableamount)/.test(keys);
-    const isOrder = hasSub && !isPayment && /(orderdate|createdat|createdon|ordercreat|productname|reasonforcredit)/.test(keys);
+    const isOrder = hasSub && !isPayment && /(orderdate|createdat|createdon|ordercreat|creatediso|orderts|productname|productdetails|reasonforcredit)/.test(keys);
     const isAds = /campaign/.test(keys) && /(cost|spend|deduction|amount)/.test(keys);
+    // Meesho payouts APIs (previous-payments / upcoming-payments / panel-graph-overview):
+    // day-level totals like { date_iso, netAmount, transferId } or { payment_date, net_amount }
+    const isPayout =
+      !hasSub &&
+      !isAds &&
+      keySet.includes("netamount") &&
+      (keySet.includes("dateiso") || keySet.includes("paymentdate") || keySet.includes("date"));
 
     const payments = {};
     const orders = {};
     const ads = {};
 
-    if (isPayment) {
+    if (isPayout) {
+      for (const row of arr) {
+        const date = toISODate(
+          row.date_iso ?? pick(row, [/^dateiso$/, /^paymentdate$/, /^date$/])
+        );
+        if (!date) continue;
+        let amount = 0;
+        for (const key of Object.keys(row)) {
+          if (normKey(key) === "netamount") {
+            amount = toNumber(row[key]);
+            break;
+          }
+        }
+        if (!amount) continue;
+        const transferId = String(pick(row, [/transferid/]) ?? "");
+        const rec = {
+          id: `payout|${date}`,
+          subOrderNo: `PAYOUT_${date}`,
+          orderDate: "",
+          dispatchDate: "",
+          productName: "Meesho payout (daily total)",
+          sku: "",
+          liveOrderStatus: "",
+          listingPrice: 0,
+          qty: 1,
+          transactionId: transferId,
+          paymentDate: date,
+          settlementAmount: amount,
+          saleAmount: 0,
+          returnAmount: 0,
+          priceType: "PAYOUT_AGGREGATE",
+        };
+        payments[rec.id] = rec;
+      }
+    } else if (isPayment) {
       for (const row of arr) {
         const sub = String(pick(row, RE.subOrder) ?? "").trim();
         if (!sub || !/\d{6,}/.test(sub)) continue;
@@ -237,16 +299,17 @@
     }
 
     const arrays = [];
-    findObjectArrays(json, arrays, 0);
+    findObjectArrays(json, arrays, 0, "");
     if (arrays.length === 0) return;
 
     let captured = false;
-    for (const arr of arrays) {
-      const { payments, orders, ads } = classifyAndMap(arr);
+    for (const entry of arrays) {
+      const { payments, orders, ads } = classifyAndMap(entry.arr);
       const nP = Object.keys(payments).length;
       const nO = Object.keys(orders).length;
       const nA = Object.keys(ads).length;
-      if (nP + nO + nA > 0) {
+      entry.matched = nP + nO + nA > 0;
+      if (entry.matched) {
         Object.assign(pending.payments, payments);
         Object.assign(pending.orders, orders);
         Object.assign(pending.ads, ads);
@@ -254,14 +317,17 @@
       }
     }
 
-    // keep a small raw sample of every JSON API seen — helps improve mappers
+    // keep raw samples of the API shapes seen (url + path + field names only)
     try {
-      const firstArr = arrays[0];
       rawSamples.push({
         url: String(msg.url).slice(0, 220),
-        keys: Object.keys(firstArr[0] || {}).slice(0, 40),
         matched: captured,
         at: new Date().toISOString(),
+        arrays: arrays.slice(0, 6).map((e) => ({
+          path: e.path,
+          matched: !!e.matched,
+          keys: Object.keys(e.arr[0] || {}).slice(0, 45),
+        })),
       });
     } catch {
       /* ignore */

@@ -304,6 +304,22 @@ export function parseOrdersWorkbook(workbook: any): MeeshoOrderLogRow[] {
 
 // ── aggregation ─────────────────────────────────────────────────────
 
+// The Chrome extension syncs day-level payout totals (priceType "PAYOUT_AGGREGATE",
+// one row per payout date) because Meesho's panel APIs don't expose per-order
+// settlements. The xlsx payment files DO have per-order rows. To avoid double
+// counting when both sources exist, aggregate rows are dropped for any payment
+// date that already has per-order rows.
+export function isAggregateRow(p: MeeshoPaymentRow): boolean {
+  return p.priceType === "PAYOUT_AGGREGATE" || p.subOrderNo.startsWith("PAYOUT_");
+}
+
+export function resolvePayments(payments: MeeshoPaymentRow[]): MeeshoPaymentRow[] {
+  const detailDates = new Set(
+    payments.filter((p) => !isAggregateRow(p) && p.paymentDate).map((p) => p.paymentDate)
+  );
+  return payments.filter((p) => !isAggregateRow(p) || !detailDates.has(p.paymentDate));
+}
+
 export interface DailyRow {
   date: string; // YYYY-MM-DD
   ordersPlaced: number; // unique suborders ordered that day
@@ -322,10 +338,11 @@ export function todayISO(): string {
 }
 
 export function buildDailyRows(
-  payments: MeeshoPaymentRow[],
+  rawPayments: MeeshoPaymentRow[],
   ads: MeeshoAdsRow[],
   orderLog: MeeshoOrderLogRow[]
 ): DailyRow[] {
+  const payments = resolvePayments(rawPayments);
   const map = new Map<string, DailyRow>();
   const get = (date: string): DailyRow => {
     let r = map.get(date);
@@ -407,20 +424,23 @@ export interface PaymentsSummary {
 }
 
 export function buildSummary(
-  payments: MeeshoPaymentRow[],
+  rawPayments: MeeshoPaymentRow[],
   ads: MeeshoAdsRow[],
   orderLog: MeeshoOrderLogRow[]
 ): PaymentsSummary {
+  const payments = resolvePayments(rawPayments);
   const today = todayISO();
   const orderIds = new Set<string>();
   for (const o of orderLog) orderIds.add(o.subOrderNo);
-  for (const p of payments) orderIds.add(p.subOrderNo);
+  for (const p of payments) {
+    if (!isAggregateRow(p)) orderIds.add(p.subOrderNo);
+  }
 
   let delivered = 0;
   let returned = 0;
   const statusSeen = new Set<string>();
   for (const p of payments) {
-    if (statusSeen.has(p.subOrderNo)) continue;
+    if (isAggregateRow(p) || statusSeen.has(p.subOrderNo)) continue;
     statusSeen.add(p.subOrderNo);
     const s = p.liveOrderStatus.toLowerCase();
     if (s.includes("deliver")) delivered += 1;
