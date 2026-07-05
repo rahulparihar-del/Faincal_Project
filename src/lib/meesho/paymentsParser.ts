@@ -275,10 +275,15 @@ export function isAggregateRow(p: MeeshoPaymentRow): boolean {
 }
 
 export function resolvePayments(payments: MeeshoPaymentRow[]): MeeshoPaymentRow[] {
-  const detailDates = new Set(
-    payments.filter((p) => !isAggregateRow(p) && p.paymentDate).map((p) => p.paymentDate)
+  const aggregateDates = new Set(
+    payments.filter((p) => isAggregateRow(p) && p.paymentDate).map((p) => p.paymentDate)
   );
-  return payments.filter((p) => !isAggregateRow(p) || !detailDates.has(p.paymentDate));
+  return payments.filter((p) => {
+    if (isAggregateRow(p)) {
+      return true;
+    }
+    return !aggregateDates.has(p.paymentDate);
+  });
 }
 
 // Same idea for ads: the extension stores a day-level "PAYOUT_RECOVERY" row per

@@ -2,10 +2,9 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Package, AlertTriangle, X, CheckCircle, Upload, RotateCcw, Store, Wallet, LayoutDashboard } from "lucide-react";
+import { Package, AlertTriangle, X, CheckCircle, Upload, RotateCcw, Store, LayoutDashboard } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { useSupabaseTable } from "@/lib/hooks/useSupabaseTable";
-import PaymentsTab from "@/components/meesho/PaymentsTab";
 import OverviewTab from "@/components/meesho/OverviewTab";
 import OrdersTab from "@/components/meesho/OrdersTab";
 import ReturnsTab from "@/components/meesho/ReturnsTab";
@@ -169,7 +168,7 @@ function isSameReturn(a: MeeshoReturn, b: MeeshoReturn): boolean {
 export default function MeeshoPage() {
   const { theme } = useTheme();
   const isDark = theme === "dark";
-  const [activeTab, setActiveTab] = useState<"overview" | "dispatch" | "return" | "payments">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "dispatch" | "return">("overview");
 
   // Fetch orders and returns count for the header badges
   const [orders] = useMeeshoOrders();
@@ -298,7 +297,6 @@ export default function MeeshoPage() {
       >
         {[
           { id: "overview", label: "Overview", icon: LayoutDashboard },
-          { id: "payments", label: "Payments & Ads", icon: Wallet },
           { id: "dispatch", label: "Forward Dispatch", icon: Package },
           { id: "return", label: "Customer Returns", icon: RotateCcw },
         ].map((tab) => {
@@ -334,13 +332,6 @@ export default function MeeshoPage() {
       {activeTab === "overview" && (
         <motion.div key="overview" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, ease: "easeOut" }}>
           <OverviewTab />
-        </motion.div>
-      )}
-
-      {/* Payments & Ads Dashboard */}
-      {activeTab === "payments" && (
-        <motion.div key="payments" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, ease: "easeOut" }}>
-          <PaymentsTab />
         </motion.div>
       )}
 

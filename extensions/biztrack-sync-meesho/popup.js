@@ -5,10 +5,19 @@
 const $ = (id) => document.getElementById(id);
 
 const TABLES = [
+  // Returns — three stage-specific sub-tables matching the ReturnsTab sub-tabs
+  { storageKey: "bt_returns_intransit", table: "meesho_returns_in_transit",  label: "in-transit returns"  },
+  { storageKey: "bt_returns_ofd",       table: "meesho_returns_out_delivery", label: "OFD returns"          },
+  { storageKey: "bt_returns_delivered", table: "meesho_returns_delivered",    label: "delivered returns"    },
+  // Orders
+  { storageKey: "bt_orders",   table: "meesho_orders",   label: "orders"   },
+  // Payments & Ads (still captured, just not shown on the main UI tab)
+  { storageKey: "bt_ads",      table: "meesho_ads",      label: "ads rows" },
   { storageKey: "bt_payments", table: "meesho_payments", label: "payments" },
-  { storageKey: "bt_orders", table: "meesho_orders", label: "orders" },
-  { storageKey: "bt_ads", table: "meesho_ads", label: "ads rows" },
 ];
+
+const RETURN_KEYS = ["bt_returns_intransit", "bt_returns_ofd", "bt_returns_delivered"];
+const ALL_STORAGE_KEYS = [...TABLES.map(t => t.storageKey), "bt_samples", "bt_lastCapture"];
 
 function setStatus(kind, msg) {
   const el = $("status");
@@ -17,10 +26,16 @@ function setStatus(kind, msg) {
 }
 
 function refreshCounts() {
-  chrome.storage.local.get(["bt_payments", "bt_orders", "bt_ads", "bt_lastCapture"], (d) => {
+  chrome.storage.local.get([...TABLES.map(t => t.storageKey), "bt_lastCapture"], (d) => {
+    // Returns counter = sum of all 3 stage buckets
+    const totalReturns =
+      Object.keys(d.bt_returns_intransit || {}).length +
+      Object.keys(d.bt_returns_ofd       || {}).length +
+      Object.keys(d.bt_returns_delivered || {}).length;
+    $("cReturns").textContent  = totalReturns;
+    $("cOrders").textContent   = Object.keys(d.bt_orders   || {}).length;
+    $("cAds").textContent      = Object.keys(d.bt_ads      || {}).length;
     $("cPayments").textContent = Object.keys(d.bt_payments || {}).length;
-    $("cOrders").textContent = Object.keys(d.bt_orders || {}).length;
-    $("cAds").textContent = Object.keys(d.bt_ads || {}).length;
     if (d.bt_lastCapture) {
       $("lastCapture").textContent = "Last capture: " + new Date(d.bt_lastCapture).toLocaleString("en-IN");
     }
@@ -76,15 +91,15 @@ $("syncBtn").addEventListener("click", async () => {
   setStatus("ok", "Syncing…");
 
   try {
-    const data = await chrome.storage.local.get(["bt_payments", "bt_orders", "bt_ads"]);
+    const data = await chrome.storage.local.get(TABLES.map(t => t.storageKey));
     const parts = [];
 
     for (const t of TABLES) {
       const map = data[t.storageKey] || {};
       const records = Object.values(map).map((r) => {
-        if (t.table === "meesho_orders") {
-          return r; // Send structured columns directly
-        }
+        // meesho_orders uses flat structured columns (schema-matched).
+        // All return sub-tables + payments + ads use { id, data: JSONB }.
+        if (t.table === "meesho_orders") return r;
         return { id: r.id, data: r };
       });
       if (records.length === 0) continue;
@@ -95,9 +110,13 @@ $("syncBtn").addEventListener("click", async () => {
     }
 
     if (parts.length === 0) {
-      setStatus("err", "Nothing captured yet. Open the supplier panel and browse your Orders, Payments and Ads pages, then try again.");
+      setStatus("err", "Nothing captured yet. Browse Orders / Returns tracking pages on the supplier panel, then try again.");
     } else {
-      setStatus("ok", `Synced ✓ ${parts.join(" · ")}. Reload BizTrack to see the update.`);
+      // Clear local storage buffers upon successful sync
+      chrome.storage.local.remove(TABLES.map(t => t.storageKey), () => {
+        refreshCounts();
+        setStatus("ok", `Synced ✓ ${parts.join(" · ")}. Local cache cleared. Reload BizTrack to see the update.`);
+      });
     }
   } catch (err) {
     setStatus("err", "Sync failed — " + (err && err.message ? err.message : String(err)));
@@ -108,7 +127,7 @@ $("syncBtn").addEventListener("click", async () => {
 
 // ── export (debugging aid) ──
 $("exportBtn").addEventListener("click", async () => {
-  const d = await chrome.storage.local.get(["bt_payments", "bt_orders", "bt_ads", "bt_samples"]);
+  const d = await chrome.storage.local.get([...TABLES.map(t => t.storageKey), "bt_samples"]);
   const blob = new Blob([JSON.stringify(d, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -120,7 +139,7 @@ $("exportBtn").addEventListener("click", async () => {
 
 // ── clear ──
 $("clearBtn").addEventListener("click", () => {
-  chrome.storage.local.remove(["bt_payments", "bt_orders", "bt_ads", "bt_samples", "bt_lastCapture"], () => {
+  chrome.storage.local.remove(ALL_STORAGE_KEYS, () => {
     refreshCounts();
     $("lastCapture").textContent = "Captured data cleared.";
     setStatus("ok", "Local captured data cleared. (Nothing was deleted from Supabase.)");
