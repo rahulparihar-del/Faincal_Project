@@ -213,3 +213,33 @@ begin
   execute 'drop policy if exists "anon_full_access" on public.branding_enquiries;';
   execute 'create policy "anon_full_access" on public.branding_enquiries for all to anon, authenticated using (true) with check (true);';
 end $$;
+
+-- ---------- Personal Finance (entries + config) ----------
+create table if not exists public.personal_finance (
+  id          text primary key,
+  data        jsonb not null,
+  created_at  timestamptz not null default now()
+);
+
+create table if not exists public.finance_config (
+  id          text primary key,
+  data        jsonb not null,
+  created_at  timestamptz not null default now()
+);
+
+alter table public.personal_finance enable row level security;
+alter table public.finance_config   enable row level security;
+
+do $$
+declare
+  t text;
+begin
+  foreach t in array array['personal_finance','finance_config']
+  loop
+    execute format('drop policy if exists "anon_full_access" on public.%I;', t);
+    execute format(
+      'create policy "anon_full_access" on public.%I for all to anon, authenticated using (true) with check (true);',
+      t
+    );
+  end loop;
+end $$;
