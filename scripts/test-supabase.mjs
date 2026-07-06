@@ -13,7 +13,15 @@ if (!url || !key) {
 }
 
 const supabase = createClient(url, key, { auth: { persistSession: false } });
-const tables = ["ecom_sales", "wholesale_sales", "manufacturers", "purchases", "transactions"];
+const tables = [
+  "ecom_sales",
+  "wholesale_sales",
+  "manufacturers",
+  "purchases",
+  "transactions",
+  "personal_finance",
+  "finance_config"
+];
 
 let allOk = true;
 for (const t of tables) {
