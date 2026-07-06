@@ -110,8 +110,8 @@ function EntryDrawer({
 
   return (
     <div className="fixed inset-0 z-[200] flex">
-      <div className="absolute inset-0 bg-black/20 dark:bg-black/45 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white dark:bg-zinc-900 shadow-2xl flex flex-col overflow-hidden animate-slide-in-right border-l border-neutral-200 dark:border-zinc-800">
+      <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl flex flex-col overflow-hidden animate-slide-in-right border-l border-neutral-200 dark:border-zinc-800">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-neutral-100 dark:border-zinc-850">
           <div>
@@ -121,7 +121,7 @@ function EntryDrawer({
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg border border-neutral-200 dark:border-zinc-850 text-neutral-500 dark:text-zinc-450 hover:text-black dark:hover:text-white hover:bg-neutral-50 dark:hover:bg-zinc-850 transition-colors"
+            className="w-8 h-8 flex items-center justify-center rounded-lg border border-neutral-200 dark:border-zinc-850 text-neutral-500 dark:text-zinc-455 hover:text-black dark:hover:text-white hover:bg-neutral-50 dark:hover:bg-zinc-850 transition-colors"
           >
             <X size={14} />
           </button>
@@ -145,7 +145,7 @@ function EntryDrawer({
                       set("transferTo", "Current");
                     }
                   }}
-                  className={`py-2 rounded-md text-[11px] font-bold transition-all ${
+                  className={`py-1.5 rounded-md text-[11px] font-bold transition-all ${
                     form.type === t
                       ? "bg-white dark:bg-zinc-800 text-neutral-950 dark:text-white shadow-sm"
                       : "text-neutral-550 dark:text-zinc-500 hover:text-neutral-950 dark:hover:text-zinc-350"
@@ -176,7 +176,7 @@ function EntryDrawer({
 
           {/* Description */}
           <div>
-            <label className="block text-[10px] font-bold text-neutral-400 dark:text-zinc-500 uppercase tracking-widest mb-1.5">Description</label>
+            <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">Description</label>
             <input
               type="text"
               value={form.description}
@@ -189,20 +189,20 @@ function EntryDrawer({
           {/* Date & Mode */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[10px] font-bold text-neutral-400 dark:text-zinc-500 uppercase tracking-widest mb-1.5">Date</label>
+              <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">Date</label>
               <input
                 type="date"
                 value={form.date}
                 onChange={(e) => set("date", e.target.value)}
-                className="w-full px-3 py-2.5 border border-neutral-200 dark:border-zinc-850 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-950 dark:focus:border-white bg-white dark:bg-zinc-900 text-neutral-950 dark:text-white"
+                className="w-full px-3 py-2.5 border border-neutral-200 dark:border-zinc-850 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-905 dark:focus:border-white bg-white dark:bg-zinc-900 text-neutral-950 dark:text-white"
               />
             </div>
             <div>
-              <label className="block text-[10px] font-bold text-neutral-400 dark:text-zinc-500 uppercase tracking-widest mb-1.5">Method</label>
+              <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">Method</label>
               <select
                 value={form.paymentMode}
                 onChange={(e) => set("paymentMode", e.target.value as PersonalFinanceEntry["paymentMode"])}
-                className="w-full px-3 py-2.5 border border-neutral-200 dark:border-zinc-850 rounded-lg text-xs font-bold focus:outline-none focus:border-neutral-950 dark:focus:border-white bg-white dark:bg-zinc-900 text-neutral-950 dark:text-white"
+                className="w-full px-3 py-2.5 border border-neutral-200 dark:border-zinc-850 rounded-lg text-xs font-bold focus:outline-none focus:border-neutral-950 dark:focus:border-white bg-white dark:bg-zinc-900 text-neutral-955 dark:text-white"
               >
                 <option>Cash</option>
                 <option>UPI</option>
@@ -275,7 +275,7 @@ function EntryDrawer({
                         : "text-neutral-500 dark:text-zinc-500"
                     }`}
                   >
-                    {acc} Account
+                    {acc}
                   </button>
                 ))}
               </div>
@@ -313,7 +313,7 @@ function EntryDrawer({
                 value={form.tags ?? ""}
                 onChange={(e) => set("tags", e.target.value)}
                 placeholder="work, travel..."
-                className="w-full px-3 py-2.5 border border-neutral-200 dark:border-zinc-850 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-950 dark:focus:border-white bg-white dark:bg-zinc-900 text-neutral-950 dark:text-white placeholder-neutral-350 dark:placeholder-zinc-650"
+                className="w-full px-3 py-2 border border-neutral-200 dark:border-zinc-850 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-950 bg-white dark:bg-zinc-900 text-neutral-950 dark:text-white placeholder-neutral-350 dark:placeholder-zinc-650"
               />
             </div>
             <div>
@@ -323,7 +323,7 @@ function EntryDrawer({
                 value={form.notes ?? ""}
                 onChange={(e) => set("notes", e.target.value)}
                 placeholder="Memo..."
-                className="w-full px-3 py-2 border border-neutral-200 dark:border-zinc-850 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-950 dark:focus:border-white bg-white dark:bg-zinc-900 text-neutral-950 dark:text-white placeholder-neutral-350 dark:placeholder-zinc-650"
+                className="w-full px-3 py-2 border border-neutral-200 dark:border-zinc-850 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-950 bg-white dark:bg-zinc-900 text-neutral-950 dark:text-white placeholder-neutral-350 dark:placeholder-zinc-650"
               />
             </div>
           </div>
@@ -357,7 +357,7 @@ function EntryDrawer({
         <div className="px-6 py-4.5 border-t border-neutral-100 dark:border-zinc-850 flex gap-3 bg-neutral-50/50 dark:bg-zinc-950/20">
           <button
             onClick={onClose}
-            className="flex-1 py-2.5 rounded-lg border border-neutral-200 dark:border-zinc-800 text-xs font-bold text-neutral-605 dark:text-zinc-400 bg-white dark:bg-zinc-900 hover:bg-neutral-100 dark:hover:bg-zinc-800 hover:text-black dark:hover:text-white transition-colors"
+            className="flex-1 py-2.5 rounded-lg border border-neutral-200 dark:border-zinc-800 text-xs font-bold text-neutral-600 dark:text-zinc-400 bg-white dark:bg-zinc-900 hover:bg-neutral-100 dark:hover:bg-zinc-800 hover:text-black dark:hover:text-white transition-colors"
           >
             Cancel
           </button>
@@ -392,10 +392,10 @@ function SettingsModal({
 
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/20 dark:bg-black/45 backdrop-blur-[1px]" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/20 backdrop-blur-[1px]" onClick={onClose} />
       <div className="relative bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-sm p-6 flex flex-col gap-4 border border-neutral-200 dark:border-zinc-800 animate-fade-in">
         <div className="flex items-center justify-between pb-2 border-b border-neutral-100 dark:border-zinc-850">
-          <h2 className="text-xs font-black uppercase tracking-widest text-neutral-950 dark:text-white">Settings</h2>
+          <h2 className="text-xs font-black uppercase tracking-widest text-neutral-955 dark:text-white">Settings</h2>
           <button onClick={onClose} className="w-7 h-7 rounded-lg border border-neutral-200 dark:border-zinc-800 flex items-center justify-center hover:bg-neutral-50 dark:hover:bg-zinc-850 transition-colors text-neutral-500 dark:text-zinc-450">
             <X size={13} />
           </button>
@@ -407,7 +407,7 @@ function SettingsModal({
           { label: "Monthly Budget (₹)", key: "monthlyBudget" as const, placeholder: "e.g. 30000" },
         ].map(({ label, key, placeholder }) => (
           <div key={key}>
-            <label className="block text-[10px] font-bold text-neutral-400 dark:text-zinc-500 uppercase tracking-widest mb-1">{label}</label>
+            <label className="block text-[9px] font-bold text-neutral-400 dark:text-zinc-500 uppercase tracking-widest mb-1">{label}</label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-neutral-950 dark:text-white">₹</span>
               <input
@@ -416,7 +416,7 @@ function SettingsModal({
                 value={form[key] || ""}
                 onChange={(e) => setForm((p) => ({ ...p, [key]: parseFloat(e.target.value) || 0 }))}
                 placeholder={placeholder}
-                className="w-full pl-7 pr-4 py-2 border border-neutral-200 dark:border-zinc-850 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-950 dark:focus:border-white bg-white dark:bg-zinc-900 text-neutral-950 dark:text-white placeholder-neutral-350 dark:placeholder-zinc-650"
+                className="w-full pl-6 pr-4 py-2 border border-neutral-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-950 bg-white dark:bg-zinc-900 text-neutral-950 dark:text-white placeholder-neutral-350 dark:placeholder-zinc-650"
               />
             </div>
           </div>
@@ -636,7 +636,7 @@ export default function FinanceContent() {
             className={`border rounded-xl flex flex-col justify-between p-4.5 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.02)] ${
               s.highlight
                 ? "bg-white dark:bg-zinc-900 text-neutral-900 dark:text-white border-neutral-950 dark:border-zinc-700 border-l-4 border-l-neutral-950 dark:border-l-white shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
-                : "bg-white dark:bg-zinc-900 text-neutral-900 dark:text-white border-neutral-150 dark:border-zinc-800"
+                : "bg-white dark:bg-zinc-900 text-neutral-900 dark:text-white border-neutral-155 dark:border-zinc-800"
             }`}
           >
             <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 dark:text-zinc-500">
@@ -647,91 +647,101 @@ export default function FinanceContent() {
         ))}
       </div>
 
-      {/* ── Table & Filter Area ── */}
+      {/* ── Table & Filter Area (Linear-inspired SaaS style) ── */}
       <div className="bg-white dark:bg-zinc-900 rounded-xl border border-neutral-155 dark:border-zinc-800 shadow-sm overflow-hidden w-full">
         
-        {/* Search & Filters Row */}
-        <div className="flex flex-col xl:flex-row items-stretch xl:items-center gap-4 p-4 bg-neutral-50/50 dark:bg-zinc-950/20 border-b border-neutral-155 dark:border-zinc-800">
-          {/* Search bar */}
-          <div className="relative flex-1">
+        {/* Unified Search & Filters Row (Stack layout to prevent squeeze bugs) */}
+        <div className="p-4 bg-neutral-50/50 dark:bg-zinc-950/20 border-b border-neutral-155 dark:border-zinc-800 space-y-3.5">
+          {/* Row 1: Full-Width Search Input */}
+          <div className="relative">
             <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 dark:text-zinc-500" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search description, tags, category..."
-              className="w-full pl-10 pr-4 py-2 border border-neutral-200 dark:border-zinc-800 rounded-lg text-sm font-semibold focus:outline-none focus:border-neutral-950 dark:focus:border-neutral-400 focus:ring-1 focus:ring-neutral-950 dark:focus:ring-neutral-400 bg-white dark:bg-zinc-900 text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-zinc-500 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.01)]"
+              className="w-full pl-10 pr-4 py-2 border border-neutral-200 dark:border-zinc-800 rounded-lg text-sm font-semibold focus:outline-none focus:border-neutral-950 dark:focus:border-neutral-450 focus:ring-1 focus:ring-neutral-950 dark:focus:ring-neutral-450 bg-white dark:bg-zinc-900 text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-zinc-500 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.01)]"
             />
           </div>
 
-          {/* Filters Area */}
-          <div className="flex flex-wrap items-center gap-2.5">
-            
-            {/* Account Selector */}
-            <div className="flex border border-neutral-200 dark:border-zinc-800 p-0.5 bg-neutral-100/50 dark:bg-zinc-950 rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.01)]">
-              {[
-                { key: "All" as const, label: "All Accounts" },
-                { key: "Current" as const, label: "Current" },
-                { key: "Savings" as const, label: "Savings" }
-              ].map((acc) => (
-                <button
-                  key={acc.key}
-                  onClick={() => setFilterAccount(acc.key)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                    filterAccount === acc.key
-                      ? "bg-white dark:bg-zinc-800 text-neutral-950 dark:text-white shadow-sm border border-neutral-200/50 dark:border-zinc-700/50"
-                      : "text-neutral-500 dark:text-zinc-500 hover:text-neutral-900 dark:hover:text-zinc-200"
-                  }`}
-                >
-                  {acc.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Type Selector */}
-            <div className="flex border border-neutral-200 dark:border-zinc-800 p-0.5 bg-neutral-100/50 dark:bg-zinc-950 rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.01)]">
-              {(["All", "Credit", "Debit", "Transfer"] as const).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setFilterType(t)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                    filterType === t
-                      ? "bg-white dark:bg-zinc-800 text-neutral-950 dark:text-white shadow-sm border border-neutral-200/50 dark:border-zinc-700/50"
-                      : "text-neutral-500 dark:text-zinc-500 hover:text-neutral-950 dark:hover:text-zinc-200"
-                  }`}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-
-            {/* Month select dropdown */}
-            <div className="relative border border-neutral-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-lg flex items-center pr-8 pl-3.5 py-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.01)]">
-              <select
-                value={filterMonth}
-                onChange={(e) => setFilterMonth(e.target.value)}
-                className="appearance-none text-xs font-bold text-neutral-700 dark:text-zinc-300 bg-transparent focus:outline-none cursor-pointer w-full"
-              >
-                <option value="all">All Months</option>
-                {monthOptions.map((m) => (
-                  <option key={m.key} value={m.key}>{m.label}</option>
+          {/* Row 2: Filters toolbar (fully responsive wrapping layout) */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-1">
+            {/* Left side filters (Account & Type Selection) */}
+            <div className="flex flex-wrap items-center gap-2.5">
+              {/* Account Selector */}
+              <div className="flex border border-neutral-200 dark:border-zinc-800 p-0.5 bg-neutral-100/50 dark:bg-zinc-950 rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.01)]">
+                {[
+                  { key: "All" as const, label: "All Accounts" },
+                  { key: "Current" as const, label: "Current" },
+                  { key: "Savings" as const, label: "Savings" }
+                ].map((acc) => (
+                  <button
+                    key={acc.key}
+                    type="button"
+                    onClick={() => setFilterAccount(acc.key)}
+                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                      filterAccount === acc.key
+                        ? "bg-white dark:bg-zinc-800 text-neutral-950 dark:text-white shadow-sm border border-neutral-200/50 dark:border-zinc-700/50"
+                        : "text-neutral-500 dark:text-zinc-550 hover:text-neutral-900 dark:hover:text-zinc-200"
+                    }`}
+                  >
+                    {acc.label}
+                  </button>
                 ))}
-              </select>
-              <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-450 dark:text-zinc-500 pointer-events-none" />
+              </div>
+
+              {/* Type Selector */}
+              <div className="flex border border-neutral-200 dark:border-zinc-800 p-0.5 bg-neutral-100/50 dark:bg-zinc-950 rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.01)]">
+                {(["All", "Credit", "Debit", "Transfer"] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setFilterType(t)}
+                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                      filterType === t
+                        ? "bg-white dark:bg-zinc-800 text-neutral-950 dark:text-white shadow-sm border border-neutral-200/50 dark:border-zinc-700/50"
+                        : "text-neutral-500 dark:text-zinc-550 hover:text-neutral-950 dark:hover:text-zinc-200"
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* Important Only Toggle Button */}
-            <button
-              onClick={() => setFilterImportant(!filterImportant)}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold border transition-all shadow-[0_1px_2px_rgba(0,0,0,0.01)] ${
-                filterImportant
-                  ? "bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 border-amber-250 dark:border-amber-900/50 font-bold"
-                  : "bg-white dark:bg-zinc-900 text-neutral-500 dark:text-zinc-500 border-neutral-200 dark:border-zinc-800 hover:text-neutral-950 dark:hover:text-white"
-              }`}
-            >
-              <Star size={12} className={filterImportant ? "fill-amber-500 text-amber-500" : "text-neutral-400"} />
-              Important
-            </button>
+            {/* Right side filters (Month selector & Important toggle) */}
+            <div className="flex items-center gap-2.5">
+              {/* Month Select Dropdown (Zero inner box border bug fix) */}
+              <div className="relative border border-neutral-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-lg flex items-center pr-8 pl-3 py-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.01)] shrink-0">
+                <select
+                  value={filterMonth}
+                  onChange={(e) => setFilterMonth(e.target.value)}
+                  className="appearance-none -webkit-appearance-none -moz-appearance-none bg-transparent border-none outline-none ring-0 p-0 text-xs font-bold text-neutral-700 dark:text-zinc-300 cursor-pointer focus:ring-0 focus:outline-none"
+                >
+                  <option value="all">All Months</option>
+                  {monthOptions.map((m) => (
+                    <option key={m.key} value={m.key} className="bg-white dark:bg-zinc-900 text-neutral-900 dark:text-white">
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-450 dark:text-zinc-500 pointer-events-none" />
+              </div>
+
+              {/* Important Only Toggle Button */}
+              <button
+                type="button"
+                onClick={() => setFilterImportant(!filterImportant)}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold border transition-all shadow-[0_1px_2px_rgba(0,0,0,0.01)] shrink-0 ${
+                  filterImportant
+                    ? "bg-amber-50 dark:bg-amber-955/20 text-amber-700 dark:text-amber-400 border-amber-250 dark:border-amber-900/50 font-bold"
+                    : "bg-white dark:bg-zinc-900 text-neutral-500 dark:text-zinc-550 border-neutral-200 dark:border-zinc-800 hover:text-neutral-950 dark:hover:text-white"
+                }`}
+              >
+                <Star size={12} className={filterImportant ? "fill-amber-500 text-amber-500" : "text-neutral-400"} />
+                Important
+              </button>
+            </div>
           </div>
         </div>
 
@@ -770,7 +780,7 @@ export default function FinanceContent() {
                   if (filterAccount !== "All" && isTransfer) {
                     if (toAcc === filterAccount) {
                       transferIndicator = (
-                        <span className="text-[9px] uppercase tracking-wider font-extrabold text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-950 px-2 py-0.5 rounded mr-2 bg-emerald-50 dark:bg-emerald-950/30">
+                        <span className="text-[9px] uppercase tracking-wider font-extrabold text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-950 px-2 py-0.5 rounded mr-2 bg-emerald-50 dark:bg-emerald-955/30">
                           inflow
                         </span>
                       );
@@ -778,7 +788,7 @@ export default function FinanceContent() {
                       customAmountStyle = "text-emerald-600 dark:text-emerald-400 font-extrabold";
                     } else if (acc === filterAccount) {
                       transferIndicator = (
-                        <span className="text-[9px] uppercase tracking-wider font-semibold text-red-700 dark:text-red-400 border border-red-150 dark:border-red-950 px-2 py-0.5 rounded mr-2 bg-red-50 dark:bg-red-950/30">
+                        <span className="text-[9px] uppercase tracking-wider font-semibold text-red-700 dark:text-red-400 border border-red-150 dark:border-red-955 px-2 py-0.5 rounded mr-2 bg-red-50 dark:bg-red-955/30">
                           outflow
                         </span>
                       );
@@ -804,7 +814,7 @@ export default function FinanceContent() {
                       {/* Description */}
                       <td className="px-6 py-4.5">
                         <div className="flex flex-col">
-                          <span className="font-bold text-neutral-950 dark:text-zinc-105 tracking-tight text-sm flex items-center gap-1.5">
+                          <span className="font-bold text-neutral-900 dark:text-zinc-100 tracking-tight text-sm flex items-center gap-1.5">
                             {entry.description}
                             {isImp && (
                               <Star size={12} className="text-amber-550 fill-amber-450 flex-shrink-0" />
@@ -829,10 +839,10 @@ export default function FinanceContent() {
                       <td className="px-6 py-4.5 whitespace-nowrap">
                         {isTransfer ? (
                           <div className="flex items-center gap-2 text-[10px] font-bold tracking-tight">
-                            <span className="px-2 py-0.5 rounded border border-neutral-200 dark:border-zinc-800 text-neutral-705 dark:text-zinc-400 font-mono">
+                            <span className="px-2 py-0.5 rounded border border-neutral-200 dark:border-zinc-800 text-neutral-700 dark:text-zinc-400 font-mono">
                               {acc.toUpperCase()}
                             </span>
-                            <ArrowRight size={10} className="text-neutral-400 dark:text-zinc-600 stroke-[3]" />
+                            <ArrowRight size={10} className="text-neutral-400 dark:text-zinc-650 stroke-[3]" />
                             <span className="px-2 py-0.5 rounded border border-neutral-300 dark:border-zinc-700 text-neutral-950 dark:text-zinc-200 font-mono bg-neutral-50 dark:bg-zinc-900">
                               {toAcc.toUpperCase()}
                             </span>
@@ -840,7 +850,7 @@ export default function FinanceContent() {
                         ) : (
                           <span className={`inline-block px-2 py-0.5 rounded border text-[10px] font-bold tracking-wider font-mono ${
                             acc === "Savings" 
-                              ? "bg-neutral-950 dark:bg-zinc-950 text-white dark:text-zinc-200 border-neutral-950 dark:border-zinc-850" 
+                              ? "bg-neutral-900 dark:bg-zinc-950 text-white dark:text-zinc-200 border-neutral-900 dark:border-zinc-850" 
                               : "bg-white dark:bg-zinc-900 text-neutral-600 dark:text-zinc-400 border-neutral-200 dark:border-zinc-800"
                           }`}>
                             {acc.toUpperCase()}
@@ -872,7 +882,7 @@ export default function FinanceContent() {
 
                       {/* Amount */}
                       <td className={`px-6 py-4.5 text-right font-mono text-sm tracking-tight whitespace-nowrap ${
-                        isTransfer ? "text-neutral-600 dark:text-zinc-400 font-bold" : customAmountStyle
+                        isTransfer ? "text-neutral-600 dark:text-zinc-450 font-bold" : customAmountStyle
                       }`}>
                         <div className="inline-flex items-center justify-end">
                           {transferIndicator}
@@ -918,7 +928,7 @@ export default function FinanceContent() {
                 <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-450 uppercase tracking-wider">
                   {filterAccount === "All" ? "Inflow" : `${filterAccount} Inflow`}:
                 </span>
-                <span className="text-emerald-750 dark:text-emerald-400 font-mono font-bold">
+                <span className="text-emerald-705 dark:text-emerald-400 font-mono font-bold">
                   +{fmt(flowSummary.inflow)}
                 </span>
               </div>
@@ -926,7 +936,7 @@ export default function FinanceContent() {
                 <span className="text-[9px] font-bold text-red-600 dark:text-red-450 uppercase tracking-wider">
                   {filterAccount === "All" ? "Outflow" : `${filterAccount} Outflow`}:
                 </span>
-                <span className="text-red-750 dark:text-red-400 font-mono font-bold">
+                <span className="text-red-705 dark:text-red-400 font-mono font-bold">
                   -{fmt(flowSummary.outflow)}
                 </span>
               </div>
