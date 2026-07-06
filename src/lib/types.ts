@@ -185,6 +185,7 @@ export interface PersonalFinanceEntry {
   description: string;
   amount: number;
   paymentMode: "Cash" | "UPI" | "Bank Transfer" | "Card";
+  account: "Savings" | "Current";
   tags?: string;                   // comma-separated optional tags
   notes?: string;
 }

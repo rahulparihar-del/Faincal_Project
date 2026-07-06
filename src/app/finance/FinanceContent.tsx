@@ -42,7 +42,7 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
       <p className="text-[11px] text-neutral-400 mb-4 max-w-xs text-center">Your transaction ledger is empty. Add a credit or debit entry to start tracking.</p>
       <button
         onClick={onAdd}
-        className="flex items-center gap-1.5 bg-neutral-900 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-black active:scale-95 transition-all shadow-sm"
+        className="flex items-center gap-1.5 bg-neutral-950 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-black active:scale-95 transition-all shadow-sm"
       >
         <Plus size={13} />
         Add Transaction
@@ -59,6 +59,7 @@ const EMPTY_ENTRY: Omit<PersonalFinanceEntry, "id"> = {
   description: "",
   amount: 0,
   paymentMode: "UPI",
+  account: "Current",
   tags: "",
   notes: "",
 };
@@ -130,8 +131,8 @@ function EntryDrawer({
                   }}
                   className={`py-2 rounded-lg text-xs font-bold transition-all ${
                     form.type === t
-                      ? "bg-neutral-900 text-white shadow-sm"
-                      : "text-neutral-500 hover:text-neutral-900"
+                      ? "bg-neutral-950 text-white shadow-sm"
+                      : "text-neutral-500 hover:text-neutral-950"
                   }`}
                 >
                   {t}
@@ -195,6 +196,27 @@ function EntryDrawer({
             </div>
           </div>
 
+          {/* Account Selection */}
+          <div>
+            <label className="block text-[9px] font-bold text-neutral-450 uppercase tracking-widest mb-1.5">Account (Source/Destination)</label>
+            <div className="grid grid-cols-2 gap-2 p-1 bg-neutral-100 rounded-xl">
+              {(["Current", "Savings"] as const).map((acc) => (
+                <button
+                  key={acc}
+                  type="button"
+                  onClick={() => set("account", acc)}
+                  className={`py-2 rounded-lg text-xs font-bold transition-all ${
+                    form.account === acc
+                      ? "bg-neutral-900 text-white shadow-sm"
+                      : "text-neutral-500 hover:text-neutral-905"
+                  }`}
+                >
+                  {acc} Account
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Category */}
           <div>
             <label className="block text-[9px] font-bold text-neutral-450 uppercase tracking-widest mb-2">Category</label>
@@ -206,7 +228,7 @@ function EntryDrawer({
                   className={`px-3 py-2 rounded-lg text-[11px] font-semibold border transition-all text-left truncate ${
                     form.category === cat
                       ? "border-neutral-950 bg-neutral-950 text-white"
-                      : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-350 hover:text-black"
+                      : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:text-black"
                   }`}
                 >
                   {cat}
@@ -289,7 +311,7 @@ function SettingsModal({
         </div>
 
         {[
-          { label: "Starting Balance (₹)", key: "startingBalance" as const, placeholder: "e.g. 50000" },
+          { label: "Starting Balance (Current Account) (₹)", key: "startingBalance" as const, placeholder: "e.g. 50000" },
           { label: "Savings Goal (₹)", key: "savingsGoal" as const, placeholder: "e.g. 100000" },
           { label: "Monthly Budget (₹)", key: "monthlyBudget" as const, placeholder: "e.g. 30000" },
         ].map(({ label, key, placeholder }) => (
@@ -349,7 +371,16 @@ export default function FinanceContent() {
   const stats = useMemo(() => {
     const totalCredit = financeEntries.filter((e) => e.type === "Credit").reduce((s, e) => s + e.amount, 0);
     const totalDebit = financeEntries.filter((e) => e.type === "Debit").reduce((s, e) => s + e.amount, 0);
-    const currentBalance = config.startingBalance + totalCredit - totalDebit;
+    const totalBalance = config.startingBalance + totalCredit - totalDebit;
+
+    // Splits
+    const currentCredit = financeEntries.filter((e) => e.type === "Credit" && (e.account === "Current" || !e.account)).reduce((s, e) => s + e.amount, 0);
+    const currentDebit = financeEntries.filter((e) => e.type === "Debit" && (e.account === "Current" || !e.account)).reduce((s, e) => s + e.amount, 0);
+    const currentBalance = config.startingBalance + currentCredit - currentDebit;
+
+    const savingsCredit = financeEntries.filter((e) => e.type === "Credit" && e.account === "Savings").reduce((s, e) => s + e.amount, 0);
+    const savingsDebit = financeEntries.filter((e) => e.type === "Debit" && e.account === "Savings").reduce((s, e) => s + e.amount, 0);
+    const savingsBalance = savingsCredit - savingsDebit;
 
     const now = new Date();
     const thisMonthEntries = financeEntries.filter((e) => {
@@ -358,7 +389,7 @@ export default function FinanceContent() {
     });
     const thisMonthDebit = thisMonthEntries.filter((e) => e.type === "Debit").reduce((s, e) => s + e.amount, 0);
 
-    return { totalCredit, totalDebit, currentBalance, thisMonthDebit };
+    return { totalCredit, totalDebit, totalBalance, currentBalance, savingsBalance, thisMonthDebit };
   }, [financeEntries, config]);
 
   /* ─── Month options for filter ───────────────────────────── */
@@ -452,11 +483,11 @@ export default function FinanceContent() {
       {/* ── Compact Stat Cards ── */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5">
         {[
-          { label: "Starting Balance", value: fmt(config.startingBalance) },
-          { label: "Ledger Balance", value: fmt(stats.currentBalance), highlight: true },
+          { label: "Current Account", value: fmt(stats.currentBalance) },
+          { label: "Savings Account", value: fmt(stats.savingsBalance) },
+          { label: "Ledger Balance", value: fmt(stats.totalBalance), highlight: true },
           { label: "Total Income", value: `+${fmt(stats.totalCredit)}` },
           { label: "Total Expense", value: `-${fmt(stats.totalDebit)}` },
-          { label: "Monthly Spent", value: fmt(stats.thisMonthDebit) },
         ].map((s) => (
           <div
             key={s.label}
@@ -464,7 +495,7 @@ export default function FinanceContent() {
               s.highlight ? "bg-neutral-950 text-white border-neutral-950" : "bg-white text-neutral-900"
             }`}
           >
-            <span className={`text-[9px] font-bold uppercase tracking-wider ${s.highlight ? "text-neutral-450" : "text-neutral-400"}`}>
+            <span className={`text-[9px] font-bold uppercase tracking-wider ${s.highlight ? "text-neutral-455" : "text-neutral-400"}`}>
               {s.label}
             </span>
             <p className="text-sm font-black mt-1 leading-none tracking-tight">{s.value}</p>
@@ -534,12 +565,13 @@ export default function FinanceContent() {
           ) : (
             <table className="w-full text-left border-collapse table-auto">
               <thead>
-                <tr className="border-b border-neutral-200 bg-neutral-50/20 text-[10px] font-bold text-neutral-450 uppercase tracking-widest select-none">
+                <tr className="border-b border-neutral-200 bg-neutral-50/20 text-[10px] font-bold text-neutral-455 uppercase tracking-widest select-none">
                   <th className="px-6 py-3.5 w-32">Date</th>
                   <th className="px-6 py-3.5">Description</th>
-                  <th className="px-6 py-3.5 w-40">Category</th>
-                  <th className="px-6 py-3.5 w-36">Method</th>
-                  <th className="px-6 py-3.5 w-28 text-center">Type</th>
+                  <th className="px-6 py-3.5 w-36">Category</th>
+                  <th className="px-6 py-3.5 w-32">Account</th>
+                  <th className="px-6 py-3.5 w-28">Method</th>
+                  <th className="px-6 py-3.5 w-24 text-center">Type</th>
                   <th className="px-6 py-3.5 w-36 text-right">Amount</th>
                   <th className="px-6 py-3.5 w-24 text-right">Actions</th>
                 </tr>
@@ -547,6 +579,7 @@ export default function FinanceContent() {
               <tbody className="divide-y divide-neutral-100 text-xs font-medium text-neutral-900 bg-white">
                 {filtered.map((entry) => {
                   const isCredit = entry.type === "Credit";
+                  const acc = entry.account || "Current";
                   return (
                     <tr key={entry.id} className="hover:bg-neutral-50/30 transition-colors group">
                       {/* Date */}
@@ -570,6 +603,17 @@ export default function FinanceContent() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="inline-block px-2.5 py-1 bg-neutral-100 text-neutral-850 rounded-lg text-[10px] font-bold tracking-tight">
                           {entry.category}
+                        </span>
+                      </td>
+
+                      {/* Account */}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                          acc === "Savings" 
+                            ? "bg-neutral-900 text-white" 
+                            : "bg-neutral-100 text-neutral-700"
+                        }`}>
+                          {acc}
                         </span>
                       </td>
 
@@ -618,7 +662,7 @@ export default function FinanceContent() {
                           </button>
                           <button
                             onClick={() => deleteEntry(entry.id)}
-                            className="p-1 rounded-md border border-neutral-200 text-neutral-400 hover:text-black hover:border-black hover:bg-neutral-50 transition-all"
+                            className="p-1 rounded-md border border-neutral-200 text-neutral-440 hover:text-black hover:border-black hover:bg-neutral-50 transition-all"
                             title="Delete record"
                           >
                             <Trash2 size={11} />
