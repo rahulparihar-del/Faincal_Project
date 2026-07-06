@@ -169,7 +169,7 @@ function EntryDrawer({
                 value={form.amount || ""}
                 onChange={(e) => set("amount", parseFloat(e.target.value) || 0)}
                 placeholder="0"
-                className="w-full pl-9 pr-4 py-2.5 border border-neutral-200 dark:border-zinc-850 rounded-lg text-sm font-bold focus:outline-none focus:border-neutral-955 dark:focus:border-white bg-white dark:bg-zinc-900 text-neutral-950 dark:text-white placeholder-neutral-350 dark:placeholder-zinc-650"
+                className="w-full pl-9 pr-4 py-2.5 border border-neutral-200 dark:border-zinc-850 rounded-lg text-sm font-bold focus:outline-none focus:border-neutral-950 dark:focus:border-white bg-white dark:bg-zinc-900 text-neutral-950 dark:text-white placeholder-neutral-350 dark:placeholder-zinc-650"
               />
             </div>
           </div>
@@ -182,7 +182,7 @@ function EntryDrawer({
               value={form.description}
               onChange={(e) => set("description", e.target.value)}
               placeholder={form.type === "Transfer" ? "Account transfer description..." : "Zomato, Client payment, Office rent..."}
-              className="w-full px-3 py-2.5 border border-neutral-200 dark:border-zinc-850 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-955 dark:focus:border-white bg-white dark:bg-zinc-900 text-neutral-950 dark:text-white placeholder-neutral-350 dark:placeholder-zinc-650"
+              className="w-full px-3 py-2.5 border border-neutral-200 dark:border-zinc-850 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-950 dark:focus:border-white bg-white dark:bg-zinc-900 text-neutral-950 dark:text-white placeholder-neutral-350 dark:placeholder-zinc-650"
             />
           </div>
 
@@ -194,7 +194,7 @@ function EntryDrawer({
                 type="date"
                 value={form.date}
                 onChange={(e) => set("date", e.target.value)}
-                className="w-full px-3 py-2.5 border border-neutral-200 dark:border-zinc-850 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-955 dark:focus:border-white bg-white dark:bg-zinc-900 text-neutral-950 dark:text-white"
+                className="w-full px-3 py-2.5 border border-neutral-200 dark:border-zinc-850 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-950 dark:focus:border-white bg-white dark:bg-zinc-900 text-neutral-950 dark:text-white"
               />
             </div>
             <div>
@@ -202,7 +202,7 @@ function EntryDrawer({
               <select
                 value={form.paymentMode}
                 onChange={(e) => set("paymentMode", e.target.value as PersonalFinanceEntry["paymentMode"])}
-                className="w-full px-3 py-2.5 border border-neutral-200 dark:border-zinc-850 rounded-lg text-xs font-bold focus:outline-none focus:border-neutral-955 dark:focus:border-white bg-white dark:bg-zinc-900 text-neutral-950 dark:text-white"
+                className="w-full px-3 py-2.5 border border-neutral-200 dark:border-zinc-850 rounded-lg text-xs font-bold focus:outline-none focus:border-neutral-950 dark:focus:border-white bg-white dark:bg-zinc-900 text-neutral-950 dark:text-white"
               >
                 <option>Cash</option>
                 <option>UPI</option>
@@ -250,7 +250,7 @@ function EntryDrawer({
                       }}
                       className={`py-1.5 rounded-md text-[11px] font-bold transition-all ${
                         form.transferTo === acc
-                          ? "bg-white dark:bg-zinc-800 text-neutral-955 dark:text-white shadow-sm"
+                          ? "bg-white dark:bg-zinc-800 text-neutral-950 dark:text-white shadow-sm"
                           : "text-neutral-500 dark:text-zinc-500"
                       }`}
                     >
@@ -271,7 +271,7 @@ function EntryDrawer({
                     onClick={() => set("account", acc)}
                     className={`py-1.5 rounded-md text-xs font-bold transition-all ${
                       form.account === acc
-                        ? "bg-white dark:bg-zinc-800 text-neutral-955 dark:text-white shadow-sm"
+                        ? "bg-white dark:bg-zinc-800 text-neutral-950 dark:text-white shadow-sm"
                         : "text-neutral-500 dark:text-zinc-500"
                     }`}
                   >
@@ -293,7 +293,7 @@ function EntryDrawer({
                     onClick={() => set("category", cat)}
                     className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all text-left truncate ${
                       form.category === cat
-                        ? "border-neutral-955 bg-neutral-955 dark:bg-white text-white dark:text-black"
+                        ? "border-neutral-950 bg-neutral-950 dark:bg-white text-white dark:text-black"
                         : "border-neutral-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-neutral-650 dark:text-zinc-400 hover:border-neutral-300 dark:hover:border-zinc-700 hover:text-black dark:hover:text-white"
                     }`}
                   >
@@ -313,7 +313,7 @@ function EntryDrawer({
                 value={form.tags ?? ""}
                 onChange={(e) => set("tags", e.target.value)}
                 placeholder="work, travel..."
-                className="w-full px-3 py-2.5 border border-neutral-200 dark:border-zinc-850 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-955 dark:focus:border-white bg-white dark:bg-zinc-900 text-neutral-955 dark:text-white placeholder-neutral-350 dark:placeholder-zinc-650"
+                className="w-full px-3 py-2.5 border border-neutral-200 dark:border-zinc-850 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-950 dark:focus:border-white bg-white dark:bg-zinc-900 text-neutral-950 dark:text-white placeholder-neutral-350 dark:placeholder-zinc-650"
               />
             </div>
             <div>
@@ -323,7 +323,7 @@ function EntryDrawer({
                 value={form.notes ?? ""}
                 onChange={(e) => set("notes", e.target.value)}
                 placeholder="Memo..."
-                className="w-full px-3 py-2 border border-neutral-200 dark:border-zinc-850 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-955 dark:focus:border-white bg-white dark:bg-zinc-900 text-neutral-955 dark:text-white placeholder-neutral-350 dark:placeholder-zinc-650"
+                className="w-full px-3 py-2 border border-neutral-200 dark:border-zinc-850 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-950 dark:focus:border-white bg-white dark:bg-zinc-900 text-neutral-950 dark:text-white placeholder-neutral-350 dark:placeholder-zinc-650"
               />
             </div>
           </div>
@@ -409,7 +409,7 @@ function SettingsModal({
           <div key={key}>
             <label className="block text-[10px] font-bold text-neutral-400 dark:text-zinc-500 uppercase tracking-widest mb-1">{label}</label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-neutral-955 dark:text-white">₹</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-neutral-950 dark:text-white">₹</span>
               <input
                 type="number"
                 min={0}
@@ -428,7 +428,7 @@ function SettingsModal({
           </button>
           <button
             onClick={() => { onSave(form); onClose(); }}
-            className="flex-1 py-2.5 rounded-lg bg-neutral-955 dark:bg-white text-white dark:text-black text-xs font-bold hover:bg-black dark:hover:bg-neutral-100 transition-colors"
+            className="flex-1 py-2.5 rounded-lg bg-neutral-950 dark:bg-white text-white dark:text-black text-xs font-bold hover:bg-black dark:hover:bg-neutral-100 transition-colors"
           >
             Save
           </button>
@@ -642,7 +642,7 @@ export default function FinanceContent() {
             <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 dark:text-zinc-500">
               {s.label}
             </span>
-            <p className={`text-lg md:text-xl font-extrabold mt-2 leading-none tracking-tight font-mono ${s.textStyle || "text-neutral-955 dark:text-white"}`}>{s.value}</p>
+            <p className={`text-lg md:text-xl font-extrabold mt-2 leading-none tracking-tight font-mono ${s.textStyle || "text-neutral-950 dark:text-white"}`}>{s.value}</p>
           </div>
         ))}
       </div>
@@ -660,7 +660,7 @@ export default function FinanceContent() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search description, tags, category..."
-              className="w-full pl-10 pr-4 py-2 border border-neutral-200 dark:border-zinc-800 rounded-lg text-sm font-semibold focus:outline-none focus:border-neutral-955 dark:focus:border-neutral-400 focus:ring-1 focus:ring-neutral-955 dark:focus:ring-neutral-400 bg-white dark:bg-zinc-900 text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-zinc-500 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.01)]"
+              className="w-full pl-10 pr-4 py-2 border border-neutral-200 dark:border-zinc-800 rounded-lg text-sm font-semibold focus:outline-none focus:border-neutral-950 dark:focus:border-neutral-400 focus:ring-1 focus:ring-neutral-950 dark:focus:ring-neutral-400 bg-white dark:bg-zinc-900 text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-zinc-500 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.01)]"
             />
           </div>
 
@@ -679,7 +679,7 @@ export default function FinanceContent() {
                   onClick={() => setFilterAccount(acc.key)}
                   className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
                     filterAccount === acc.key
-                      ? "bg-white dark:bg-zinc-800 text-neutral-955 dark:text-white shadow-sm border border-neutral-200/50 dark:border-zinc-700/50"
+                      ? "bg-white dark:bg-zinc-800 text-neutral-950 dark:text-white shadow-sm border border-neutral-200/50 dark:border-zinc-700/50"
                       : "text-neutral-500 dark:text-zinc-500 hover:text-neutral-900 dark:hover:text-zinc-200"
                   }`}
                 >
@@ -696,7 +696,7 @@ export default function FinanceContent() {
                   onClick={() => setFilterType(t)}
                   className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
                     filterType === t
-                      ? "bg-white dark:bg-zinc-800 text-neutral-955 dark:text-white shadow-sm border border-neutral-200/50 dark:border-zinc-700/50"
+                      ? "bg-white dark:bg-zinc-800 text-neutral-950 dark:text-white shadow-sm border border-neutral-200/50 dark:border-zinc-700/50"
                       : "text-neutral-500 dark:text-zinc-500 hover:text-neutral-950 dark:hover:text-zinc-200"
                   }`}
                 >
@@ -726,7 +726,7 @@ export default function FinanceContent() {
               className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold border transition-all shadow-[0_1px_2px_rgba(0,0,0,0.01)] ${
                 filterImportant
                   ? "bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 border-amber-250 dark:border-amber-900/50 font-bold"
-                  : "bg-white dark:bg-zinc-900 text-neutral-500 dark:text-zinc-500 border-neutral-200 dark:border-zinc-800 hover:text-neutral-955 dark:hover:text-white"
+                  : "bg-white dark:bg-zinc-900 text-neutral-500 dark:text-zinc-500 border-neutral-200 dark:border-zinc-800 hover:text-neutral-950 dark:hover:text-white"
               }`}
             >
               <Star size={12} className={filterImportant ? "fill-amber-500 text-amber-500" : "text-neutral-400"} />
@@ -833,14 +833,14 @@ export default function FinanceContent() {
                               {acc.toUpperCase()}
                             </span>
                             <ArrowRight size={10} className="text-neutral-400 dark:text-zinc-600 stroke-[3]" />
-                            <span className="px-2 py-0.5 rounded border border-neutral-300 dark:border-zinc-700 text-neutral-955 dark:text-zinc-200 font-mono bg-neutral-50 dark:bg-zinc-900">
+                            <span className="px-2 py-0.5 rounded border border-neutral-300 dark:border-zinc-700 text-neutral-950 dark:text-zinc-200 font-mono bg-neutral-50 dark:bg-zinc-900">
                               {toAcc.toUpperCase()}
                             </span>
                           </div>
                         ) : (
                           <span className={`inline-block px-2 py-0.5 rounded border text-[10px] font-bold tracking-wider font-mono ${
                             acc === "Savings" 
-                              ? "bg-neutral-955 dark:bg-zinc-950 text-white dark:text-zinc-200 border-neutral-955 dark:border-zinc-850" 
+                              ? "bg-neutral-950 dark:bg-zinc-950 text-white dark:text-zinc-200 border-neutral-950 dark:border-zinc-850" 
                               : "bg-white dark:bg-zinc-900 text-neutral-600 dark:text-zinc-400 border-neutral-200 dark:border-zinc-800"
                           }`}>
                             {acc.toUpperCase()}
@@ -885,14 +885,14 @@ export default function FinanceContent() {
                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => openEdit(entry)}
-                            className="p-1 rounded text-neutral-455 dark:text-zinc-500 hover:text-neutral-955 dark:hover:text-white transition-colors hover:bg-neutral-50 dark:hover:bg-zinc-800 cursor-pointer"
+                            className="p-1 rounded text-neutral-455 dark:text-zinc-500 hover:text-neutral-950 dark:hover:text-white transition-colors hover:bg-neutral-50 dark:hover:bg-zinc-800 cursor-pointer"
                             title="Edit"
                           >
                             <Edit2 size={12} />
                           </button>
                           <button
                             onClick={() => deleteEntry(entry.id)}
-                            className="p-1 rounded text-neutral-455 dark:text-zinc-500 hover:text-neutral-955 dark:hover:text-white transition-colors hover:bg-neutral-50 dark:hover:bg-zinc-800 cursor-pointer"
+                            className="p-1 rounded text-neutral-455 dark:text-zinc-500 hover:text-neutral-950 dark:hover:text-white transition-colors hover:bg-neutral-50 dark:hover:bg-zinc-800 cursor-pointer"
                             title="Delete"
                           >
                             <Trash2 size={12} />
