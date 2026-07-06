@@ -190,6 +190,7 @@ export interface PersonalFinanceEntry {
   transferTo?: "Savings" | "Current"; // Destination account (only for Transfer type)
   tags?: string;                   // comma-separated optional tags
   notes?: string;
+  isImportant?: boolean;           // highlight and pin entries
 }
 
 export interface FinanceConfig {

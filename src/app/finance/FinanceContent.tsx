@@ -7,7 +7,7 @@ import {
 } from "@/lib/types";
 import {
   Plus, Edit2, Trash2, X, Settings,
-  ChevronDown, Search, ArrowUpRight, ArrowDownLeft, ArrowRight,
+  ChevronDown, Search, ArrowUpRight, ArrowDownLeft, ArrowRight, Star,
 } from "lucide-react";
 
 /* ─── Helpers ─────────────────────────────────────────────── */
@@ -34,7 +34,7 @@ function monthLabel(y: number, m: number) { return `${MONTHS[m]} ${y}`; }
 /* ─── Empty State ─────────────────────────────────────────── */
 function EmptyState({ onAdd }: { onAdd: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center py-20 bg-white border border-dashed border-neutral-200 rounded-xl">
+    <div className="flex flex-col items-center justify-center py-24 bg-white border border-dashed border-neutral-200 rounded-xl">
       <div className="w-10 h-10 rounded-full border border-neutral-200 flex items-center justify-center mb-3">
         <Plus size={14} className="text-neutral-400" />
       </div>
@@ -42,7 +42,7 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
       <p className="text-[11px] text-neutral-400 mb-4 text-center max-w-xs leading-relaxed">Your ledger is currently empty. Record a new credit, debit, or transfer entry.</p>
       <button
         onClick={onAdd}
-        className="flex items-center gap-1 bg-neutral-900 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold hover:bg-black active:scale-95 transition-all shadow-sm"
+        className="flex items-center gap-1 bg-neutral-950 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold hover:bg-black active:scale-95 transition-all shadow-sm"
       >
         <Plus size={12} />
         Add Entry
@@ -63,6 +63,7 @@ const EMPTY_ENTRY: Omit<PersonalFinanceEntry, "id"> = {
   transferTo: "Savings",
   tags: "",
   notes: "",
+  isImportant: false,
 };
 
 function EntryDrawer({
@@ -109,7 +110,7 @@ function EntryDrawer({
 
   return (
     <div className="fixed inset-0 z-[200] flex">
-      <div className="absolute inset-0 bg-black/15 backdrop-blur-[1px]" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" onClick={onClose} />
       <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl flex flex-col overflow-hidden animate-slide-in-right border-l border-neutral-200">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4.5 border-b border-neutral-100">
@@ -147,7 +148,7 @@ function EntryDrawer({
                   className={`py-1.5 rounded-md text-[11px] font-bold transition-all ${
                     form.type === t
                       ? "bg-white text-neutral-950 shadow-sm"
-                      : "text-neutral-500 hover:text-neutral-950"
+                      : "text-neutral-500 hover:text-neutral-955"
                   }`}
                 >
                   {t}
@@ -168,7 +169,7 @@ function EntryDrawer({
                 value={form.amount || ""}
                 onChange={(e) => set("amount", parseFloat(e.target.value) || 0)}
                 placeholder="0"
-                className="w-full pl-7 pr-4 py-2 border border-neutral-200 rounded-lg text-xs font-bold focus:outline-none focus:border-neutral-950 bg-white text-neutral-950"
+                className="w-full pl-7 pr-4 py-2 border border-neutral-200 rounded-lg text-xs font-bold focus:outline-none focus:border-neutral-955 bg-white text-neutral-950"
               />
             </div>
           </div>
@@ -181,7 +182,7 @@ function EntryDrawer({
               value={form.description}
               onChange={(e) => set("description", e.target.value)}
               placeholder={form.type === "Transfer" ? "Account transfer description..." : "Zomato, Client payment, Office rent..."}
-              className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-950 bg-white text-neutral-950"
+              className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-955 bg-white text-neutral-955"
             />
           </div>
 
@@ -193,7 +194,7 @@ function EntryDrawer({
                 type="date"
                 value={form.date}
                 onChange={(e) => set("date", e.target.value)}
-                className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-950 bg-white text-neutral-950"
+                className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-955 bg-white text-neutral-955"
               />
             </div>
             <div>
@@ -201,7 +202,7 @@ function EntryDrawer({
               <select
                 value={form.paymentMode}
                 onChange={(e) => set("paymentMode", e.target.value as PersonalFinanceEntry["paymentMode"])}
-                className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-xs font-bold focus:outline-none focus:border-neutral-950 bg-white text-neutral-950"
+                className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-xs font-bold focus:outline-none focus:border-neutral-955 bg-white text-neutral-955"
               >
                 <option>Cash</option>
                 <option>UPI</option>
@@ -270,11 +271,11 @@ function EntryDrawer({
                     onClick={() => set("account", acc)}
                     className={`py-1.5 rounded-md text-xs font-bold transition-all ${
                       form.account === acc
-                        ? "bg-white text-neutral-950 shadow-sm"
+                        ? "bg-white text-neutral-955 shadow-sm"
                         : "text-neutral-500"
                     }`}
                   >
-                    {acc}
+                    {acc} Account
                   </button>
                 ))}
               </div>
@@ -292,7 +293,7 @@ function EntryDrawer({
                     onClick={() => set("category", cat)}
                     className={`px-3 py-1.5 rounded-lg text-[10px] font-semibold border transition-all text-left truncate ${
                       form.category === cat
-                        ? "border-neutral-950 bg-neutral-950 text-white"
+                        ? "border-neutral-955 bg-neutral-955 text-white"
                         : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:text-black"
                     }`}
                   >
@@ -306,25 +307,49 @@ function EntryDrawer({
           {/* Tags & Notes */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[9px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">Tags</label>
+              <label className="block text-[9px] font-bold text-neutral-455 uppercase tracking-widest mb-1.5">Tags</label>
               <input
                 type="text"
                 value={form.tags ?? ""}
                 onChange={(e) => set("tags", e.target.value)}
                 placeholder="work, travel..."
-                className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-950 bg-white text-neutral-950"
+                className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-955 bg-white text-neutral-955"
               />
             </div>
             <div>
-              <label className="block text-[9px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">Notes</label>
+              <label className="block text-[9px] font-bold text-neutral-455 uppercase tracking-widest mb-1.5">Notes</label>
               <input
                 type="text"
                 value={form.notes ?? ""}
                 onChange={(e) => set("notes", e.target.value)}
                 placeholder="Memo..."
-                className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-950 bg-white text-neutral-950"
+                className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-955 bg-white text-neutral-955"
               />
             </div>
+          </div>
+
+          {/* Important Toggle Option */}
+          <div className="pt-2 border-t border-neutral-100 flex items-center justify-between">
+            <div className="flex flex-col">
+              <span className="text-[11px] font-bold text-neutral-900 flex items-center gap-1">
+                <Star size={12} className="text-neutral-400 fill-none" />
+                Mark as Important
+              </span>
+              <span className="text-[9px] text-neutral-400 mt-0.5">Highlight and pin this entry in the ledger</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => set("isImportant", !form.isImportant)}
+              className={`w-9 h-5 rounded-full p-0.5 transition-all duration-200 ${
+                form.isImportant ? "bg-neutral-950" : "bg-neutral-200"
+              }`}
+            >
+              <div
+                className={`w-4 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${
+                  form.isImportant ? "translate-x-4" : "translate-x-0"
+                }`}
+              />
+            </button>
           </div>
         </div>
 
@@ -370,7 +395,7 @@ function SettingsModal({
       <div className="absolute inset-0 bg-black/20 backdrop-blur-[1px]" onClick={onClose} />
       <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 flex flex-col gap-4 border border-neutral-200 animate-fade-in">
         <div className="flex items-center justify-between pb-2 border-b border-neutral-100">
-          <h2 className="text-xs font-black uppercase tracking-widest text-neutral-950">Settings</h2>
+          <h2 className="text-xs font-black uppercase tracking-widest text-neutral-955">Settings</h2>
           <button onClick={onClose} className="w-7 h-7 rounded-lg border border-neutral-200 flex items-center justify-center hover:bg-neutral-50 transition-colors text-neutral-500">
             <X size={13} />
           </button>
@@ -382,16 +407,16 @@ function SettingsModal({
           { label: "Monthly Budget (₹)", key: "monthlyBudget" as const, placeholder: "e.g. 30000" },
         ].map(({ label, key, placeholder }) => (
           <div key={key}>
-            <label className="block text-[9px] font-bold text-neutral-400 uppercase tracking-widest mb-1">{label}</label>
+            <label className="block text-[9px] font-bold text-neutral-455 uppercase tracking-widest mb-1">{label}</label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-neutral-950">₹</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-neutral-955">₹</span>
               <input
                 type="number"
                 min={0}
                 value={form[key] || ""}
                 onChange={(e) => setForm((p) => ({ ...p, [key]: parseFloat(e.target.value) || 0 }))}
                 placeholder={placeholder}
-                className="w-full pl-6 pr-4 py-1.5 border border-neutral-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-950 bg-white text-neutral-950"
+                className="w-full pl-6 pr-4 py-1.5 border border-neutral-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-955 bg-white text-neutral-955"
               />
             </div>
           </div>
@@ -434,6 +459,7 @@ export default function FinanceContent() {
   const [filterAccount, setFilterAccount] = useState<"All" | "Current" | "Savings">("All");
   const [filterType, setFilterType] = useState<"All" | "Credit" | "Debit" | "Transfer">("All");
   const [filterMonth, setFilterMonth] = useState<string>("all");
+  const [filterImportant, setFilterImportant] = useState(false);
   const [search, setSearch] = useState("");
 
   /* ─── Computed Stats ─────────────────────────────────────── */
@@ -502,6 +528,10 @@ export default function FinanceContent() {
         return d.getFullYear() === y && d.getMonth() === m;
       })
       .filter((e) => {
+        if (!filterImportant) return true;
+        return e.isImportant === true;
+      })
+      .filter((e) => {
         if (!search) return true;
         const q = search.toLowerCase();
         return (
@@ -511,7 +541,7 @@ export default function FinanceContent() {
         );
       })
       .sort((a, b) => b.date.localeCompare(a.date));
-  }, [financeEntries, filterAccount, filterType, filterMonth, search]);
+  }, [financeEntries, filterAccount, filterType, filterMonth, filterImportant, search]);
 
   /* ─── Filtered Inflow / Outflow Summary calculations ────── */
   const flowSummary = useMemo(() => {
@@ -577,7 +607,7 @@ export default function FinanceContent() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setSettingsOpen(true)}
-            className="flex items-center gap-1 px-3 py-1.5 border border-neutral-200 rounded-lg text-[10px] font-bold text-neutral-600 bg-white hover:bg-neutral-50 transition-all active:scale-95"
+            className="flex items-center gap-1 px-3 py-1.5 border border-neutral-250 rounded-lg text-[10px] font-bold text-neutral-600 bg-white hover:bg-neutral-50 transition-all active:scale-95"
           >
             <Settings size={12} />
             Configure
@@ -592,7 +622,7 @@ export default function FinanceContent() {
         </div>
       </div>
 
-      {/* ── Compact Stat Cards (Super clean dashboard style) ── */}
+      {/* ── Compact Stat Cards ── */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {[
           { label: "Current Balance", value: fmt(stats.currentBalance) },
@@ -619,7 +649,7 @@ export default function FinanceContent() {
       <div className="bg-white rounded-xl border border-neutral-150 shadow-sm overflow-hidden">
         
         {/* Unified Search & Filters Row */}
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3.5 p-3.5 bg-neutral-50/50 border-b border-neutral-150">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3.5 p-3.5 bg-neutral-50/50 border-b border-neutral-155">
           {/* Search bar */}
           <div className="relative flex-1">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
@@ -687,6 +717,19 @@ export default function FinanceContent() {
               </select>
               <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-450 pointer-events-none" />
             </div>
+
+            {/* Important Only Toggle Button */}
+            <button
+              onClick={() => setFilterImportant(!filterImportant)}
+              className={`flex items-center gap-1 px-3 py-1 rounded-lg text-[10px] font-bold border transition-all ${
+                filterImportant
+                  ? "bg-neutral-950 text-white border-neutral-950"
+                  : "bg-white text-neutral-500 border-neutral-200 hover:text-neutral-950"
+              }`}
+            >
+              <Star size={11} className={filterImportant ? "fill-white text-white" : "text-neutral-400"} />
+              Important
+            </button>
           </div>
         </div>
 
@@ -716,9 +759,10 @@ export default function FinanceContent() {
                   const isTransfer = entry.type === "Transfer";
                   const acc = entry.account || "Current";
                   const toAcc = entry.transferTo || "Current";
+                  const isImp = entry.isImportant === true;
                   
                   let transferIndicator: React.ReactNode = null;
-                  let customAmountStyle = isCredit ? "text-neutral-950 font-black" : "text-neutral-800 font-bold";
+                  let customAmountStyle = isCredit ? "text-neutral-955 font-black" : "text-neutral-800 font-bold";
                   let amountPrefix = isTransfer ? "" : isCredit ? "+" : "-";
 
                   if (filterAccount !== "All" && isTransfer) {
@@ -742,7 +786,14 @@ export default function FinanceContent() {
                   }
 
                   return (
-                    <tr key={entry.id} className="hover:bg-neutral-50/20 transition-colors group">
+                    <tr 
+                      key={entry.id} 
+                      className={`transition-colors group ${
+                        isImp 
+                          ? "bg-neutral-50/75 hover:bg-neutral-100/75 border-l-2 border-neutral-900" 
+                          : "hover:bg-neutral-50/20 border-l-2 border-transparent"
+                      }`}
+                    >
                       {/* Date */}
                       <td className="px-6 py-3.5 text-neutral-450 font-mono tracking-tight whitespace-nowrap">
                         {entry.date}
@@ -751,7 +802,12 @@ export default function FinanceContent() {
                       {/* Description */}
                       <td className="px-6 py-3.5 max-w-xs md:max-w-md truncate">
                         <div className="flex flex-col">
-                          <span className="font-bold text-neutral-900 tracking-tight">{entry.description}</span>
+                          <span className="font-bold text-neutral-900 tracking-tight flex items-center gap-1">
+                            {entry.description}
+                            {isImp && (
+                              <Star size={11} className="text-neutral-950 fill-neutral-950 flex-shrink-0" />
+                            )}
+                          </span>
                           {entry.tags && (
                             <span className="text-[9px] text-neutral-400 font-normal mt-0.5 tracking-tight font-mono">
                               #{entry.tags.split(",").map(t=>t.trim()).join(" #")}
@@ -775,7 +831,7 @@ export default function FinanceContent() {
                               {acc.toUpperCase()}
                             </span>
                             <ArrowRight size={8} className="text-neutral-400 stroke-[3]" />
-                            <span className={`px-1.5 py-0.5 rounded border border-neutral-300 text-neutral-950 font-mono bg-neutral-50`}>
+                            <span className={`px-1.5 py-0.5 rounded border border-neutral-300 text-neutral-955 font-mono bg-neutral-50`}>
                               {toAcc.toUpperCase()}
                             </span>
                           </div>
@@ -795,10 +851,10 @@ export default function FinanceContent() {
                         {entry.paymentMode}
                       </td>
 
-                      {/* Type Label (Text indicator instead of heavy badges) */}
+                      {/* Type Label */}
                       <td className="px-6 py-3.5 text-center whitespace-nowrap select-none">
                         {isTransfer ? (
-                          <span className="text-[9px] font-bold text-neutral-400 font-mono tracking-wider uppercase">
+                          <span className="text-[9px] font-bold text-neutral-450 font-mono tracking-wider uppercase">
                             Transfer
                           </span>
                         ) : (
@@ -823,14 +879,14 @@ export default function FinanceContent() {
                         <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => openEdit(entry)}
-                            className="p-0.5 rounded text-neutral-400 hover:text-neutral-950 transition-colors"
+                            className="p-0.5 rounded text-neutral-455 hover:text-neutral-950 transition-colors"
                             title="Edit"
                           >
                             <Edit2 size={11} />
                           </button>
                           <button
                             onClick={() => deleteEntry(entry.id)}
-                            className="p-0.5 rounded text-neutral-400 hover:text-neutral-950 transition-colors"
+                            className="p-0.5 rounded text-neutral-455 hover:text-neutral-950 transition-colors"
                             title="Delete"
                           >
                             <Trash2 size={11} />
@@ -884,6 +940,7 @@ export default function FinanceContent() {
         open={settingsOpen}
         config={config}
         onSave={saveConfig}
+        setSettingsOpen={setSettingsOpen}
         onClose={() => setSettingsOpen(false)}
       />
 
