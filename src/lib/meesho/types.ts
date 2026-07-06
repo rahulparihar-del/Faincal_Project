@@ -22,9 +22,9 @@ export interface MeeshoOrder {
   order_id: string;
 
   /** YYYY-MM-DD */
-  order_date: string;
+  order_date: string | null;
   /** YYYY-MM-DD — dispatch / SLA date */
-  dispatch_date: string;
+  dispatch_date: string | null;
 
   /**
    * DELIVERED | RTO_COMPLETE | CANCELLED | PENDING | SHIPPED | PICKED_UP
