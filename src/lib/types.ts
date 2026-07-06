@@ -176,6 +176,7 @@ export type FinanceCategory =
   | "Education"
   | "Travel"
   | "Savings Transfer"
+  | "Sent to Someone"
   | "Other";
 
 export interface PersonalFinanceEntry {
@@ -191,6 +192,7 @@ export interface PersonalFinanceEntry {
   tags?: string;                   // comma-separated optional tags
   notes?: string;
   isImportant?: boolean;           // highlight and pin entries
+  personName?: string;             // Name of the person if Sent/Received from someone
 }
 
 export interface FinanceConfig {

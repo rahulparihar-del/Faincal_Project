@@ -18,7 +18,7 @@ const CREDIT_CATEGORIES: FinanceCategory[] = [
 const DEBIT_CATEGORIES: FinanceCategory[] = [
   "Food & Dining", "Groceries", "Rent & Housing", "EMI / Loan",
   "Transport", "Shopping", "Healthcare", "Entertainment",
-  "Utilities & Bills", "Education", "Travel", "Savings Transfer", "Other",
+  "Utilities & Bills", "Education", "Travel", "Savings Transfer", "Sent to Someone", "Other",
 ];
 
 const fmt = (n: number) =>
@@ -64,6 +64,7 @@ const EMPTY_ENTRY: Omit<PersonalFinanceEntry, "id"> = {
   tags: "",
   notes: "",
   isImportant: false,
+  personName: "",
 };
 
 function EntryDrawer({
@@ -301,6 +302,22 @@ function EntryDrawer({
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Person Name Input (for Received/Sent transactions) */}
+          {form.type !== "Transfer" && (form.category === "Received by Someone" || form.category === "Sent to Someone") && (
+            <div className="animate-fade-in space-y-1.5">
+              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                {form.category === "Received by Someone" ? "Received From (Person's Name)" : "Sent To (Person's Name)"}
+              </label>
+              <input
+                type="text"
+                value={form.personName ?? ""}
+                onChange={(e) => set("personName", e.target.value)}
+                placeholder="Enter person's name..."
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-gray-900 bg-white text-gray-900 placeholder-gray-400"
+              />
             </div>
           )}
 
@@ -820,6 +837,14 @@ export default function FinanceContent() {
                               <Star size={12} className="text-amber-550 fill-amber-450 flex-shrink-0" />
                             )}
                           </span>
+                          {entry.personName && (
+                            <span className="text-[10px] text-gray-500 dark:text-zinc-400 font-bold mt-1">
+                              {entry.category === "Received by Someone" ? "Received from: " : "Sent to: "}
+                              <span className="text-gray-900 dark:text-zinc-200 font-mono bg-gray-50 dark:bg-zinc-950 px-1.5 py-0.5 rounded border border-gray-200 dark:border-zinc-800 ml-1">
+                                {entry.personName}
+                              </span>
+                            </span>
+                          )}
                           {entry.tags && (
                             <span className="text-[10px] text-gray-400 font-normal mt-1 tracking-tight font-mono">
                               #{entry.tags.split(",").map(t=>t.trim()).join(" #")}
