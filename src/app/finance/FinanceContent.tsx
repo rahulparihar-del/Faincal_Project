@@ -110,7 +110,7 @@ function EntryDrawer({
 
   return (
     <div className="fixed inset-0 z-[200] flex">
-      <div className="absolute inset-0 bg-black/20 dark:bg-black/50 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" onClick={onClose} />
       <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl flex flex-col overflow-hidden animate-slide-in-right border-l border-gray-200">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
@@ -121,7 +121,7 @@ function EntryDrawer({
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-250 text-gray-500 hover:text-black hover:bg-gray-50 transition-colors"
+            className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-250 text-gray-500 hover:text-black hover:bg-gray-55 transition-colors"
           >
             <X size={14} />
           </button>
@@ -148,7 +148,7 @@ function EntryDrawer({
                   className={`py-1.5 rounded-md text-[11px] font-bold transition-all ${
                     form.type === t
                       ? "bg-white text-gray-950 shadow-sm"
-                      : "text-gray-500 hover:text-gray-950"
+                      : "text-gray-500 hover:text-gray-955"
                   }`}
                 >
                   {t}
@@ -194,7 +194,7 @@ function EntryDrawer({
                 type="date"
                 value={form.date}
                 onChange={(e) => set("date", e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-gray-900 bg-white text-gray-900"
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-gray-905 bg-white text-gray-900"
               />
             </div>
             <div>
@@ -202,7 +202,7 @@ function EntryDrawer({
               <select
                 value={form.paymentMode}
                 onChange={(e) => set("paymentMode", e.target.value as PersonalFinanceEntry["paymentMode"])}
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-xs font-bold focus:outline-none focus:border-gray-900 bg-white text-gray-900"
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-xs font-bold focus:outline-none focus:border-gray-905 bg-white text-gray-900"
               >
                 <option>Cash</option>
                 <option>UPI</option>
@@ -294,7 +294,7 @@ function EntryDrawer({
                     className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all text-left truncate ${
                       form.category === cat
                         ? "border-gray-900 bg-gray-900 text-white"
-                        : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-black"
+                        : "border-gray-200 bg-white text-gray-600 hover:border-gray-305 hover:text-black"
                     }`}
                   >
                     {cat}
@@ -323,7 +323,7 @@ function EntryDrawer({
                 value={form.notes ?? ""}
                 onChange={(e) => set("notes", e.target.value)}
                 placeholder="Memo..."
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-gray-900 bg-white text-gray-955 placeholder-gray-400"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-gray-900 bg-white text-gray-950 placeholder-gray-400"
               />
             </div>
           </div>
@@ -357,7 +357,7 @@ function EntryDrawer({
         <div className="px-6 py-4.5 border-t border-gray-100 flex gap-3 bg-gray-50/50">
           <button
             onClick={onClose}
-            className="flex-1 py-2.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-600 bg-white hover:bg-gray-100 hover:text-black transition-colors"
+            className="flex-1 py-2.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-605 bg-white hover:bg-gray-100 hover:text-black transition-colors"
           >
             Cancel
           </button>
@@ -396,7 +396,7 @@ function SettingsModal({
       <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 flex flex-col gap-4 border border-gray-200 animate-fade-in">
         <div className="flex items-center justify-between pb-2 border-b border-gray-100">
           <h2 className="text-xs font-black uppercase tracking-widest text-gray-950">Settings</h2>
-          <button onClick={onClose} className="w-7 h-7 rounded-lg border border-gray-250 flex items-center justify-center hover:bg-gray-50 transition-colors text-gray-500">
+          <button onClick={onClose} className="w-7 h-7 rounded-lg border border-gray-250 flex items-center justify-center hover:bg-gray-55 transition-colors text-gray-550">
             <X size={13} />
           </button>
         </div>
@@ -416,14 +416,14 @@ function SettingsModal({
                 value={form[key] || ""}
                 onChange={(e) => setForm((p) => ({ ...p, [key]: parseFloat(e.target.value) || 0 }))}
                 placeholder={placeholder}
-                className="w-full pl-6 pr-4 py-2 border border-gray-205 rounded-lg text-xs font-semibold focus:outline-none focus:border-gray-950 bg-white text-gray-950 placeholder-gray-400"
+                className="w-full pl-6 pr-4 py-2 border border-gray-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-gray-950 bg-white text-gray-950 placeholder-gray-400"
               />
             </div>
           </div>
         ))}
 
         <div className="flex gap-2 mt-2 pt-2 border-t border-gray-100">
-          <button onClick={onClose} className="flex-1 py-2.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-650 hover:bg-gray-50 hover:text-black transition-colors bg-white">
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 hover:text-black transition-colors bg-white">
             Cancel
           </button>
           <button
@@ -602,7 +602,7 @@ export default function FinanceContent() {
           <h1 className="text-xl md:text-2xl font-black tracking-tight text-gray-900 leading-tight">
             Personal Finance Ledger
           </h1>
-          <p className="text-xs font-semibold text-gray-400 tracking-wider mt-1">Bookkeeping list, splits & cash flow logs</p>
+          <p className="text-xs font-semibold text-gray-405 tracking-wider mt-1">Bookkeeping list, splits & cash flow logs</p>
         </div>
         <div className="flex items-center gap-2.5">
           <button
@@ -629,7 +629,7 @@ export default function FinanceContent() {
           { label: "Savings Balance", value: fmt(stats.savingsBalance) },
           { label: "Ledger Total", value: fmt(stats.totalBalance), highlight: true },
           { label: "Total Inflow", value: `+${fmt(stats.totalCredit)}`, textStyle: "text-emerald-600 dark:text-emerald-450" },
-          { label: "Total Outflow", value: `-${fmt(stats.totalDebit)}`, textStyle: "text-red-500 dark:text-red-450" },
+          { label: "Total Outflow", value: `-${fmt(stats.totalDebit)}`, textStyle: "text-red-500 dark:text-red-455" },
         ].map((s) => (
           <div
             key={s.label}
@@ -669,7 +669,7 @@ export default function FinanceContent() {
             {/* Left side filters (Account & Type Selection) */}
             <div className="flex flex-wrap items-center gap-2.5">
               {/* Account Selector */}
-              <div className="flex border border-gray-200 p-0.5 bg-gray-50 rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.01)]">
+              <div className="flex border border-gray-200 p-0.5 bg-gray-55 rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.01)]">
                 {[
                   { key: "All" as const, label: "All Accounts" },
                   { key: "Current" as const, label: "Current" },
@@ -691,7 +691,7 @@ export default function FinanceContent() {
               </div>
 
               {/* Type Selector */}
-              <div className="flex border border-gray-200 p-0.5 bg-gray-50 rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.01)]">
+              <div className="flex border border-gray-200 p-0.5 bg-gray-55 rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.01)]">
                 {(["All", "Credit", "Debit", "Transfer"] as const).map((t) => (
                   <button
                     key={t}
@@ -711,12 +711,12 @@ export default function FinanceContent() {
 
             {/* Right side filters (Month selector & Important toggle) */}
             <div className="flex items-center gap-2.5">
-              {/* Month Select Dropdown */}
-              <div className="relative border border-gray-200 bg-white rounded-lg flex items-center pr-8 pl-3.5 py-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.01)] shrink-0">
+              {/* Month Select Dropdown (Zero inner box border bug fix via Tailwind !important utilities) */}
+              <div className="relative border border-gray-200 bg-white rounded-lg flex items-center pr-8 pl-3.5 py-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.01)] shrink-0 h-[31px]">
                 <select
                   value={filterMonth}
                   onChange={(e) => setFilterMonth(e.target.value)}
-                  className="appearance-none -webkit-appearance-none -moz-appearance-none bg-transparent border-none outline-none ring-0 p-0 text-xs font-bold text-gray-700 cursor-pointer focus:ring-0 focus:outline-none"
+                  className="!appearance-none !bg-transparent !border-none !outline-none !ring-0 !p-0 !bg-none !text-xs !font-bold text-gray-700 dark:text-zinc-300 cursor-pointer focus:ring-0 focus:outline-none !w-auto !h-auto"
                 >
                   <option value="all">All Months</option>
                   {monthOptions.map((m) => (
@@ -732,9 +732,9 @@ export default function FinanceContent() {
               <button
                 type="button"
                 onClick={() => setFilterImportant(!filterImportant)}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold border transition-all shadow-[0_1px_2px_rgba(0,0,0,0.01)] shrink-0 ${
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold border transition-all shadow-[0_1px_2px_rgba(0,0,0,0.01)] shrink-0 h-[31px] ${
                   filterImportant
-                    ? "bg-amber-50 text-amber-700 border-amber-250 font-bold"
+                    ? "bg-amber-55 text-amber-700 border-amber-250 font-bold"
                     : "bg-white text-gray-500 border-gray-200 hover:text-gray-900"
                 }`}
               >
@@ -780,7 +780,7 @@ export default function FinanceContent() {
                   if (filterAccount !== "All" && isTransfer) {
                     if (toAcc === filterAccount) {
                       transferIndicator = (
-                        <span className="text-[9px] uppercase tracking-wider font-extrabold text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-950 px-2 py-0.5 rounded mr-2 bg-emerald-50 dark:bg-emerald-950/30">
+                        <span className="text-[9px] uppercase tracking-wider font-extrabold text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-950 px-2 py-0.5 rounded mr-2 bg-emerald-50 dark:bg-emerald-955/30">
                           inflow
                         </span>
                       );
@@ -788,7 +788,7 @@ export default function FinanceContent() {
                       customAmountStyle = "text-emerald-600 font-extrabold";
                     } else if (acc === filterAccount) {
                       transferIndicator = (
-                        <span className="text-[9px] uppercase tracking-wider font-semibold text-red-700 dark:text-red-400 border border-red-150 dark:border-red-950 px-2 py-0.5 rounded mr-2 bg-red-50 dark:bg-red-950/30">
+                        <span className="text-[9px] uppercase tracking-wider font-semibold text-red-700 dark:text-red-400 border border-red-150 dark:border-red-955 px-2 py-0.5 rounded mr-2 bg-red-50 dark:bg-red-955/30">
                           outflow
                         </span>
                       );
@@ -830,7 +830,7 @@ export default function FinanceContent() {
 
                       {/* Category */}
                       <td className="px-6 py-4.5 whitespace-nowrap">
-                        <span className="inline-block px-2.5 py-1 bg-gray-50 text-gray-700 rounded border border-gray-200 text-xs font-bold tracking-tight">
+                        <span className="inline-block px-2.5 py-1 bg-gray-50 text-gray-700 rounded border border-gray-205 text-xs font-bold tracking-tight">
                           {entry.category}
                         </span>
                       </td>
@@ -843,7 +843,7 @@ export default function FinanceContent() {
                               {acc.toUpperCase()}
                             </span>
                             <ArrowRight size={10} className="text-gray-400 stroke-[3]" />
-                            <span className="px-2 py-0.5 rounded border border-gray-300 text-gray-950 font-mono bg-gray-55">
+                            <span className="px-2 py-0.5 rounded border border-gray-300 text-gray-950 font-mono bg-gray-50">
                               {toAcc.toUpperCase()}
                             </span>
                           </div>
@@ -866,14 +866,14 @@ export default function FinanceContent() {
                       {/* Type Label */}
                       <td className="px-6 py-4.5 text-center whitespace-nowrap select-none text-xs">
                         {isTransfer ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-md border border-gray-200 text-gray-600 bg-gray-50 tracking-wider uppercase font-mono">
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-md border border-gray-200 text-gray-600 bg-gray-50/50 tracking-wider uppercase font-mono">
                             Transfer
                           </span>
                         ) : (
                           <span className={`inline-flex items-center gap-1 text-[10px] font-extrabold px-2.5 py-0.5 rounded-md border tracking-wider uppercase font-mono ${
                             isCredit 
                               ? "bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-450 border-emerald-100 dark:border-emerald-900/30" 
-                              : "bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-450 border-red-100 dark:border-red-900/30"
+                              : "bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-455 border-red-100 dark:border-red-900/30"
                           }`}>
                             {isCredit ? "Credit" : "Debit"}
                           </span>
@@ -936,7 +936,7 @@ export default function FinanceContent() {
                 <span className="text-[9px] font-bold text-red-600 dark:text-red-450 uppercase tracking-wider">
                   {filterAccount === "All" ? "Outflow" : `${filterAccount} Outflow`}:
                 </span>
-                <span className="text-red-705 dark:text-red-400 font-mono font-bold">
+                <span className="text-red-700 font-mono font-bold">
                   -{fmt(flowSummary.outflow)}
                 </span>
               </div>
