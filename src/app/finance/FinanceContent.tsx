@@ -34,17 +34,17 @@ function monthLabel(y: number, m: number) { return `${MONTHS[m]} ${y}`; }
 /* ─── Empty State ─────────────────────────────────────────── */
 function EmptyState({ onAdd }: { onAdd: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center py-28 bg-white border border-dashed border-neutral-200 rounded-xl">
-      <div className="w-12 h-12 rounded-full border border-neutral-200 flex items-center justify-center mb-4">
+    <div className="flex flex-col items-center justify-center py-24 bg-white border border-dashed border-neutral-200 rounded-xl">
+      <div className="w-10 h-10 rounded-full border border-neutral-200 flex items-center justify-center mb-3">
         <Plus size={16} className="text-neutral-400" />
       </div>
-      <p className="text-sm font-bold text-neutral-900 mb-1">No transaction records</p>
-      <p className="text-xs text-neutral-450 mb-6 text-center max-w-sm leading-relaxed">Your ledger is currently empty. Record a new credit, debit, or transfer entry.</p>
+      <p className="text-xs font-bold text-neutral-900 mb-1">No transactions</p>
+      <p className="text-[11px] text-neutral-400 mb-4 text-center max-w-xs leading-relaxed">Your ledger is currently empty. Record a new credit, debit, or transfer entry.</p>
       <button
         onClick={onAdd}
-        className="flex items-center gap-1.5 bg-neutral-950 text-white px-5 py-2.5 rounded-lg text-xs font-bold hover:bg-black active:scale-95 transition-all shadow-md"
+        className="flex items-center gap-1.5 bg-neutral-950 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-black active:scale-95 transition-all shadow-sm"
       >
-        <Plus size={14} />
+        <Plus size={12} />
         Add Entry
       </button>
     </div>
@@ -275,7 +275,7 @@ function EntryDrawer({
                         : "text-neutral-500"
                     }`}
                   >
-                    {acc} Account
+                    {acc}
                   </button>
                 ))}
               </div>
@@ -291,7 +291,7 @@ function EntryDrawer({
                   <button
                     key={cat}
                     onClick={() => set("category", cat)}
-                    className={`px-3 py-2 rounded-lg text-[11px] font-semibold border transition-all text-left truncate ${
+                    className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all text-left truncate ${
                       form.category === cat
                         ? "border-neutral-955 bg-neutral-955 text-white"
                         : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:text-black"
@@ -332,7 +332,7 @@ function EntryDrawer({
           <div className="pt-2.5 border-t border-neutral-100 flex items-center justify-between">
             <div className="flex flex-col">
               <span className="text-xs font-bold text-neutral-900 flex items-center gap-1">
-                <Star size={13} className="text-neutral-400 fill-none" />
+                <Star size={13} className="text-amber-500 fill-amber-500" />
                 Mark as Important
               </span>
               <span className="text-[10px] text-neutral-400 mt-0.5">Highlight and pin this entry in the ledger</span>
@@ -340,8 +340,8 @@ function EntryDrawer({
             <button
               type="button"
               onClick={() => set("isImportant", !form.isImportant)}
-              className={`w-9 h-5 rounded-full p-0.5 transition-all duration-200 ${
-                form.isImportant ? "bg-neutral-955" : "bg-neutral-200"
+              className={`w-9 h-5 rounded-full p-0.5 transition-all duration-205 ${
+                form.isImportant ? "bg-amber-500" : "bg-neutral-205"
               }`}
             >
               <div
@@ -395,7 +395,7 @@ function SettingsModal({
       <div className="absolute inset-0 bg-black/20 backdrop-blur-[1px]" onClick={onClose} />
       <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 flex flex-col gap-4 border border-neutral-200 animate-fade-in">
         <div className="flex items-center justify-between pb-2 border-b border-neutral-100">
-          <h2 className="text-xs font-black uppercase tracking-widest text-neutral-950">Settings</h2>
+          <h2 className="text-xs font-black uppercase tracking-widest text-neutral-955">Settings</h2>
           <button onClick={onClose} className="w-7 h-7 rounded-lg border border-neutral-200 flex items-center justify-center hover:bg-neutral-50 transition-colors text-neutral-500">
             <X size={13} />
           </button>
@@ -407,7 +407,7 @@ function SettingsModal({
           { label: "Monthly Budget (₹)", key: "monthlyBudget" as const, placeholder: "e.g. 30000" },
         ].map(({ label, key, placeholder }) => (
           <div key={key}>
-            <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-1">{label}</label>
+            <label className="block text-[9px] font-bold text-neutral-400 uppercase tracking-widest mb-1">{label}</label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-neutral-955">₹</span>
               <input
@@ -628,25 +628,25 @@ export default function FinanceContent() {
           { label: "Current Balance", value: fmt(stats.currentBalance) },
           { label: "Savings Balance", value: fmt(stats.savingsBalance) },
           { label: "Ledger Total", value: fmt(stats.totalBalance), highlight: true },
-          { label: "Total Inflow", value: `+${fmt(stats.totalCredit)}` },
-          { label: "Total Outflow", value: `-${fmt(stats.totalDebit)}` },
+          { label: "Total Inflow", value: `+${fmt(stats.totalCredit)}`, textStyle: "text-emerald-600" },
+          { label: "Total Outflow", value: `-${fmt(stats.totalDebit)}`, textStyle: "text-red-500" },
         ].map((s) => (
           <div
             key={s.label}
-            className={`border border-neutral-150 p-4.5 rounded-xl flex flex-col justify-between shadow-[0_1px_3px_rgba(0,0,0,0.02)] transition-all ${
-              s.highlight ? "bg-neutral-950 text-white border-neutral-950" : "bg-white text-neutral-900"
+            className={`border border-neutral-150 p-4.5 rounded-xl flex flex-col justify-between shadow-[0_1px_3px_rgba(0,0,0,0.02)] transition-all bg-white text-neutral-900 ${
+              s.highlight ? "border-l-4 border-l-neutral-950 shadow-[0_2px_8px_rgba(0,0,0,0.04)]" : ""
             }`}
           >
-            <span className={`text-[10px] font-bold uppercase tracking-wider ${s.highlight ? "text-neutral-400" : "text-neutral-400"}`}>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
               {s.label}
             </span>
-            <p className="text-lg md:text-xl font-extrabold mt-2 leading-none tracking-tight font-mono">{s.value}</p>
+            <p className={`text-lg md:text-xl font-extrabold mt-2 leading-none tracking-tight font-mono ${s.textStyle || "text-neutral-950"}`}>{s.value}</p>
           </div>
         ))}
       </div>
 
       {/* ── Table & Filter Area (Linear-inspired SaaS style) ── */}
-      <div className="bg-white rounded-xl border border-neutral-150 shadow-sm overflow-hidden w-full">
+      <div className="bg-white rounded-xl border border-neutral-155 shadow-sm overflow-hidden w-full">
         
         {/* Unified Search & Filters Row (Refined Responsive Grid) */}
         <div className="flex flex-col xl:flex-row items-stretch xl:items-center gap-4 p-4 bg-neutral-50/50 border-b border-neutral-155">
@@ -677,8 +677,8 @@ export default function FinanceContent() {
                   onClick={() => setFilterAccount(acc.key)}
                   className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
                     filterAccount === acc.key
-                      ? "bg-white text-neutral-955 shadow-sm"
-                      : "text-neutral-500 hover:text-neutral-900"
+                      ? "bg-white text-neutral-955 shadow-sm border border-neutral-200/50"
+                      : "text-neutral-505 hover:text-neutral-900"
                   }`}
                 >
                   {acc.label}
@@ -694,8 +694,8 @@ export default function FinanceContent() {
                   onClick={() => setFilterType(t)}
                   className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
                     filterType === t
-                      ? "bg-white text-neutral-955 shadow-sm"
-                      : "text-neutral-500 hover:text-neutral-950"
+                      ? "bg-white text-neutral-955 shadow-sm border border-neutral-200/50"
+                      : "text-neutral-505 hover:text-neutral-950"
                   }`}
                 >
                   {t}
@@ -723,11 +723,11 @@ export default function FinanceContent() {
               onClick={() => setFilterImportant(!filterImportant)}
               className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold border transition-all shadow-[0_1px_2px_rgba(0,0,0,0.01)] ${
                 filterImportant
-                  ? "bg-neutral-955 text-white border-neutral-955"
+                  ? "bg-amber-50 text-amber-700 border-amber-250 font-bold"
                   : "bg-white text-neutral-500 border-neutral-200 hover:text-neutral-950"
               }`}
             >
-              <Star size={12} className={filterImportant ? "fill-white text-white" : "text-neutral-400"} />
+              <Star size={12} className={filterImportant ? "fill-amber-500 text-amber-500" : "text-neutral-400"} />
               Important
             </button>
           </div>
@@ -762,26 +762,26 @@ export default function FinanceContent() {
                   const isImp = entry.isImportant === true;
                   
                   let transferIndicator: React.ReactNode = null;
-                  let customAmountStyle = isCredit ? "text-neutral-950 font-black" : "text-neutral-800 font-bold";
+                  let customAmountStyle = isCredit ? "text-emerald-600 font-extrabold" : "text-red-500 font-bold";
                   let amountPrefix = isTransfer ? "" : isCredit ? "+" : "-";
 
                   if (filterAccount !== "All" && isTransfer) {
                     if (toAcc === filterAccount) {
                       transferIndicator = (
-                        <span className="text-[9px] uppercase tracking-wider font-extrabold text-neutral-900 border border-neutral-200 px-2 py-0.5 rounded mr-2 bg-neutral-50">
+                        <span className="text-[9px] uppercase tracking-wider font-extrabold text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded mr-2 bg-emerald-50">
                           inflow
                         </span>
                       );
                       amountPrefix = "+";
-                      customAmountStyle = "text-neutral-950 font-black";
+                      customAmountStyle = "text-emerald-600 font-extrabold";
                     } else if (acc === filterAccount) {
                       transferIndicator = (
-                        <span className="text-[9px] uppercase tracking-wider font-semibold text-neutral-400 border border-neutral-150 px-2 py-0.5 rounded mr-2 bg-neutral-50/50">
+                        <span className="text-[9px] uppercase tracking-wider font-semibold text-red-700 border border-red-150 px-2 py-0.5 rounded mr-2 bg-red-50">
                           outflow
                         </span>
                       );
                       amountPrefix = "-";
-                      customAmountStyle = "text-neutral-800 font-bold";
+                      customAmountStyle = "text-red-500 font-bold";
                     }
                   }
 
@@ -790,8 +790,8 @@ export default function FinanceContent() {
                       key={entry.id} 
                       className={`transition-colors group ${
                         isImp 
-                          ? "bg-neutral-50/75 hover:bg-neutral-100/75 border-l-2 border-neutral-900" 
-                          : "hover:bg-neutral-50/20 border-l-2 border-transparent"
+                          ? "bg-amber-50/25 hover:bg-amber-50/50 border-l-4 border-l-amber-500" 
+                          : "hover:bg-neutral-50/20 border-l-4 border-l-transparent"
                       }`}
                     >
                       {/* Date */}
@@ -802,10 +802,10 @@ export default function FinanceContent() {
                       {/* Description */}
                       <td className="px-6 py-4.5">
                         <div className="flex flex-col">
-                          <span className="font-bold text-neutral-950 tracking-tight text-sm flex items-center gap-1.5">
+                          <span className="font-bold text-neutral-900 tracking-tight text-sm flex items-center gap-1.5">
                             {entry.description}
                             {isImp && (
-                              <Star size={12} className="text-neutral-950 fill-neutral-955 flex-shrink-0 animate-pulse" />
+                              <Star size={12} className="text-amber-550 fill-amber-450 flex-shrink-0" />
                             )}
                           </span>
                           {entry.tags && (
@@ -818,7 +818,7 @@ export default function FinanceContent() {
 
                       {/* Category */}
                       <td className="px-6 py-4.5 whitespace-nowrap">
-                        <span className="inline-block px-2.5 py-1 bg-neutral-50 text-neutral-700 rounded border border-neutral-200 text-xs font-bold tracking-tight">
+                        <span className="inline-block px-2.5 py-1 bg-neutral-50 text-neutral-700 rounded border border-neutral-205 text-xs font-bold tracking-tight">
                           {entry.category}
                         </span>
                       </td>
@@ -854,12 +854,14 @@ export default function FinanceContent() {
                       {/* Type Label */}
                       <td className="px-6 py-4.5 text-center whitespace-nowrap select-none text-xs">
                         {isTransfer ? (
-                          <span className="font-bold text-neutral-450 font-mono tracking-wider uppercase">
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border border-neutral-200 text-neutral-600 bg-neutral-50/50 tracking-wider uppercase font-mono">
                             Transfer
                           </span>
                         ) : (
-                          <span className={`font-extrabold font-mono tracking-wider uppercase ${
-                            isCredit ? "text-neutral-900" : "text-neutral-400"
+                          <span className={`inline-flex items-center gap-1 text-[10px] font-extrabold px-2.5 py-0.5 rounded-md border tracking-wider uppercase font-mono ${
+                            isCredit 
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-100" 
+                              : "bg-red-50 text-red-700 border-red-100"
                           }`}>
                             {isCredit ? "Credit" : "Debit"}
                           </span>
@@ -867,7 +869,9 @@ export default function FinanceContent() {
                       </td>
 
                       {/* Amount */}
-                      <td className={`px-6 py-4.5 text-right font-mono text-sm tracking-tight whitespace-nowrap ${customAmountStyle}`}>
+                      <td className={`px-6 py-4.5 text-right font-mono text-sm tracking-tight whitespace-nowrap ${
+                        isTransfer ? "text-neutral-600 font-bold" : customAmountStyle
+                      }`}>
                         <div className="inline-flex items-center justify-end">
                           {transferIndicator}
                           <span className="font-extrabold">{amountPrefix}{fmt(entry.amount)}</span>
@@ -879,14 +883,14 @@ export default function FinanceContent() {
                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => openEdit(entry)}
-                            className="p-1 rounded text-neutral-455 hover:text-neutral-955 transition-colors hover:bg-neutral-50"
+                            className="p-1 rounded text-neutral-455 hover:text-neutral-955 transition-colors hover:bg-neutral-55"
                             title="Edit"
                           >
                             <Edit2 size={12} />
                           </button>
                           <button
                             onClick={() => deleteEntry(entry.id)}
-                            className="p-1 rounded text-neutral-455 hover:text-neutral-955 transition-colors hover:bg-neutral-50"
+                            className="p-1 rounded text-neutral-455 hover:text-neutral-955 transition-colors hover:bg-neutral-55"
                             title="Delete"
                           >
                             <Trash2 size={12} />
@@ -904,23 +908,23 @@ export default function FinanceContent() {
         {/* Ledger Summary Stats Footer */}
         {filtered.length > 0 && (
           <div className="px-6 py-4 border-t border-neutral-150 flex flex-col sm:flex-row items-center justify-between gap-4 bg-neutral-50/20 select-none">
-            <span className="text-[10px] font-bold text-neutral-450 uppercase tracking-widest">
+            <span className="text-[10px] font-bold text-neutral-455 uppercase tracking-widest">
               Ledger Summary · {filtered.length} row(s)
             </span>
             <div className="flex items-center gap-3.5 text-xs font-extrabold tracking-tight">
-              <div className="flex items-center gap-2 bg-white border border-neutral-200 px-3 py-1.5 rounded-md">
-                <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider">
+              <div className="flex items-center gap-2 bg-emerald-50/50 border border-emerald-100 px-3 py-1.5 rounded-md">
+                <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-wider">
                   {filterAccount === "All" ? "Inflow" : `${filterAccount} Inflow`}:
                 </span>
-                <span className="text-neutral-950 font-mono font-bold">
+                <span className="text-emerald-700 font-mono font-bold">
                   +{fmt(flowSummary.inflow)}
                 </span>
               </div>
-              <div className="flex items-center gap-2 bg-white border border-neutral-200 px-3 py-1.5 rounded-md">
-                <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider">
+              <div className="flex items-center gap-2 bg-red-50/50 border border-red-100 px-3 py-1.5 rounded-md">
+                <span className="text-[9px] font-bold text-red-600 uppercase tracking-wider">
                   {filterAccount === "All" ? "Outflow" : `${filterAccount} Outflow`}:
                 </span>
-                <span className="text-neutral-700 font-mono font-bold">
+                <span className="text-red-700 font-mono font-bold">
                   -{fmt(flowSummary.outflow)}
                 </span>
               </div>
