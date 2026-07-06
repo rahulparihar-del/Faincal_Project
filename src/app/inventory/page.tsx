@@ -30,6 +30,7 @@ const PRODUCT_IMAGES: Record<string, string> = {
   "cat-frock":     "/inv-frock.jpg",
   "cat-coord":     "/inv-coord.jpg",
   "cat-nightsuit": "/inv-nightsuit.jpg",
+  "cat-new-nightsuit": "/inv-nightsuit.jpg",
   "cat-hooded":    "/inv-hooded.jpg",
 };
 
@@ -57,7 +58,19 @@ const DEFAULT_CATEGORIES: InventoryCategory[] = [
     ["Dino","Car","Bear","Owl","Unicorn","Mashroom","Multi-Orange","Elephant"],
     ["0-3","3-6","6-9","9-12","12-18","18-24"],
     [[0,3,3,6,0,7,7,4],[4,0,0,3,3,5,3,0],[0,0,1,3,0,1,1,0],[0,0,0,1,0,0,0,0],[0,1,0,0,0,1,0,0],[0,1,0,0,0,0,0,1]], 3),
-  buildCat("cat-hooded", "Hooded Towel", ["Plain"], ["Standard"], [[18]], 4),
+  buildCat("cat-new-nightsuit", "New Night Suit",
+    ["Dino", "Triangle", "Unicorn", "Vegetable", "Owl", "Flower", "Honey Beans", "Uni Horse", "Uni Baby"],
+    ["0-3", "3-6", "6-9", "6-12", "9-12", "12-18", "18-24"],
+    [
+      [3, 4, 5, 3, 4, 0, 0, 0, 0], // 0-3
+      [4, 4, 5, 4, 4, 0, 0, 0, 0], // 3-6
+      [5, 5, 0, 4, 4, 0, 0, 0, 0], // 6-9
+      [21, 12, 6, 7, 12, 0, 0, 0, 0], // 6-12
+      [0, 0, 0, 0, 0, 0, 0, 0, 0], // 9-12
+      [6, 9, 0, 8, 10, 0, 0, 0, 0], // 12-18
+      [9, 8, 0, 4, 4, 8, 7, 8, 6], // 18-24
+    ], 4),
+  buildCat("cat-hooded", "Hooded Towel", ["Plain"], ["Standard"], [[18]], 5),
 ];
 
 /* ─── Helpers ────────────────────────────────────────────────── */
@@ -270,18 +283,30 @@ function StockTab({
       {/* Category Horizontal Buttons */}
       <div className="flex gap-2 overflow-x-auto pb-1 shrink-0">
         {ordered.map(c => {
-          const on = c.id === activeCatId;
+          if (c.id === "cat-new-nightsuit") return null; // Hide the separate new nightsuit tab
+          const on = activeCatId === c.id || (c.id === "cat-nightsuit" && activeCatId === "cat-new-nightsuit");
+          const totalPcs = c.id === "cat-nightsuit" 
+            ? catTotal(c) + (ordered.find(x => x.id === "cat-new-nightsuit") ? catTotal(ordered.find(x => x.id === "cat-new-nightsuit")!) : 0)
+            : catTotal(c);
           return (
             <button
               key={c.id}
-              onClick={() => { setActiveCatId(c.id); setSearch(""); setEditingCell(null); }}
+              onClick={() => { 
+                if (c.id === "cat-nightsuit") {
+                  setActiveCatId("cat-nightsuit"); 
+                } else {
+                  setActiveCatId(c.id); 
+                }
+                setSearch(""); 
+                setEditingCell(null); 
+              }}
               className={`px-4 py-2 text-xs font-bold rounded-lg border transition-all cursor-pointer whitespace-nowrap ${
                 on 
                   ? "bg-zinc-900 dark:bg-white text-white dark:text-black border-zinc-900 dark:border-white" 
                   : "bg-white dark:bg-zinc-900 text-zinc-650 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-850"
               }`}
             >
-              {c.name} · <span className="opacity-60">{catTotal(c)} pcs</span>
+              {c.name} · <span className="opacity-60">{totalPcs} pcs</span>
             </button>
           );
         })}
@@ -354,15 +379,44 @@ function StockTab({
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm flex flex-col h-full">
             {/* Table controls */}
             <div className="p-3 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-4 shrink-0 bg-white dark:bg-zinc-900">
-              <div className="flex items-center gap-2 max-w-xs flex-1">
-                <Search size={14} className="text-zinc-400" />
-                <input
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder="Filter prints..."
-                  className="w-full bg-transparent text-xs text-zinc-900 dark:text-white placeholder:text-zinc-400 outline-none border-none"
-                />
+              <div className="flex items-center gap-4 flex-1">
+                <div className="flex items-center gap-2 max-w-xs flex-1">
+                  <Search size={14} className="text-zinc-400" />
+                  <input
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="Filter prints..."
+                    className="w-full bg-transparent text-xs text-zinc-900 dark:text-white placeholder:text-zinc-400 outline-none border-none"
+                  />
+                </div>
+                
+                {/* Night Suit Sub-tab Toggles (Original / New Collection) */}
+                {(active.id === "cat-nightsuit" || active.id === "cat-new-nightsuit") && (
+                  <div className="flex bg-zinc-100 dark:bg-zinc-800 p-0.5 rounded-lg border border-zinc-200 dark:border-zinc-700 shrink-0">
+                    <button
+                      onClick={() => { setActiveCatId("cat-nightsuit"); setEditingCell(null); }}
+                      className={`px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                        active.id === "cat-nightsuit"
+                          ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm border border-zinc-250/30 dark:border-zinc-700"
+                          : "text-zinc-450 dark:text-zinc-500 hover:text-zinc-750 dark:hover:text-zinc-350"
+                      }`}
+                    >
+                      Original Print
+                    </button>
+                    <button
+                      onClick={() => { setActiveCatId("cat-new-nightsuit"); setEditingCell(null); }}
+                      className={`px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                        active.id === "cat-new-nightsuit"
+                          ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm border border-zinc-250/30 dark:border-zinc-700"
+                          : "text-zinc-450 dark:text-zinc-500 hover:text-zinc-750 dark:hover:text-zinc-350"
+                      }`}
+                    >
+                      New Print
+                    </button>
+                  </div>
+                )}
               </div>
+
               {quickSale && (
                 <div className="text-[9px] font-bold text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded">
                   ⚡ Tap any cell to subtract 1
