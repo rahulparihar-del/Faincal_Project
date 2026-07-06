@@ -147,7 +147,7 @@ function EntryDrawer({
                   }}
                   className={`py-1.5 rounded-md text-[11px] font-bold transition-all ${
                     form.type === t
-                      ? "bg-white text-neutral-950 shadow-sm"
+                      ? "bg-white text-neutral-955 shadow-sm"
                       : "text-neutral-500 hover:text-neutral-955"
                   }`}
                 >
@@ -161,7 +161,7 @@ function EntryDrawer({
           <div>
             <label className="block text-[9px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">Amount</label>
             <div className="relative">
-              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-neutral-900">₹</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-neutral-900">₹</span>
               <input
                 type="number"
                 min={0}
@@ -169,7 +169,7 @@ function EntryDrawer({
                 value={form.amount || ""}
                 onChange={(e) => set("amount", parseFloat(e.target.value) || 0)}
                 placeholder="0"
-                className="w-full pl-7 pr-4 py-2 border border-neutral-200 rounded-lg text-xs font-bold focus:outline-none focus:border-neutral-955 bg-white text-neutral-950"
+                className="w-full pl-9 pr-4 py-2 border border-neutral-200 rounded-lg text-xs font-bold focus:outline-none focus:border-neutral-955 bg-white text-neutral-950"
               />
             </div>
           </div>
@@ -216,7 +216,7 @@ function EntryDrawer({
           {form.type === "Transfer" ? (
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[9px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">From Account</label>
+                <label className="block text-[9px] font-bold text-neutral-455 uppercase tracking-widest mb-1.5">From Account</label>
                 <div className="grid grid-cols-2 gap-0.5 p-0.5 bg-neutral-100 rounded-lg">
                   {(["Current", "Savings"] as const).map((acc) => (
                     <button
@@ -238,7 +238,7 @@ function EntryDrawer({
                 </div>
               </div>
               <div>
-                <label className="block text-[9px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">To Account</label>
+                <label className="block text-[9px] font-bold text-neutral-455 uppercase tracking-widest mb-1.5">To Account</label>
                 <div className="grid grid-cols-2 gap-0.5 p-0.5 bg-neutral-100 rounded-lg">
                   {(["Current", "Savings"] as const).map((acc) => (
                     <button
@@ -250,7 +250,7 @@ function EntryDrawer({
                       }}
                       className={`py-1 rounded-md text-[10px] font-bold transition-all ${
                         form.transferTo === acc
-                          ? "bg-white text-neutral-950 shadow-sm"
+                          ? "bg-white text-neutral-955 shadow-sm"
                           : "text-neutral-500"
                       }`}
                     >
@@ -262,7 +262,7 @@ function EntryDrawer({
             </div>
           ) : (
             <div>
-              <label className="block text-[9px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">Account</label>
+              <label className="block text-[9px] font-bold text-neutral-455 uppercase tracking-widest mb-1.5">Account</label>
               <div className="grid grid-cols-2 gap-0.5 p-0.5 bg-neutral-100 rounded-lg">
                 {(["Current", "Savings"] as const).map((acc) => (
                   <button
@@ -275,7 +275,7 @@ function EntryDrawer({
                         : "text-neutral-500"
                     }`}
                   >
-                    {acc} Account
+                    {acc}
                   </button>
                 ))}
               </div>
@@ -345,7 +345,7 @@ function EntryDrawer({
               }`}
             >
               <div
-                className={`w-4 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${
+                className={`w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${
                   form.isImportant ? "translate-x-4" : "translate-x-0"
                 }`}
               />
@@ -395,7 +395,7 @@ function SettingsModal({
       <div className="absolute inset-0 bg-black/20 backdrop-blur-[1px]" onClick={onClose} />
       <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 flex flex-col gap-4 border border-neutral-200 animate-fade-in">
         <div className="flex items-center justify-between pb-2 border-b border-neutral-100">
-          <h2 className="text-xs font-black uppercase tracking-widest text-neutral-955">Settings</h2>
+          <h2 className="text-xs font-black uppercase tracking-widest text-neutral-950">Settings</h2>
           <button onClick={onClose} className="w-7 h-7 rounded-lg border border-neutral-200 flex items-center justify-center hover:bg-neutral-50 transition-colors text-neutral-500">
             <X size={13} />
           </button>
@@ -407,7 +407,7 @@ function SettingsModal({
           { label: "Monthly Budget (₹)", key: "monthlyBudget" as const, placeholder: "e.g. 30000" },
         ].map(({ label, key, placeholder }) => (
           <div key={key}>
-            <label className="block text-[9px] font-bold text-neutral-455 uppercase tracking-widest mb-1">{label}</label>
+            <label className="block text-[9px] font-bold text-neutral-400 uppercase tracking-widest mb-1">{label}</label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-neutral-955">₹</span>
               <input
@@ -416,7 +416,7 @@ function SettingsModal({
                 value={form[key] || ""}
                 onChange={(e) => setForm((p) => ({ ...p, [key]: parseFloat(e.target.value) || 0 }))}
                 placeholder={placeholder}
-                className="w-full pl-6 pr-4 py-1.5 border border-neutral-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-955 bg-white text-neutral-955"
+                className="w-full pl-7 pr-4 py-1.5 border border-neutral-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-950 bg-white text-neutral-950"
               />
             </div>
           </div>
@@ -602,7 +602,7 @@ export default function FinanceContent() {
           <h1 className="text-sm font-black tracking-widest uppercase text-neutral-900 leading-none">
             Ledger & Finance
           </h1>
-          <p className="text-[10px] font-semibold text-neutral-450 tracking-wider mt-1.5">Bookkeeping list, splits & cash flow logs</p>
+          <p className="text-[10px] font-semibold text-neutral-455 tracking-wider mt-1.5">Bookkeeping list, splits & cash flow logs</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -658,7 +658,7 @@ export default function FinanceContent() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search ledger by description or tags..."
-              className="w-full pl-8 pr-3 py-1.5 border border-neutral-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-950 focus:ring-1 focus:ring-neutral-950 bg-white text-neutral-900 placeholder-neutral-400 transition-all"
+              className="w-full pl-10 pr-3 py-1.5 border border-neutral-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-955 focus:ring-1 focus:ring-neutral-955 bg-white text-neutral-900 placeholder-neutral-400 transition-all"
             />
           </div>
 
@@ -678,7 +678,7 @@ export default function FinanceContent() {
                   className={`px-3 py-1 rounded-md text-[10px] font-bold transition-all ${
                     filterAccount === acc.key
                       ? "bg-white text-neutral-950 shadow-sm"
-                      : "text-neutral-500 hover:text-neutral-900"
+                      : "text-neutral-500 hover:text-neutral-905"
                   }`}
                 >
                   {acc.label}
@@ -723,7 +723,7 @@ export default function FinanceContent() {
               onClick={() => setFilterImportant(!filterImportant)}
               className={`flex items-center gap-1 px-3 py-1 rounded-lg text-[10px] font-bold border transition-all ${
                 filterImportant
-                  ? "bg-neutral-950 text-white border-neutral-950"
+                  ? "bg-neutral-955 text-white border-neutral-955"
                   : "bg-white text-neutral-500 border-neutral-200 hover:text-neutral-950"
               }`}
             >
@@ -762,7 +762,7 @@ export default function FinanceContent() {
                   const isImp = entry.isImportant === true;
                   
                   let transferIndicator: React.ReactNode = null;
-                  let customAmountStyle = isCredit ? "text-neutral-955 font-black" : "text-neutral-800 font-bold";
+                  let customAmountStyle = isCredit ? "text-neutral-950 font-black" : "text-neutral-800 font-bold";
                   let amountPrefix = isTransfer ? "" : isCredit ? "+" : "-";
 
                   if (filterAccount !== "All" && isTransfer) {
@@ -805,7 +805,7 @@ export default function FinanceContent() {
                           <span className="font-bold text-neutral-900 tracking-tight flex items-center gap-1">
                             {entry.description}
                             {isImp && (
-                              <Star size={11} className="text-neutral-950 fill-neutral-950 flex-shrink-0" />
+                              <Star size={11} className="text-neutral-950 fill-neutral-950 flex-shrink-0 animate-pulse" />
                             )}
                           </span>
                           {entry.tags && (
@@ -838,7 +838,7 @@ export default function FinanceContent() {
                         ) : (
                           <span className={`inline-block px-1.5 py-0.5 rounded border text-[9px] font-bold tracking-wider font-mono ${
                             acc === "Savings" 
-                              ? "bg-neutral-950 text-white border-neutral-950" 
+                              ? "bg-neutral-950 text-white border-neutral-955" 
                               : "bg-white text-neutral-600 border-neutral-200"
                           }`}>
                             {acc.toUpperCase()}
@@ -879,14 +879,14 @@ export default function FinanceContent() {
                         <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => openEdit(entry)}
-                            className="p-0.5 rounded text-neutral-455 hover:text-neutral-950 transition-colors"
+                            className="p-0.5 rounded text-neutral-455 hover:text-neutral-955 transition-colors"
                             title="Edit"
                           >
                             <Edit2 size={11} />
                           </button>
                           <button
                             onClick={() => deleteEntry(entry.id)}
-                            className="p-0.5 rounded text-neutral-455 hover:text-neutral-950 transition-colors"
+                            className="p-0.5 rounded text-neutral-455 hover:text-neutral-955 transition-colors"
                             title="Delete"
                           >
                             <Trash2 size={11} />
@@ -905,7 +905,7 @@ export default function FinanceContent() {
         {filtered.length > 0 && (
           <div className="px-6 py-3 border-t border-neutral-150 flex flex-col sm:flex-row items-center justify-between gap-3 bg-neutral-50/20 select-none">
             <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-widest">
-              Ledger Page Summary · {filtered.length} row(s)
+              Ledger Summary · {filtered.length} row(s)
             </span>
             <div className="flex items-center gap-3 text-[10px] font-extrabold tracking-tight">
               <div className="flex items-center gap-1.5 bg-white border border-neutral-200 px-2.5 py-1 rounded-md">
@@ -940,7 +940,6 @@ export default function FinanceContent() {
         open={settingsOpen}
         config={config}
         onSave={saveConfig}
-        setSettingsOpen={setSettingsOpen}
         onClose={() => setSettingsOpen(false)}
       />
 
