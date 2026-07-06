@@ -156,6 +156,46 @@ export interface Transaction {
   utr: string;
 }
 
+export type FinanceEntryType = "Credit" | "Debit";
+export type FinanceCategory =
+  | "Salary / Income"
+  | "Freelance"
+  | "Business Income"
+  | "Investment Return"
+  | "Gift / Bonus"
+  | "Food & Dining"
+  | "Groceries"
+  | "Rent & Housing"
+  | "EMI / Loan"
+  | "Transport"
+  | "Shopping"
+  | "Healthcare"
+  | "Entertainment"
+  | "Utilities & Bills"
+  | "Education"
+  | "Travel"
+  | "Savings Transfer"
+  | "Other";
+
+export interface PersonalFinanceEntry {
+  id: string;
+  date: string;                    // YYYY-MM-DD
+  type: FinanceEntryType;          // Credit or Debit
+  category: FinanceCategory;
+  description: string;
+  amount: number;
+  paymentMode: "Cash" | "UPI" | "Bank Transfer" | "Card";
+  tags?: string;                   // comma-separated optional tags
+  notes?: string;
+}
+
+export interface FinanceConfig {
+  id: string;                      // always "config"
+  savingsGoal: number;             // target savings amount
+  startingBalance: number;         // opening balance
+  monthlyBudget: number;           // monthly spending limit
+}
+
 export interface MeeshoOrder {
   id: string;
   date: string;            // YYYY-MM-DD (packing date)

@@ -2,7 +2,11 @@
 
 import React, { createContext, useContext, ReactNode } from "react";
 import { useSupabaseTable } from "@/lib/hooks/useSupabaseTable";
-import { EcomSale, WholesaleSale, Manufacturer, PurchaseOrder, Transaction, MeeshoOrder, BusinessExpense } from "@/lib/types";
+import {
+  EcomSale, WholesaleSale, Manufacturer, PurchaseOrder,
+  Transaction, MeeshoOrder, BusinessExpense,
+  PersonalFinanceEntry, FinanceConfig,
+} from "@/lib/types";
 
 interface DataContextType {
   ecomSales: EcomSale[];
@@ -17,6 +21,10 @@ interface DataContextType {
   setTransactions: (val: Transaction[] | ((prev: Transaction[]) => Transaction[])) => void;
   businessExpenses: BusinessExpense[];
   setBusinessExpenses: (val: BusinessExpense[] | ((prev: BusinessExpense[]) => BusinessExpense[])) => void;
+  financeEntries: PersonalFinanceEntry[];
+  setFinanceEntries: (val: PersonalFinanceEntry[] | ((prev: PersonalFinanceEntry[]) => PersonalFinanceEntry[])) => void;
+  financeConfig: FinanceConfig[];
+  setFinanceConfig: (val: FinanceConfig[] | ((prev: FinanceConfig[]) => FinanceConfig[])) => void;
   isReady: boolean;
 }
 
@@ -29,8 +37,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [purchases, setPurchases, pReady] = useSupabaseTable<PurchaseOrder>("purchases", "biztrack_purchases", []);
   const [transactions, setTransactions, tReady] = useSupabaseTable<Transaction>("transactions", "biztrack_transactions", []);
   const [businessExpenses, setBusinessExpenses, beReady] = useSupabaseTable<BusinessExpense>("business_expenses", "biztrack_expenses", []);
+  const [financeEntries, setFinanceEntries, feReady] = useSupabaseTable<PersonalFinanceEntry>("personal_finance", "biztrack_finance_entries", []);
+  const [financeConfig, setFinanceConfig, fcReady] = useSupabaseTable<FinanceConfig>("finance_config", "biztrack_finance_config", []);
 
-  const isReady = eReady && wReady && mReady && pReady && tReady && beReady;
+  const isReady = eReady && wReady && mReady && pReady && tReady && beReady && feReady && fcReady;
 
   return (
     <DataContext.Provider
@@ -41,7 +51,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
         purchases, setPurchases,
         transactions, setTransactions,
         businessExpenses, setBusinessExpenses,
-        isReady
+        financeEntries, setFinanceEntries,
+        financeConfig, setFinanceConfig,
+        isReady,
       }}
     >
       {children}
