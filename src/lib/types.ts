@@ -163,6 +163,7 @@ export type FinanceCategory =
   | "Business Income"
   | "Investment Return"
   | "Gift / Bonus"
+  | "Received by Someone"
   | "Food & Dining"
   | "Groceries"
   | "Rent & Housing"

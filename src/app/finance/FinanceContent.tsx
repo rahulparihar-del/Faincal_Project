@@ -13,7 +13,7 @@ import {
 /* ─── Helpers ─────────────────────────────────────────────── */
 const CREDIT_CATEGORIES: FinanceCategory[] = [
   "Salary / Income", "Freelance", "Business Income",
-  "Investment Return", "Gift / Bonus",
+  "Investment Return", "Gift / Bonus", "Received by Someone",
 ];
 const DEBIT_CATEGORIES: FinanceCategory[] = [
   "Food & Dining", "Groceries", "Rent & Housing", "EMI / Loan",
