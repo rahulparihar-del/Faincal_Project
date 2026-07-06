@@ -118,228 +118,311 @@ function DayModal({
         return (
           o.sub_order_no?.toLowerCase().includes(q) ||
           o.sku?.toLowerCase().includes(q) ||
-          o.product_name?.toLowerCase().includes(q)
+          o.product_name?.toLowerCase().includes(q) ||
+          o.customer_state?.toLowerCase().includes(q)
         );
       }
       return true;
     });
   }, [orders, search, statusFilter]);
 
-  const revenue = orders.reduce((s, o) => s + (o.selling_price ?? 0), 0);
-  const uniqueStatuses = Array.from(new Set(orders.map(o => o.status)));
+  const revenue   = orders.reduce((s, o) => s + (o.selling_price ?? 0), 0);
+  const delivered = orders.filter(o => o.status === "DELIVERED").length;
+  const rto       = orders.filter(o => o.status === "RTO_COMPLETE" || o.status === "RTO").length;
+  const cancelled = orders.filter(o => o.status === "CANCELLED").length;
+  const pending   = orders.length - delivered - rto - cancelled;
 
-  const th: React.CSSProperties = {
-    padding: "9px 12px", fontSize: 10, fontWeight: 800, textTransform: "uppercase",
-    letterSpacing: "0.07em", color: isDark ? "#71717a" : "#94a3b8",
-    textAlign: "left", whiteSpace: "nowrap",
-    background: isDark ? "#111113" : "#fafafa",
-    borderBottom: isDark ? "1px solid #27272a" : "1px solid #f1f5f9",
-    position: "sticky", top: 0, zIndex: 2,
-  };
-  const td: React.CSSProperties = {
-    padding: "10px 12px", fontSize: 12, color: isDark ? "#e4e4e7" : "#1e293b",
-    borderBottom: isDark ? "1px solid #1f1f23" : "1px solid #f8fafc", verticalAlign: "middle",
-  };
+  const d        = new Date(date + "T00:00:00");
+  const fullDate = d.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const uniqueStatuses = Array.from(new Set(orders.map(o => o.status)));
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
+      style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(8px)" }}
       onClick={onClose}
     >
       <motion.div
-        initial={{ opacity: 0, scale: 0.96, y: 16 }}
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.96, y: 16 }}
-        transition={{ duration: 0.2 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
         onClick={e => e.stopPropagation()}
         style={{
-          width: "100%", maxWidth: 960,
-          maxHeight: "90vh",
+          width: "100%", maxWidth: 1060,
+          maxHeight: "92vh",
           display: "flex", flexDirection: "column",
-          background: isDark ? "#18181b" : "#fff",
-          border: isDark ? "1px solid #27272a" : "1px solid #e2e8f0",
-          borderRadius: 20,
+          background: isDark ? "#0f0f11" : "#ffffff",
+          borderRadius: 24,
           overflow: "hidden",
-          boxShadow: "0 24px 64px rgba(0,0,0,0.3)",
+          boxShadow: isDark
+            ? "0 32px 80px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.06)"
+            : "0 32px 80px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)",
         }}
       >
-        {/* Modal Header */}
+        {/* ── Hero Header ── */}
         <div style={{
-          padding: "18px 22px",
-          borderBottom: isDark ? "1px solid #27272a" : "1px solid #f1f5f9",
-          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
-          background: isDark ? "#111113" : "#fafafa",
+          background: "linear-gradient(135deg, #0f0f10 0%, #18181b 55%, #1e1e23 100%)",
+          padding: "22px 28px 20px",
+          position: "relative",
+          overflow: "hidden",
           flexShrink: 0,
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{
-              width: 40, height: 40, borderRadius: 12,
-              background: isDark ? "#27272a" : "#f1f5f9",
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}>
-              <Calendar size={18} color={isDark ? "#a1a1aa" : "#64748b"} />
-            </div>
-            <div>
-              <div style={{ fontSize: 16, fontWeight: 900, color: isDark ? "#fff" : "#111" }}>
-                {fmtDate(date)}
-              </div>
-              <div style={{ fontSize: 10.5, color: isDark ? "#71717a" : "#94a3b8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                {orders.length} orders · ₹{revenue.toLocaleString("en-IN")} revenue
-              </div>
-            </div>
-          </div>
+          <div style={{ position: "absolute", top: -60, right: -40, width: 220, height: 220, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,255,255,0.04), transparent 70%)", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", bottom: -80, left: "40%", width: 180, height: 180, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,255,255,0.025), transparent 70%)", pointerEvents: "none" }} />
 
-          {/* Mini stats */}
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {uniqueStatuses.map(s => {
-              const sc = getStatusConfig(s);
-              const count = orders.filter(o => o.status === s).length;
-              return (
-                <span key={s} style={{
-                  fontSize: 11, fontWeight: 800,
-                  background: isDark ? sc.darkBg : sc.bg,
-                  color: sc.color,
-                  borderRadius: 8, padding: "4px 10px",
+          <div style={{ position: "relative", zIndex: 1 }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20 }}>
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.14em", color: "rgba(255,255,255,0.35)", marginBottom: 5 }}>
+                  Daily Order Report
+                </div>
+                <div style={{ fontSize: 24, fontWeight: 900, color: "#ffffff", letterSpacing: "-0.02em", lineHeight: 1.1 }}>
+                  {fullDate}
+                </div>
+                <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.4)", marginTop: 5, fontWeight: 600 }}>
+                  {orders.length} orders processed · CSV Import
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                style={{
+                  width: 34, height: 34, borderRadius: 10,
+                  background: "rgba(255,255,255,0.07)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                  color: "rgba(255,255,255,0.55)", flexShrink: 0,
+                }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
+              {[
+                { label: "Revenue",   value: `₹${revenue.toLocaleString("en-IN")}`, color: "#ffffff" },
+                { label: "Delivered", value: String(delivered), color: "#4ade80" },
+                { label: "RTO",       value: String(rto),       color: "#fb923c" },
+                { label: "Cancelled", value: String(cancelled), color: "#f87171" },
+                { label: "Pending",   value: String(pending),   color: "#facc15" },
+              ].map(s => (
+                <div key={s.label} style={{
+                  background: "rgba(255,255,255,0.05)",
+                  border: "1px solid rgba(255,255,255,0.07)",
+                  borderRadius: 12, padding: "12px 14px",
                 }}>
-                  {sc.label}: {count}
-                </span>
-              );
-            })}
+                  <div style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.3)", marginBottom: 5 }}>
+                    {s.label}
+                  </div>
+                  <div style={{ fontSize: s.label === "Revenue" ? 14 : 22, fontWeight: 900, color: s.color, fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
+                    {s.value}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: isDark ? "#71717a" : "#94a3b8", flexShrink: 0 }}>
-            <X size={20} />
-          </button>
         </div>
 
-        {/* Filters */}
+        {/* ── Filter Bar ── */}
         <div style={{
-          padding: "10px 16px",
-          borderBottom: isDark ? "1px solid #27272a" : "1px solid #f1f5f9",
-          display: "flex", gap: 10, alignItems: "center", flexShrink: 0,
-          background: isDark ? "#18181b" : "#fff",
+          padding: "12px 20px",
+          borderBottom: isDark ? "1px solid rgba(255,255,255,0.06)" : "1px solid #f0f0f0",
+          display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", flexShrink: 0,
+          background: isDark ? "#0d0d0f" : "#fafafa",
         }}>
-          <div style={{ position: "relative", flex: "1 1 200px" }}>
-            <Search size={13} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: isDark ? "#52525b" : "#94a3b8", pointerEvents: "none" }} />
+          <div style={{ position: "relative", flex: "1 1 240px", minWidth: 200 }}>
+            <Search size={13} style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: isDark ? "#52525b" : "#94a3b8", pointerEvents: "none" }} />
             <input
-              value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Search sub-order, SKU, product…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search sub-order, SKU, product, state…"
               style={{
-                width: "100%", padding: "7px 10px 7px 30px", fontSize: 12,
-                border: isDark ? "1px solid #3f3f46" : "1px solid #e2e8f0",
-                borderRadius: 8, background: isDark ? "#111" : "#f8fafc",
+                width: "100%", padding: "8px 12px 8px 32px", fontSize: 12,
+                border: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid #e4e4e7",
+                borderRadius: 9,
+                background: isDark ? "rgba(255,255,255,0.04)" : "#fff",
                 color: isDark ? "#e4e4e7" : "#111", outline: "none",
               }}
             />
           </div>
-          <div style={{ position: "relative" }}>
-            <select
-              value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-              style={{
-                padding: "7px 28px 7px 10px", fontSize: 12, fontWeight: 700,
-                border: isDark ? "1px solid #3f3f46" : "1px solid #e2e8f0",
-                borderRadius: 8, background: isDark ? "#111" : "#f8fafc",
-                color: isDark ? "#e4e4e7" : "#111", cursor: "pointer", outline: "none", appearance: "none",
-              }}
-            >
-              <option value="all">All Statuses</option>
-              {uniqueStatuses.map(s => (
-                <option key={s} value={s}>{getStatusConfig(s).label}</option>
-              ))}
-            </select>
-            <ChevronDown size={11} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: isDark ? "#71717a" : "#94a3b8" }} />
+
+          <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+            {[{ value: "all", label: "All" }, ...uniqueStatuses.map(s => ({ value: s, label: getStatusConfig(s).label }))].map(opt => {
+              const isActive = statusFilter === opt.value;
+              const sc = opt.value !== "all" ? getStatusConfig(opt.value) : null;
+              const cnt = opt.value === "all" ? orders.length : orders.filter(o => o.status === opt.value).length;
+              return (
+                <button
+                  key={opt.value}
+                  onClick={() => setStatusFilter(opt.value)}
+                  style={{
+                    padding: "6px 12px", borderRadius: 8, fontSize: 11, fontWeight: 800,
+                    cursor: "pointer",
+                    background: isActive
+                      ? (sc ? (isDark ? sc.darkBg : sc.bg) : (isDark ? "#27272a" : "#111"))
+                      : (isDark ? "rgba(255,255,255,0.04)" : "#f1f5f9"),
+                    color: isActive
+                      ? (sc ? sc.color : (isDark ? "#fff" : "#fff"))
+                      : (isDark ? "#52525b" : "#94a3b8"),
+                    border: isActive
+                      ? `1px solid ${sc ? sc.color + "44" : "rgba(255,255,255,0.2)"}`
+                      : `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "#e2e8f0"}`,
+                    transition: "all 0.15s",
+                  }}
+                >
+                  {opt.label} <span style={{ opacity: 0.65 }}>{cnt}</span>
+                </button>
+              );
+            })}
           </div>
-          <span style={{ fontSize: 11, color: isDark ? "#52525b" : "#94a3b8", fontWeight: 700, marginLeft: "auto" }}>
-            {filtered.length} of {orders.length}
+
+          <span style={{ fontSize: 11, color: isDark ? "rgba(255,255,255,0.2)" : "#94a3b8", fontWeight: 600, marginLeft: "auto", whiteSpace: "nowrap" }}>
+            {filtered.length} / {orders.length}
           </span>
         </div>
 
-        {/* Table */}
+        {/* ── Table ── */}
         <div style={{ overflowY: "auto", flex: 1 }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontVariantNumeric: "tabular-nums" }}>
             <thead>
               <tr>
-                <th style={th}>#</th>
-                <th style={th}>Sub Order No</th>
-                <th style={th}>Product</th>
-                <th style={th}>SKU</th>
-                <th style={th}>Size</th>
-                <th style={{ ...th, textAlign: "center" }}>Qty</th>
-                <th style={{ ...th, textAlign: "right" }}>Price</th>
-                <th style={th}>Location</th>
-                <th style={th}>Source</th>
-                <th style={th}>Status</th>
+                {[
+                  { label: "#",            align: "left"   },
+                  { label: "Sub Order No", align: "left"   },
+                  { label: "Product Name", align: "left"   },
+                  { label: "SKU",          align: "left"   },
+                  { label: "Size",         align: "left"   },
+                  { label: "Qty",          align: "center" },
+                  { label: "Price",        align: "right"  },
+                  { label: "Location",     align: "left"   },
+                  { label: "Source",       align: "left"   },
+                  { label: "Status",       align: "left"   },
+                ].map(h => (
+                  <th key={h.label} style={{
+                    padding: "10px 14px",
+                    fontSize: 9.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em",
+                    color: isDark ? "rgba(255,255,255,0.25)" : "#94a3b8",
+                    textAlign: h.align as any, whiteSpace: "nowrap",
+                    background: isDark ? "rgba(255,255,255,0.02)" : "#f8fafc",
+                    borderBottom: isDark ? "1px solid rgba(255,255,255,0.05)" : "1px solid #f1f5f9",
+                    position: "sticky", top: 0, zIndex: 2,
+                  }}>
+                    {h.label}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {filtered.map((o, i) => {
                 const sc = getStatusConfig(o.status);
                 return (
-                  <tr key={o.id} style={{ background: i % 2 === 0 ? "transparent" : (isDark ? "rgba(255,255,255,0.01)" : "rgba(0,0,0,0.01)") }}>
-                    <td style={{ ...td, color: isDark ? "#52525b" : "#cbd5e1", fontSize: 10, fontWeight: 700 }}>{i + 1}</td>
-                    <td style={td}>
-                      <div style={{ fontSize: 11, fontWeight: 700, fontFamily: "monospace", color: isDark ? "#e4e4e7" : "#111", whiteSpace: "nowrap" }}>
-                        {o.sub_order_no}
-                      </div>
-                      {o.packet_id && (
-                        <div style={{ fontSize: 10, color: isDark ? "#52525b" : "#94a3b8", marginTop: 1 }}>PID: {o.packet_id}</div>
-                      )}
+                  <motion.tr
+                    key={o.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: Math.min(i * 0.008, 0.12) }}
+                    onMouseEnter={e => (e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.025)" : "#f8fafc")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                    style={{ borderBottom: isDark ? "1px solid rgba(255,255,255,0.035)" : "1px solid #f8fafc", transition: "background 0.1s" }}
+                  >
+                    <td style={{ padding: "10px 14px", fontSize: 10, fontWeight: 700, color: isDark ? "rgba(255,255,255,0.12)" : "#d1d5db", verticalAlign: "middle" }}>{i + 1}</td>
+
+                    <td style={{ padding: "10px 14px", verticalAlign: "middle" }}>
+                      <div style={{ fontSize: 10.5, fontWeight: 700, fontFamily: "monospace", color: isDark ? "#d4d4d8" : "#111", whiteSpace: "nowrap" }}>{o.sub_order_no}</div>
+                      {o.packet_id && <div style={{ fontSize: 9.5, color: isDark ? "rgba(255,255,255,0.18)" : "#94a3b8", marginTop: 2 }}>PID: {o.packet_id}</div>}
                     </td>
-                    <td style={{ ...td, maxWidth: 200 }}>
-                      <div style={{ fontSize: 11.5, fontWeight: 700, lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+
+                    <td style={{ padding: "10px 14px", maxWidth: 210, verticalAlign: "middle" }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: isDark ? "#d4d4d8" : "#1e293b", lineHeight: 1.45, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                         {o.product_name || "—"}
                       </div>
                     </td>
-                    <td style={td}>
-                      {o.sku && (
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 10, fontWeight: 800, background: isDark ? "#27272a" : "#f1f5f9", color: isDark ? "#e4e4e7" : "#334155", borderRadius: 5, padding: "2px 6px" }}>
-                          <Tag size={8} />{o.sku}
-                        </span>
-                      )}
-                      {o.catalog_id && <div style={{ fontSize: 10, color: isDark ? "#52525b" : "#94a3b8", marginTop: 2 }}>Cat: {o.catalog_id}</div>}
+
+                    <td style={{ padding: "10px 14px", verticalAlign: "middle" }}>
+                      {o.sku ? (
+                        <>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 800, background: isDark ? "rgba(255,255,255,0.07)" : "#f1f5f9", color: isDark ? "#a1a1aa" : "#334155", borderRadius: 6, padding: "3px 8px", border: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid #e2e8f0", whiteSpace: "nowrap" }}>
+                            <Tag size={8} />{o.sku}
+                          </span>
+                          {o.catalog_id && <div style={{ fontSize: 9.5, color: isDark ? "rgba(255,255,255,0.18)" : "#94a3b8", marginTop: 3 }}>{o.catalog_id}</div>}
+                        </>
+                      ) : <span style={{ color: isDark ? "rgba(255,255,255,0.12)" : "#d1d5db" }}>—</span>}
                     </td>
-                    <td style={{ ...td, whiteSpace: "nowrap", fontSize: 11.5, fontWeight: 700 }}>{o.size || "—"}</td>
-                    <td style={{ ...td, textAlign: "center", fontWeight: 800 }}>{o.qty}</td>
-                    <td style={{ ...td, textAlign: "right", whiteSpace: "nowrap" }}>
-                      <div style={{ fontSize: 13, fontWeight: 800, color: isDark ? "#fafafa" : "#111" }}>₹{(o.selling_price ?? 0).toFixed(0)}</div>
-                    </td>
-                    <td style={td}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap", fontSize: 11 }}>
-                        <MapPin size={10} color={isDark ? "#52525b" : "#94a3b8"} />
-                        {[o.customer_city, o.customer_state].filter(Boolean).join(", ") || "—"}
-                      </div>
-                    </td>
-                    <td style={td}>
-                      <span style={{ fontSize: 10, color: isDark ? "#52525b" : "#94a3b8", fontWeight: 700, textTransform: "uppercase" }}>
-                        {o.order_source === "ad_order" ? "🎯 Ad" : o.order_source || "—"}
+
+                    <td style={{ padding: "10px 14px", verticalAlign: "middle" }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: isDark ? "#e4e4e7" : "#334155", background: isDark ? "rgba(255,255,255,0.06)" : "#f4f4f5", border: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid #e4e4e7", borderRadius: 6, padding: "2px 8px", whiteSpace: "nowrap", display: "inline-block" }}>
+                        {o.size || "Free"}
                       </span>
                     </td>
-                    <td style={td}>
-                      <span style={{
-                        fontSize: 10.5, fontWeight: 800, borderRadius: 7, padding: "3px 8px", whiteSpace: "nowrap",
-                        background: isDark ? sc.darkBg : sc.bg, color: sc.color,
-                      }}>
+
+                    <td style={{ padding: "10px 14px", textAlign: "center", verticalAlign: "middle" }}>
+                      <span style={{ fontSize: 14, fontWeight: 900, color: isDark ? "#fff" : "#111" }}>{o.qty}</span>
+                    </td>
+
+                    <td style={{ padding: "10px 14px", textAlign: "right", whiteSpace: "nowrap", verticalAlign: "middle" }}>
+                      <span style={{ fontSize: 14, fontWeight: 900, color: isDark ? "#ffffff" : "#111" }}>₹{(o.selling_price ?? 0).toFixed(0)}</span>
+                    </td>
+
+                    <td style={{ padding: "10px 14px", verticalAlign: "middle" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                        <MapPin size={10} color={isDark ? "rgba(255,255,255,0.2)" : "#94a3b8"} style={{ flexShrink: 0 }} />
+                        <div>
+                          {o.customer_city && <div style={{ fontSize: 11, fontWeight: 700, color: isDark ? "#d4d4d8" : "#334155", whiteSpace: "nowrap" }}>{o.customer_city}</div>}
+                          {o.customer_state && <div style={{ fontSize: 9.5, color: isDark ? "rgba(255,255,255,0.28)" : "#94a3b8", whiteSpace: "nowrap" }}>{o.customer_state}</div>}
+                          {!o.customer_city && !o.customer_state && <span style={{ color: isDark ? "rgba(255,255,255,0.12)" : "#d1d5db" }}>—</span>}
+                        </div>
+                      </div>
+                    </td>
+
+                    <td style={{ padding: "10px 14px", verticalAlign: "middle" }}>
+                      {o.order_source === "ad_order" ? (
+                        <span style={{ fontSize: 10, fontWeight: 800, borderRadius: 6, padding: "3px 8px", background: "rgba(168,85,247,0.12)", color: "#a855f7", border: "1px solid rgba(168,85,247,0.2)" }}>🎯 Ad</span>
+                      ) : o.order_source ? (
+                        <span style={{ fontSize: 10, color: isDark ? "rgba(255,255,255,0.3)" : "#94a3b8", fontWeight: 600, textTransform: "capitalize" }}>{o.order_source}</span>
+                      ) : <span style={{ color: isDark ? "rgba(255,255,255,0.1)" : "#d1d5db" }}>—</span>}
+                    </td>
+
+                    <td style={{ padding: "10px 14px", verticalAlign: "middle" }}>
+                      <span style={{ fontSize: 10.5, fontWeight: 800, borderRadius: 8, padding: "4px 10px", whiteSpace: "nowrap", display: "inline-block", background: isDark ? sc.darkBg : sc.bg, color: sc.color, border: `1px solid ${sc.color}33` }}>
                         {sc.label}
                       </span>
                     </td>
-                  </tr>
+                  </motion.tr>
                 );
               })}
             </tbody>
           </table>
+
           {filtered.length === 0 && (
-            <div style={{ textAlign: "center", padding: "40px 20px", color: isDark ? "#52525b" : "#94a3b8", fontSize: 13 }}>
-              No orders match filters
+            <div style={{ textAlign: "center", padding: "60px 20px", color: isDark ? "rgba(255,255,255,0.15)" : "#94a3b8" }}>
+              <Search size={30} style={{ margin: "0 auto 12px", display: "block", opacity: 0.3 }} />
+              <div style={{ fontSize: 14, fontWeight: 700 }}>No orders match your filters</div>
             </div>
           )}
+        </div>
+
+        {/* ── Footer ── */}
+        <div style={{
+          padding: "10px 22px",
+          borderTop: isDark ? "1px solid rgba(255,255,255,0.06)" : "1px solid #f0f0f0",
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          background: isDark ? "#0d0d0f" : "#fafafa", flexShrink: 0,
+        }}>
+          <span style={{ fontSize: 11, color: isDark ? "rgba(255,255,255,0.2)" : "#94a3b8", fontWeight: 600 }}>
+            Showing {filtered.length} of {orders.length} orders
+          </span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: isDark ? "rgba(255,255,255,0.3)" : "#64748b" }}>
+            Revenue: <strong style={{ color: isDark ? "#fff" : "#111", fontWeight: 900 }}>₹{revenue.toLocaleString("en-IN")}</strong>
+          </span>
         </div>
       </motion.div>
     </div>
   );
 }
 
+
 // ── Date Box Card ──────────────────────────────────────────────────────
+
 
 function DateBox({
   date, orders, isDark, onClick,
@@ -552,30 +635,62 @@ export default function OrdersTab() {
       />
 
       {/* ── Summary Metrics ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px,1fr))", gap: 12, marginBottom: 20 }}>
+      <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
         {[
-          { label: "Total Orders", value: metrics.total,     icon: ShoppingCart,   color: isDark ? "#fafafa" : "#111" },
-          { label: "Days of Data", value: metrics.days,       icon: Calendar,       color: "#3b82f6" },
-          { label: "Delivered",    value: metrics.delivered,  icon: CheckCircle,    color: "#16a34a" },
-          { label: "RTO / Returns",value: metrics.rto,        icon: AlertTriangle,  color: "#ea580c" },
-          { label: "Cancelled",    value: metrics.cancelled,  icon: X,              color: "#ef4444" },
-          { label: "Revenue",      value: null,               icon: IndianRupee,    color: "#8b5cf6", revenue: metrics.revenue },
-        ].map((m) => (
-          <div key={m.label} style={{ ...card, display: "flex", alignItems: "center", gap: 12, padding: "14px 16px" }}>
-            <div style={{ width: 38, height: 38, borderRadius: 10, background: isDark ? "#27272a" : "#f8fafc", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: m.color }}>
-              <m.icon size={18} />
-            </div>
-            <div>
-              <div style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: isDark ? "#71717a" : "#94a3b8" }}>{m.label}</div>
-              <div style={{ fontSize: 20, fontWeight: 900, color: m.color, fontVariantNumeric: "tabular-nums", lineHeight: 1.2 }}>
-                {"revenue" in m && m.revenue !== undefined
-                  ? `₹${m.revenue.toLocaleString("en-IN")}`
-                  : <AnimatedCounter value={m.value ?? 0} />}
+          { label: "Total Orders",  value: metrics.total,     icon: ShoppingCart,  color: isDark ? "#e4e4e7" : "#111",  grow: 1 },
+          { label: "Days of Data",  value: metrics.days,      icon: Calendar,      color: "#3b82f6",                    grow: 1 },
+          { label: "Delivered",     value: metrics.delivered, icon: CheckCircle,   color: "#16a34a",                    grow: 1 },
+          { label: "RTO / Returns", value: metrics.rto,       icon: AlertTriangle, color: "#ea580c",                    grow: 1 },
+          { label: "Cancelled",     value: metrics.cancelled, icon: X,             color: "#ef4444",                    grow: 1 },
+          { label: "Revenue",       value: null,              icon: IndianRupee,   color: "#8b5cf6", revenue: metrics.revenue, grow: 2 },
+        ].map((m) => {
+          const display = "revenue" in m && m.revenue !== undefined
+            ? `₹${m.revenue.toLocaleString("en-IN")}`
+            : String(m.value ?? 0);
+          // Shrink font for long values to prevent overflow
+          const numSize = display.length > 9 ? 14 : display.length > 6 ? 17 : 20;
+          return (
+            <div
+              key={m.label}
+              style={{
+                ...card,
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "12px 14px",
+                flex: `${m.grow} 1 0`, minWidth: 120,
+                overflow: "hidden",
+              }}
+            >
+              <div style={{
+                width: 34, height: 34, borderRadius: 9, flexShrink: 0,
+                background: isDark ? "#27272a" : "#f4f4f5",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                color: m.color,
+              }}>
+                <m.icon size={16} />
+              </div>
+              <div style={{ minWidth: 0, flex: 1, overflow: "hidden" }}>
+                <div style={{
+                  fontSize: 8.5, fontWeight: 800, textTransform: "uppercase",
+                  letterSpacing: "0.07em", color: isDark ? "#52525b" : "#94a3b8",
+                  marginBottom: 1, whiteSpace: "nowrap",
+                }}>
+                  {m.label}
+                </div>
+                <div style={{
+                  fontSize: numSize, fontWeight: 900, color: m.color,
+                  fontVariantNumeric: "tabular-nums", lineHeight: 1.15,
+                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                }}>
+                  {"revenue" in m && m.revenue !== undefined
+                    ? display
+                    : <AnimatedCounter value={m.value ?? 0} />}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
+
 
       {/* ── Feedback Banner ── */}
       <AnimatePresence>

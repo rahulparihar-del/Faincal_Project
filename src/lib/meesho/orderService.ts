@@ -191,9 +191,26 @@ export async function mergeOrders(
     }
   }
 
-  // ── Step 4: Upsert in chunks ──────────────────────────────────────
-  for (let i = 0; i < toUpsert.length; i += UPSERT_CHUNK_SIZE) {
-    const chunk = toUpsert.slice(i, i + UPSERT_CHUNK_SIZE);
+  // ── Step 4: Deduplicate within this batch (same PK twice = Postgres error) ──
+  // Meesho CSVs covering multiple date ranges often repeat the same sub_order_no.
+  const seenIds = new Map<string, MeeshoOrderRow>();
+  for (const row of toUpsert) {
+    // Last occurrence wins — keeps the most recently-seen status/price data
+    seenIds.set(row.id, row);
+  }
+  const dedupedUpsert = Array.from(seenIds.values());
+
+  // Adjust counters if duplicates were collapsed
+  const collapsed = toUpsert.length - dedupedUpsert.length;
+  if (collapsed > 0) {
+    result.records_dup += collapsed;
+    // new/upd was already incremented for each occurrence — fix the over-count
+    result.records_new = Math.max(0, result.records_new - collapsed);
+  }
+
+  // ── Step 5: Upsert in chunks ──────────────────────────────────────
+  for (let i = 0; i < dedupedUpsert.length; i += UPSERT_CHUNK_SIZE) {
+    const chunk = dedupedUpsert.slice(i, i + UPSERT_CHUNK_SIZE);
     const { error: upsertErr } = await supabase
       .from(ORDERS_TABLE)
       .upsert(chunk, { onConflict: "id" });
