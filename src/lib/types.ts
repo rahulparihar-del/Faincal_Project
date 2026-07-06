@@ -156,7 +156,7 @@ export interface Transaction {
   utr: string;
 }
 
-export type FinanceEntryType = "Credit" | "Debit";
+export type FinanceEntryType = "Credit" | "Debit" | "Transfer";
 export type FinanceCategory =
   | "Salary / Income"
   | "Freelance"
@@ -181,12 +181,13 @@ export type FinanceCategory =
 export interface PersonalFinanceEntry {
   id: string;
   date: string;                    // YYYY-MM-DD
-  type: FinanceEntryType;          // Credit or Debit
+  type: FinanceEntryType;          // Credit, Debit or Transfer
   category: FinanceCategory;
   description: string;
   amount: number;
   paymentMode: "Cash" | "UPI" | "Bank Transfer" | "Card";
-  account: "Savings" | "Current";
+  account: "Savings" | "Current";  // Source account or credit/debit account
+  transferTo?: "Savings" | "Current"; // Destination account (only for Transfer type)
   tags?: string;                   // comma-separated optional tags
   notes?: string;
 }

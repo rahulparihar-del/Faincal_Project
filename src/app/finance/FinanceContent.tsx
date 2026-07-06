@@ -7,7 +7,7 @@ import {
 } from "@/lib/types";
 import {
   Plus, Edit2, Trash2, X, Settings,
-  ChevronDown, Search, ArrowUpRight, ArrowDownLeft,
+  ChevronDown, Search, ArrowUpRight, ArrowDownLeft, ArrowRight,
 } from "lucide-react";
 
 /* ─── Helpers ─────────────────────────────────────────────── */
@@ -39,7 +39,7 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
         <Plus size={16} className="text-neutral-400" />
       </div>
       <p className="text-xs font-bold text-neutral-900 mb-1">No transactions recorded</p>
-      <p className="text-[11px] text-neutral-400 mb-4 max-w-xs text-center">Your transaction ledger is empty. Add a credit or debit entry to start tracking.</p>
+      <p className="text-[11px] text-neutral-400 mb-4 max-w-xs text-center">Your transaction ledger is empty. Add a credit, debit, or transfer entry to start tracking.</p>
       <button
         onClick={onAdd}
         className="flex items-center gap-1.5 bg-neutral-950 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-black active:scale-95 transition-all shadow-sm"
@@ -60,6 +60,7 @@ const EMPTY_ENTRY: Omit<PersonalFinanceEntry, "id"> = {
   amount: 0,
   paymentMode: "UPI",
   account: "Current",
+  transferTo: "Savings",
   tags: "",
   notes: "",
 };
@@ -91,7 +92,17 @@ function EntryDrawer({
   const handleSave = () => {
     if (!form.description.trim()) { alert("Please add a description."); return; }
     if (!form.amount || form.amount <= 0) { alert("Please enter a valid amount."); return; }
-    onSave({ ...form, id: (initial as PersonalFinanceEntry | null)?.id ?? newId() });
+    
+    // Auto-align for transfer types
+    const finalForm = { ...form };
+    if (finalForm.type === "Transfer") {
+      finalForm.category = "Savings Transfer";
+      if (!finalForm.transferTo) {
+        finalForm.transferTo = finalForm.account === "Current" ? "Savings" : "Current";
+      }
+    }
+    
+    onSave({ ...finalForm, id: (initial as PersonalFinanceEntry | null)?.id ?? newId() });
     onClose();
   };
 
@@ -121,13 +132,18 @@ function EntryDrawer({
           {/* Type Toggle */}
           <div>
             <label className="block text-[9px] font-bold text-neutral-450 uppercase tracking-widest mb-1.5">Transaction Type</label>
-            <div className="grid grid-cols-2 gap-1.5 p-1 bg-neutral-100 rounded-xl">
-              {(["Credit", "Debit"] as FinanceEntryType[]).map((t) => (
+            <div className="grid grid-cols-3 gap-1.5 p-1 bg-neutral-100 rounded-xl">
+              {(["Credit", "Debit", "Transfer"] as FinanceEntryType[]).map((t) => (
                 <button
                   key={t}
+                  type="button"
                   onClick={() => {
                     set("type", t);
-                    set("category", t === "Credit" ? "Salary / Income" : "Food & Dining");
+                    set("category", t === "Credit" ? "Salary / Income" : t === "Transfer" ? "Savings Transfer" : "Food & Dining");
+                    if (t === "Transfer") {
+                      set("account", "Savings");
+                      set("transferTo", "Current");
+                    }
                   }}
                   className={`py-2 rounded-lg text-xs font-bold transition-all ${
                     form.type === t
@@ -165,7 +181,7 @@ function EntryDrawer({
               type="text"
               value={form.description}
               onChange={(e) => set("description", e.target.value)}
-              placeholder="e.g. Monthly salary, office lease, groceries..."
+              placeholder={form.type === "Transfer" ? "e.g. Savings to Current Transfer..." : "e.g. Monthly salary, office lease, groceries..."}
               className="w-full px-3.5 py-2.5 border border-neutral-200 rounded-xl text-xs font-medium focus:outline-none focus:border-neutral-950 bg-white text-neutral-950"
             />
           </div>
@@ -196,46 +212,97 @@ function EntryDrawer({
             </div>
           </div>
 
-          {/* Account Selection */}
-          <div>
-            <label className="block text-[9px] font-bold text-neutral-450 uppercase tracking-widest mb-1.5">Account (Source/Destination)</label>
-            <div className="grid grid-cols-2 gap-2 p-1 bg-neutral-100 rounded-xl">
-              {(["Current", "Savings"] as const).map((acc) => (
-                <button
-                  key={acc}
-                  type="button"
-                  onClick={() => set("account", acc)}
-                  className={`py-2 rounded-lg text-xs font-bold transition-all ${
-                    form.account === acc
-                      ? "bg-neutral-900 text-white shadow-sm"
-                      : "text-neutral-500 hover:text-neutral-905"
-                  }`}
-                >
-                  {acc} Account
-                </button>
-              ))}
+          {/* Account Selection (Rendered dynamically depending on transaction type) */}
+          {form.type === "Transfer" ? (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[9px] font-bold text-neutral-450 uppercase tracking-widest mb-1.5">From Account</label>
+                <div className="grid grid-cols-2 gap-1 p-1 bg-neutral-100 rounded-xl">
+                  {(["Current", "Savings"] as const).map((acc) => (
+                    <button
+                      key={acc}
+                      type="button"
+                      onClick={() => {
+                        set("account", acc);
+                        set("transferTo", acc === "Current" ? "Savings" : "Current");
+                      }}
+                      className={`py-1.5 rounded-lg text-[10px] font-bold transition-all ${
+                        form.account === acc
+                          ? "bg-neutral-900 text-white"
+                          : "text-neutral-500"
+                      }`}
+                    >
+                      {acc}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-[9px] font-bold text-neutral-450 uppercase tracking-widest mb-1.5">To Account</label>
+                <div className="grid grid-cols-2 gap-1 p-1 bg-neutral-100 rounded-xl">
+                  {(["Current", "Savings"] as const).map((acc) => (
+                    <button
+                      key={acc}
+                      type="button"
+                      onClick={() => {
+                        set("transferTo", acc);
+                        set("account", acc === "Current" ? "Savings" : "Current");
+                      }}
+                      className={`py-1.5 rounded-lg text-[10px] font-bold transition-all ${
+                        form.transferTo === acc
+                          ? "bg-neutral-900 text-white"
+                          : "text-neutral-500"
+                      }`}
+                    >
+                      {acc}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div>
+              <label className="block text-[9px] font-bold text-neutral-450 uppercase tracking-widest mb-1.5">Account</label>
+              <div className="grid grid-cols-2 gap-2 p-1 bg-neutral-100 rounded-xl">
+                {(["Current", "Savings"] as const).map((acc) => (
+                  <button
+                    key={acc}
+                    type="button"
+                    onClick={() => set("account", acc)}
+                    className={`py-2 rounded-lg text-xs font-bold transition-all ${
+                      form.account === acc
+                        ? "bg-neutral-900 text-white shadow-sm"
+                        : "text-neutral-500"
+                    }`}
+                  >
+                    {acc} Account
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
-          {/* Category */}
-          <div>
-            <label className="block text-[9px] font-bold text-neutral-450 uppercase tracking-widest mb-2">Category</label>
-            <div className="grid grid-cols-2 gap-1.5">
-              {categories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => set("category", cat)}
-                  className={`px-3 py-2 rounded-lg text-[11px] font-semibold border transition-all text-left truncate ${
-                    form.category === cat
-                      ? "border-neutral-950 bg-neutral-950 text-white"
-                      : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:text-black"
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
+          {/* Category (Hidden/disabled for Transfer type since it's always Savings Transfer) */}
+          {form.type !== "Transfer" && (
+            <div>
+              <label className="block text-[9px] font-bold text-neutral-455 uppercase tracking-widest mb-2">Category</label>
+              <div className="grid grid-cols-2 gap-1.5">
+                {categories.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => set("category", cat)}
+                    className={`px-3 py-2 rounded-lg text-[11px] font-semibold border transition-all text-left truncate ${
+                      form.category === cat
+                        ? "border-neutral-950 bg-neutral-950 text-white"
+                        : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-305 hover:text-black"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Tags & Notes */}
           <div className="grid grid-cols-2 gap-3">
@@ -363,7 +430,7 @@ export default function FinanceContent() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editing, setEditing] = useState<PersonalFinanceEntry | null>(null);
-  const [filterType, setFilterType] = useState<"All" | "Credit" | "Debit">("All");
+  const [filterType, setFilterType] = useState<"All" | "Credit" | "Debit" | "Transfer">("All");
   const [filterMonth, setFilterMonth] = useState<string>("all");
   const [search, setSearch] = useState("");
 
@@ -373,14 +440,25 @@ export default function FinanceContent() {
     const totalDebit = financeEntries.filter((e) => e.type === "Debit").reduce((s, e) => s + e.amount, 0);
     const totalBalance = config.startingBalance + totalCredit - totalDebit;
 
-    // Splits
+    // Splits: Current Balance
     const currentCredit = financeEntries.filter((e) => e.type === "Credit" && (e.account === "Current" || !e.account)).reduce((s, e) => s + e.amount, 0);
     const currentDebit = financeEntries.filter((e) => e.type === "Debit" && (e.account === "Current" || !e.account)).reduce((s, e) => s + e.amount, 0);
-    const currentBalance = config.startingBalance + currentCredit - currentDebit;
+    
+    // Transfers regarding Current Account
+    const currentTransfersIn = financeEntries.filter((e) => e.type === "Transfer" && e.transferTo === "Current").reduce((s, e) => s + e.amount, 0);
+    const currentTransfersOut = financeEntries.filter((e) => e.type === "Transfer" && e.account === "Current").reduce((s, e) => s + e.amount, 0);
+    
+    const currentBalance = config.startingBalance + currentCredit - currentDebit + currentTransfersIn - currentTransfersOut;
 
+    // Splits: Savings Balance
     const savingsCredit = financeEntries.filter((e) => e.type === "Credit" && e.account === "Savings").reduce((s, e) => s + e.amount, 0);
     const savingsDebit = financeEntries.filter((e) => e.type === "Debit" && e.account === "Savings").reduce((s, e) => s + e.amount, 0);
-    const savingsBalance = savingsCredit - savingsDebit;
+    
+    // Transfers regarding Savings Account
+    const savingsTransfersIn = financeEntries.filter((e) => e.type === "Transfer" && e.transferTo === "Savings").reduce((s, e) => s + e.amount, 0);
+    const savingsTransfersOut = financeEntries.filter((e) => e.type === "Transfer" && e.account === "Savings").reduce((s, e) => s + e.amount, 0);
+    
+    const savingsBalance = savingsCredit - savingsDebit + savingsTransfersIn - savingsTransfersOut;
 
     const now = new Date();
     const thisMonthEntries = financeEntries.filter((e) => {
@@ -460,12 +538,12 @@ export default function FinanceContent() {
           <h1 className="text-lg font-black tracking-widest uppercase text-neutral-900">
             Personal Finance
           </h1>
-          <p className="text-[11px] font-semibold text-neutral-450 tracking-wide mt-0.5">Ledger bookkeeping & cash flow logs</p>
+          <p className="text-[11px] font-semibold text-neutral-455 tracking-wide mt-0.5">Ledger bookkeeping & cash flow logs</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setSettingsOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 border border-neutral-250 rounded-xl text-xs font-bold text-neutral-600 bg-white hover:bg-neutral-50 active:scale-95 transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-neutral-255 rounded-xl text-xs font-bold text-neutral-600 bg-white hover:bg-neutral-50 active:scale-95 transition-all"
           >
             <Settings size={13} />
             Configure
@@ -510,7 +588,7 @@ export default function FinanceContent() {
         <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 p-4 bg-neutral-50/50 border-b border-neutral-200">
           {/* Search bar */}
           <div className="relative flex-1">
-            <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+            <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-450" />
             <input
               type="text"
               value={search}
@@ -524,7 +602,7 @@ export default function FinanceContent() {
           <div className="flex flex-wrap items-center gap-2">
             {/* Segmented controls (clean outline pill controls) */}
             <div className="flex border border-neutral-200 p-0.5 bg-white rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.01)]">
-              {(["All", "Credit", "Debit"] as const).map((t) => (
+              {(["All", "Credit", "Debit", "Transfer"] as const).map((t) => (
                 <button
                   key={t}
                   onClick={() => setFilterType(t)}
@@ -551,7 +629,7 @@ export default function FinanceContent() {
                   <option key={m.key} value={m.key}>{m.label}</option>
                 ))}
               </select>
-              <ChevronDown size={12} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-450 pointer-events-none" />
+              <ChevronDown size={12} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-455 pointer-events-none" />
             </div>
           </div>
         </div>
@@ -569,7 +647,7 @@ export default function FinanceContent() {
                   <th className="px-6 py-3.5 w-32">Date</th>
                   <th className="px-6 py-3.5">Description</th>
                   <th className="px-6 py-3.5 w-36">Category</th>
-                  <th className="px-6 py-3.5 w-32">Account</th>
+                  <th className="px-6 py-3.5 w-40">Account</th>
                   <th className="px-6 py-3.5 w-28">Method</th>
                   <th className="px-6 py-3.5 w-24 text-center">Type</th>
                   <th className="px-6 py-3.5 w-36 text-right">Amount</th>
@@ -579,11 +657,13 @@ export default function FinanceContent() {
               <tbody className="divide-y divide-neutral-100 text-xs font-medium text-neutral-900 bg-white">
                 {filtered.map((entry) => {
                   const isCredit = entry.type === "Credit";
+                  const isTransfer = entry.type === "Transfer";
                   const acc = entry.account || "Current";
+                  const toAcc = entry.transferTo || "Current";
                   return (
                     <tr key={entry.id} className="hover:bg-neutral-50/30 transition-colors group">
                       {/* Date */}
-                      <td className="px-6 py-4 text-neutral-400 font-mono tracking-tight whitespace-nowrap">
+                      <td className="px-6 py-4 text-neutral-450 font-mono tracking-tight whitespace-nowrap">
                         {entry.date}
                       </td>
 
@@ -606,15 +686,27 @@ export default function FinanceContent() {
                         </span>
                       </td>
 
-                      {/* Account */}
+                      {/* Account / Transfer route */}
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                          acc === "Savings" 
-                            ? "bg-neutral-900 text-white" 
-                            : "bg-neutral-100 text-neutral-700"
-                        }`}>
-                          {acc}
-                        </span>
+                        {isTransfer ? (
+                          <div className="flex items-center gap-1.5 text-[10px] font-bold tracking-tight">
+                            <span className="px-1.5 py-0.5 bg-neutral-100 rounded text-neutral-700 uppercase">
+                              {acc}
+                            </span>
+                            <ArrowRight size={10} className="text-neutral-400" />
+                            <span className="px-1.5 py-0.5 bg-neutral-950 text-white rounded uppercase">
+                              {toAcc}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                            acc === "Savings" 
+                              ? "bg-neutral-900 text-white" 
+                              : "bg-neutral-100 text-neutral-700"
+                          }`}>
+                            {acc}
+                          </span>
+                        )}
                       </td>
 
                       {/* Method */}
@@ -624,30 +716,36 @@ export default function FinanceContent() {
 
                       {/* Type Badge */}
                       <td className="px-6 py-4 text-center whitespace-nowrap">
-                        <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-md border tracking-wider uppercase ${
-                          isCredit 
-                            ? "bg-neutral-950 text-white border-neutral-950" 
-                            : "bg-white text-neutral-800 border-neutral-200 shadow-[0_1px_2px_rgba(0,0,0,0.01)]"
-                        }`}>
-                          {isCredit ? (
-                            <>
-                              <ArrowUpRight size={10} className="stroke-[2.5]" />
-                              Credit
-                            </>
-                          ) : (
-                            <>
-                              <ArrowDownLeft size={10} className="stroke-[2.5]" />
-                              Debit
-                            </>
-                          )}
-                        </span>
+                        {isTransfer ? (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-md border border-neutral-300 text-neutral-600 bg-neutral-50 tracking-wider uppercase">
+                            Transfer
+                          </span>
+                        ) : (
+                          <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-md border tracking-wider uppercase ${
+                            isCredit 
+                              ? "bg-neutral-950 text-white border-neutral-950" 
+                              : "bg-white text-neutral-800 border-neutral-200 shadow-[0_1px_2px_rgba(0,0,0,0.01)]"
+                          }`}>
+                            {isCredit ? (
+                              <>
+                                <ArrowUpRight size={10} className="stroke-[2.5]" />
+                                Credit
+                              </>
+                            ) : (
+                              <>
+                                <ArrowDownLeft size={10} className="stroke-[2.5]" />
+                                Debit
+                              </>
+                            )}
+                          </span>
+                        )}
                       </td>
 
                       {/* Amount */}
                       <td className={`px-6 py-4 text-right font-black text-sm tracking-tight whitespace-nowrap ${
-                        isCredit ? "text-neutral-950 font-black" : "text-neutral-800 font-bold"
+                        isTransfer ? "text-neutral-600 font-bold" : isCredit ? "text-neutral-950 font-black" : "text-neutral-800 font-bold"
                       }`}>
-                        {isCredit ? "+" : "-"}{fmt(entry.amount)}
+                        {isTransfer ? "" : isCredit ? "+" : "-"}{fmt(entry.amount)}
                       </td>
 
                       {/* Actions */}
@@ -662,7 +760,7 @@ export default function FinanceContent() {
                           </button>
                           <button
                             onClick={() => deleteEntry(entry.id)}
-                            className="p-1 rounded-md border border-neutral-200 text-neutral-440 hover:text-black hover:border-black hover:bg-neutral-50 transition-all"
+                            className="p-1 rounded-md border border-neutral-200 text-neutral-400 hover:text-black hover:border-black hover:bg-neutral-50 transition-all"
                             title="Delete record"
                           >
                             <Trash2 size={11} />
