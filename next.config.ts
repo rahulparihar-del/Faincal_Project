@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   // Disable dynamic route indicators in dev mode that overlap navigation
   devIndicators: false,
 

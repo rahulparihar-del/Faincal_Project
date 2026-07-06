@@ -22,14 +22,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         });
         if (headers.length === 0) return;
 
-        // Add class to the table
-        table.classList.add("responsive-table");
+        // Add class to the table if not already present
+        if (!table.classList.contains("responsive-table")) {
+          table.classList.add("responsive-table");
+        }
 
         // Assign data-label to td elements in tbody tr
         table.querySelectorAll("tbody tr").forEach((row) => {
           row.querySelectorAll("td").forEach((td, index) => {
             const header = headers[index];
-            if (header && !td.getAttribute("data-label")) {
+            if (header && td.getAttribute("data-label") !== header) {
               td.setAttribute("data-label", header);
             }
           });
@@ -37,12 +39,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       });
     };
 
-    // Run initially
-    updateTableLabels();
+    let timeoutId: NodeJS.Timeout | null = null;
+    const triggerUpdate = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        updateTableLabels();
+      }, 100);
+    };
 
-    // Observe changes in document body to capture client-side route changes and dynamic render
+    // Run debounced initially to allow route transitions and rendering to settle
+    triggerUpdate();
+
+    // Observe changes in document body to capture client-side route changes and dynamic render.
+    // Use debouncing to prevent infinite loops and high CPU load during animations or state updates.
     const observer = new MutationObserver(() => {
-      updateTableLabels();
+      triggerUpdate();
     });
 
     observer.observe(document.body, {
@@ -50,8 +61,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       subtree: true,
     });
 
-    return () => observer.disconnect();
-  }, [isReady]);
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      observer.disconnect();
+    };
+  }, [isReady, pathname]);
 
 
 

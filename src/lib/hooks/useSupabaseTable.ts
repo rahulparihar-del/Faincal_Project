@@ -41,8 +41,15 @@ export function useSupabaseTable<T extends { id: string }>(
     let active = true;
     const migratedFlag = `${storageKey}__migrated`;
 
-    (async () => {
-      if (isSupabaseConfigured && supabase) {
+    // 1. Immediately load local cache so the UI is ready instantly
+    const local = readLocal();
+    setData(local);
+    dataRef.current = local;
+    setIsReady(true);
+
+    // 2. Fetch fresh data from Supabase in the background if configured
+    if (isSupabaseConfigured && supabase) {
+      (async () => {
         const { data: rows, error } = await supabase
           .from(table)
           .select("data, created_at")
@@ -52,9 +59,6 @@ export function useSupabaseTable<T extends { id: string }>(
 
         if (error) {
           console.error(`Supabase load failed for "${table}", using local cache:`, error.message);
-          const local = readLocal();
-          setData(local);
-          dataRef.current = local;
         } else {
           let records = (rows ?? []).map((r) => (r as { data: T }).data);
 
@@ -68,24 +72,21 @@ export function useSupabaseTable<T extends { id: string }>(
             }
           })();
 
-          if (records.length === 0) {
-            const local = readLocal();
-            if (local.length > 0) {
-              // Load the local cache as fallback so client view is never wiped
-              records = local;
+          if (records.length === 0 && local.length > 0) {
+            // Load the local cache as fallback so client view is never wiped
+            records = local;
 
-              if (!alreadyMigrated) {
-                const { error: seedError } = await supabase
-                  .from(table)
-                  .upsert(local.map((r) => ({ id: r.id, data: r })), { onConflict: "id" });
-                if (seedError) {
-                  console.warn(`Supabase sync failed for "${table}" (likely RLS policy block):`, seedError.message);
-                }
-                try {
-                  window.localStorage.setItem(migratedFlag, "1");
-                } catch {
-                  /* ignore */
-                }
+            if (!alreadyMigrated) {
+              const { error: seedError } = await supabase
+                .from(table)
+                .upsert(local.map((r) => ({ id: r.id, data: r })), { onConflict: "id" });
+              if (seedError) {
+                console.warn(`Supabase sync failed for "${table}" (likely RLS policy block):`, seedError.message);
+              }
+              try {
+                window.localStorage.setItem(migratedFlag, "1");
+              } catch {
+                /* ignore */
               }
             }
           }
@@ -93,15 +94,16 @@ export function useSupabaseTable<T extends { id: string }>(
           if (!active) return;
           setData(records);
           dataRef.current = records;
-        }
-      } else {
-        const local = readLocal();
-        setData(local);
-        dataRef.current = local;
-      }
 
-      if (active) setIsReady(true);
-    })();
+          // Keep localStorage updated with fresh data
+          try {
+            window.localStorage.setItem(storageKey, JSON.stringify(records));
+          } catch (err) {
+            console.warn(`Error writing localStorage cache for key "${storageKey}":`, err);
+          }
+        }
+      })();
+    }
 
     return () => {
       active = false;
