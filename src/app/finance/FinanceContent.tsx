@@ -34,8 +34,8 @@ function monthLabel(y: number, m: number) { return `${MONTHS[m]} ${y}`; }
 /* ─── Empty State ─────────────────────────────────────────── */
 function EmptyState({ onAdd }: { onAdd: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center py-24 bg-white border border-dashed border-gray-200 rounded-xl">
-      <div className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center mb-3">
+    <div className="flex flex-col items-center justify-center py-24 bg-white border border-dashed border-gray-205 rounded-xl">
+      <div className="w-10 h-10 rounded-full border border-gray-205 flex items-center justify-center mb-3">
         <Plus size={16} className="text-gray-400" />
       </div>
       <p className="text-xs font-bold text-gray-900 mb-1">No transactions</p>
@@ -148,7 +148,7 @@ function EntryDrawer({
                   className={`py-1.5 rounded-md text-[11px] font-bold transition-all ${
                     form.type === t
                       ? "bg-white text-gray-950 shadow-sm"
-                      : "text-gray-500 hover:text-gray-955"
+                      : "text-gray-500 hover:text-gray-950"
                   }`}
                 >
                   {t}
@@ -169,7 +169,7 @@ function EntryDrawer({
                 value={form.amount || ""}
                 onChange={(e) => set("amount", parseFloat(e.target.value) || 0)}
                 placeholder="0"
-                className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm font-bold focus:outline-none focus:border-gray-900 bg-white text-gray-900 placeholder-gray-400"
+                className="w-full pl-9 pr-4 py-2.5 border border-gray-205 rounded-lg text-sm font-bold focus:outline-none focus:border-gray-900 bg-white text-gray-900 placeholder-gray-400"
               />
             </div>
           </div>
@@ -194,7 +194,7 @@ function EntryDrawer({
                 type="date"
                 value={form.date}
                 onChange={(e) => set("date", e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-gray-905 bg-white text-gray-900"
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-gray-900 bg-white text-gray-900"
               />
             </div>
             <div>
@@ -202,7 +202,7 @@ function EntryDrawer({
               <select
                 value={form.paymentMode}
                 onChange={(e) => set("paymentMode", e.target.value as PersonalFinanceEntry["paymentMode"])}
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-xs font-bold focus:outline-none focus:border-gray-905 bg-white text-gray-900"
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-xs font-bold focus:outline-none focus:border-gray-900 bg-white text-gray-900"
               >
                 <option>Cash</option>
                 <option>UPI</option>
@@ -250,7 +250,7 @@ function EntryDrawer({
                       }}
                       className={`py-1.5 rounded-md text-[11px] font-bold transition-all ${
                         form.transferTo === acc
-                          ? "bg-white text-gray-950 shadow-sm"
+                          ? "bg-white text-gray-955 shadow-sm"
                           : "text-gray-500"
                       }`}
                     >
@@ -271,7 +271,7 @@ function EntryDrawer({
                     onClick={() => set("account", acc)}
                     className={`py-1.5 rounded-md text-xs font-bold transition-all ${
                       form.account === acc
-                        ? "bg-white text-gray-950 shadow-sm"
+                        ? "bg-white text-gray-955 shadow-sm"
                         : "text-gray-500"
                     }`}
                   >
@@ -294,7 +294,7 @@ function EntryDrawer({
                     className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all text-left truncate ${
                       form.category === cat
                         ? "border-gray-900 bg-gray-900 text-white"
-                        : "border-gray-200 bg-white text-gray-600 hover:border-gray-305 hover:text-black"
+                        : "border-gray-205 bg-white text-gray-650 hover:border-gray-300 hover:text-black"
                     }`}
                   >
                     {cat}
@@ -323,7 +323,7 @@ function EntryDrawer({
                 value={form.notes ?? ""}
                 onChange={(e) => set("notes", e.target.value)}
                 placeholder="Memo..."
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-gray-900 bg-white text-gray-950 placeholder-gray-400"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-gray-900 bg-white text-gray-955 placeholder-gray-400"
               />
             </div>
           </div>
@@ -357,7 +357,7 @@ function EntryDrawer({
         <div className="px-6 py-4.5 border-t border-gray-100 flex gap-3 bg-gray-50/50">
           <button
             onClick={onClose}
-            className="flex-1 py-2.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-605 bg-white hover:bg-gray-100 hover:text-black transition-colors"
+            className="flex-1 py-2.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-600 bg-white hover:bg-gray-100 hover:text-black transition-colors"
           >
             Cancel
           </button>
@@ -396,7 +396,7 @@ function SettingsModal({
       <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 flex flex-col gap-4 border border-gray-200 animate-fade-in">
         <div className="flex items-center justify-between pb-2 border-b border-gray-100">
           <h2 className="text-xs font-black uppercase tracking-widest text-gray-950">Settings</h2>
-          <button onClick={onClose} className="w-7 h-7 rounded-lg border border-gray-250 flex items-center justify-center hover:bg-gray-55 transition-colors text-gray-550">
+          <button onClick={onClose} className="w-7 h-7 rounded-lg border border-gray-250 flex items-center justify-center hover:bg-gray-50 transition-colors text-gray-550">
             <X size={13} />
           </button>
         </div>
@@ -409,7 +409,7 @@ function SettingsModal({
           <div key={key}>
             <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">{label}</label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-950">₹</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-955">₹</span>
               <input
                 type="number"
                 min={0}
@@ -602,14 +602,14 @@ export default function FinanceContent() {
           <h1 className="text-xl md:text-2xl font-black tracking-tight text-gray-900 leading-tight">
             Personal Finance Ledger
           </h1>
-          <p className="text-xs font-semibold text-gray-405 tracking-wider mt-1">Bookkeeping list, splits & cash flow logs</p>
+          <p className="text-xs font-semibold text-gray-400 tracking-wider mt-1">Bookkeeping list, splits & cash flow logs</p>
         </div>
         <div className="flex items-center gap-2.5">
           <button
             onClick={() => setSettingsOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-2 border border-gray-200 rounded-lg text-xs font-bold text-gray-600 bg-white hover:bg-gray-50 transition-all active:scale-95 shadow-sm cursor-pointer"
+            className="flex items-center gap-1.5 px-4 py-2 border border-gray-200 rounded-lg text-xs font-bold text-gray-600 bg-white hover:bg-gray-55 transition-all active:scale-95 shadow-sm cursor-pointer"
           >
-            <Settings size={14} className="text-gray-400" />
+            <Settings size={14} className="text-gray-405" />
             Configure
           </button>
           <button
@@ -650,7 +650,7 @@ export default function FinanceContent() {
       {/* ── Table & Filter Area (Linear-inspired SaaS style) ── */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden w-full">
         
-        {/* Unified Search & Filters Row (Stack layout to prevent squeeze bugs) */}
+        {/* Unified Search & Filters Row */}
         <div className="p-4 bg-gray-50/50 border-b border-gray-200 space-y-3.5">
           {/* Row 1: Full-Width Search Input */}
           <div className="relative">
@@ -664,12 +664,12 @@ export default function FinanceContent() {
             />
           </div>
 
-          {/* Row 2: Filters toolbar (fully responsive wrapping layout) */}
+          {/* Row 2: Filters toolbar */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-1">
-            {/* Left side filters (Account & Type Selection) */}
+            {/* Left side filters */}
             <div className="flex flex-wrap items-center gap-2.5">
               {/* Account Selector */}
-              <div className="flex border border-gray-200 p-0.5 bg-gray-55 rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.01)]">
+              <div className="flex border border-gray-200 p-0.5 bg-gray-50 rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.01)]">
                 {[
                   { key: "All" as const, label: "All Accounts" },
                   { key: "Current" as const, label: "Current" },
@@ -709,9 +709,9 @@ export default function FinanceContent() {
               </div>
             </div>
 
-            {/* Right side filters (Month selector & Important toggle) */}
+            {/* Right side filters */}
             <div className="flex items-center gap-2.5">
-              {/* Month Select Dropdown (Zero inner box border bug fix via Tailwind !important utilities) */}
+              {/* Month Select Dropdown */}
               <div className="relative border border-gray-200 bg-white rounded-lg flex items-center pr-8 pl-3.5 py-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.01)] shrink-0 h-[31px]">
                 <select
                   value={filterMonth}
@@ -735,7 +735,7 @@ export default function FinanceContent() {
                 className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold border transition-all shadow-[0_1px_2px_rgba(0,0,0,0.01)] shrink-0 h-[31px] ${
                   filterImportant
                     ? "bg-amber-55 text-amber-700 border-amber-250 font-bold"
-                    : "bg-white text-gray-500 border-gray-200 hover:text-gray-900"
+                    : "bg-white text-gray-500 border-gray-205 hover:text-gray-900"
                 }`}
               >
                 <Star size={12} className={filterImportant ? "fill-amber-500 text-amber-500" : "text-gray-400"} />
@@ -755,17 +755,17 @@ export default function FinanceContent() {
             <table className="w-full text-left border-collapse table-auto min-w-[900px] lg:min-w-0">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50/20 text-[10px] font-bold text-gray-400 uppercase tracking-wider select-none">
-                  <th className="px-6 py-4 w-32 font-semibold">Date</th>
-                  <th className="px-6 py-4 font-semibold">Description</th>
-                  <th className="px-6 py-4 w-36 font-semibold">Category</th>
-                  <th className="px-6 py-4 w-44 font-semibold">Account Route</th>
-                  <th className="px-6 py-4 w-28 font-semibold">Method</th>
-                  <th className="px-6 py-4 w-28 font-semibold text-center">Type</th>
-                  <th className="px-6 py-4 w-40 font-semibold text-right">Amount</th>
-                  <th className="px-6 py-4 w-24 font-semibold text-right">Actions</th>
+                  <th className="px-4 py-3.5 w-24 font-semibold">Date</th>
+                  <th className="px-4 py-3.5 font-semibold">Description</th>
+                  <th className="px-4 py-3.5 w-32 font-semibold">Category</th>
+                  <th className="px-4 py-3.5 w-36 font-semibold">Account Route</th>
+                  <th className="px-4 py-3.5 w-20 font-semibold">Method</th>
+                  <th className="px-4 py-3.5 w-24 font-semibold text-center">Type</th>
+                  <th className="px-4 py-3.5 w-28 font-semibold text-right">Amount</th>
+                  <th className="px-4 py-3.5 w-16 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 text-sm font-semibold text-gray-900 bg-white">
+              <tbody className="divide-y divide-gray-105 text-sm font-semibold text-gray-900 bg-white">
                 {filtered.map((entry) => {
                   const isCredit = entry.type === "Credit";
                   const isTransfer = entry.type === "Transfer";
@@ -780,7 +780,7 @@ export default function FinanceContent() {
                   if (filterAccount !== "All" && isTransfer) {
                     if (toAcc === filterAccount) {
                       transferIndicator = (
-                        <span className="text-[9px] uppercase tracking-wider font-extrabold text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-950 px-2 py-0.5 rounded mr-2 bg-emerald-50 dark:bg-emerald-955/30">
+                        <span className="text-[9px] uppercase tracking-wider font-extrabold text-emerald-700 dark:text-emerald-450 border border-emerald-100 dark:border-emerald-950 px-2 py-0.5 rounded mr-2 bg-emerald-50 dark:bg-emerald-955/30">
                           inflow
                         </span>
                       );
@@ -788,7 +788,7 @@ export default function FinanceContent() {
                       customAmountStyle = "text-emerald-600 font-extrabold";
                     } else if (acc === filterAccount) {
                       transferIndicator = (
-                        <span className="text-[9px] uppercase tracking-wider font-semibold text-red-700 dark:text-red-400 border border-red-150 dark:border-red-955 px-2 py-0.5 rounded mr-2 bg-red-50 dark:bg-red-955/30">
+                        <span className="text-[9px] uppercase tracking-wider font-semibold text-red-700 dark:text-red-450 border border-red-150 dark:border-red-955 px-2 py-0.5 rounded mr-2 bg-red-50 dark:bg-red-955/30">
                           outflow
                         </span>
                       );
@@ -807,12 +807,12 @@ export default function FinanceContent() {
                       }`}
                     >
                       {/* Date */}
-                      <td className="px-6 py-4.5 text-gray-400 font-mono tracking-tight whitespace-nowrap text-xs">
+                      <td className="px-4 py-3.5 text-gray-400 font-mono tracking-tight whitespace-nowrap text-xs">
                         {entry.date}
                       </td>
 
                       {/* Description */}
-                      <td className="px-6 py-4.5">
+                      <td className="px-4 py-3.5">
                         <div className="flex flex-col">
                           <span className="font-bold text-gray-900 tracking-tight text-sm flex items-center gap-1.5">
                             {entry.description}
@@ -829,14 +829,14 @@ export default function FinanceContent() {
                       </td>
 
                       {/* Category */}
-                      <td className="px-6 py-4.5 whitespace-nowrap">
-                        <span className="inline-block px-2.5 py-1 bg-gray-50 text-gray-700 rounded border border-gray-205 text-xs font-bold tracking-tight">
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <span className="inline-block px-2.5 py-1 bg-gray-50 text-gray-700 rounded border border-gray-200 text-xs font-bold tracking-tight">
                           {entry.category}
                         </span>
                       </td>
 
                       {/* Account Route */}
-                      <td className="px-6 py-4.5 whitespace-nowrap">
+                      <td className="px-4 py-3.5 whitespace-nowrap">
                         {isTransfer ? (
                           <div className="flex items-center gap-2 text-[10px] font-bold tracking-tight">
                             <span className="px-2 py-0.5 rounded border border-gray-200 text-gray-700 font-mono">
@@ -859,12 +859,12 @@ export default function FinanceContent() {
                       </td>
 
                       {/* Method */}
-                      <td className="px-6 py-4.5 text-gray-500 font-bold whitespace-nowrap text-xs">
+                      <td className="px-4 py-3.5 text-gray-500 font-bold whitespace-nowrap text-xs">
                         {entry.paymentMode}
                       </td>
 
                       {/* Type Label */}
-                      <td className="px-6 py-4.5 text-center whitespace-nowrap select-none text-xs">
+                      <td className="px-4 py-3.5 text-center whitespace-nowrap select-none text-xs">
                         {isTransfer ? (
                           <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-md border border-gray-200 text-gray-600 bg-gray-50/50 tracking-wider uppercase font-mono">
                             Transfer
@@ -881,8 +881,8 @@ export default function FinanceContent() {
                       </td>
 
                       {/* Amount */}
-                      <td className={`px-6 py-4.5 text-right font-mono text-sm tracking-tight whitespace-nowrap ${
-                        isTransfer ? "text-gray-600 font-bold" : customAmountStyle
+                      <td className={`px-4 py-3.5 text-right font-mono text-sm tracking-tight whitespace-nowrap ${
+                        isTransfer ? "text-gray-605 font-bold" : customAmountStyle
                       }`}>
                         <div className="inline-flex items-center justify-end">
                           {transferIndicator}
@@ -891,7 +891,7 @@ export default function FinanceContent() {
                       </td>
 
                       {/* Actions */}
-                      <td className="px-6 py-4.5 text-right whitespace-nowrap">
+                      <td className="px-4 py-3.5 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => openEdit(entry)}
@@ -919,7 +919,7 @@ export default function FinanceContent() {
 
         {/* Ledger Summary Stats Footer */}
         {filtered.length > 0 && (
-          <div className="px-6 py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4 bg-gray-50/20 select-none">
+          <div className="px-4 py-3.5 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4 bg-gray-50/20 select-none">
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
               Ledger Summary · {filtered.length} row(s)
             </span>
