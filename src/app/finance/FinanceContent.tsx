@@ -18,7 +18,7 @@ const CREDIT_CATEGORIES: FinanceCategory[] = [
 const DEBIT_CATEGORIES: FinanceCategory[] = [
   "Food & Dining", "Groceries", "Rent & Housing", "EMI / Loan",
   "Transport", "Shopping", "Healthcare", "Entertainment",
-  "Utilities & Bills", "Education", "Travel", "Savings Transfer", "Sent to Someone", "Other",
+  "Utilities & Bills", "Education", "Travel", "Savings Transfer", "Sent to Someone", "Business Expense", "Other",
 ];
 
 const fmt = (n: number) =>

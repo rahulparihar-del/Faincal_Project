@@ -177,6 +177,7 @@ export type FinanceCategory =
   | "Travel"
   | "Savings Transfer"
   | "Sent to Someone"
+  | "Business Expense"
   | "Other";
 
 export interface PersonalFinanceEntry {
