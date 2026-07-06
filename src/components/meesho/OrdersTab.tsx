@@ -432,75 +432,149 @@ function DateBox({
   isDark: boolean;
   onClick: () => void;
 }) {
-  const revenue = orders.reduce((s, o) => s + (o.selling_price ?? 0), 0);
+  const revenue   = orders.reduce((s, o) => s + (o.selling_price ?? 0), 0);
   const delivered = orders.filter(o => o.status === "DELIVERED").length;
-  const rto = orders.filter(o => o.status === "RTO_COMPLETE" || o.status === "RTO").length;
+  const rto       = orders.filter(o => o.status === "RTO_COMPLETE" || o.status === "RTO").length;
   const cancelled = orders.filter(o => o.status === "CANCELLED").length;
+  const pending   = orders.length - delivered - rto - cancelled;
+  const deliveryRate = orders.length > 0 ? Math.round((delivered / orders.length) * 100) : 0;
 
-  const d = new Date(date + "T00:00:00");
-  const dayName = d.toLocaleDateString("en-IN", { weekday: "short" });
+  const d       = new Date(date + "T00:00:00");
+  const dayName = d.toLocaleDateString("en-IN", { weekday: "short" }).toUpperCase();
   const dayNum  = d.toLocaleDateString("en-IN", { day: "2-digit" });
-  const monthYr = d.toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
+  const month   = d.toLocaleDateString("en-IN", { month: "short" });
+  const year    = d.toLocaleDateString("en-IN", { year: "2-digit" });
 
   return (
     <motion.button
-      whileHover={{ y: -3, scale: 1.01 }}
+      whileHover={{ y: -4, boxShadow: isDark ? "0 12px 32px rgba(0,0,0,0.5)" : "0 12px 32px rgba(0,0,0,0.12)" }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
       style={{
         cursor: "pointer", textAlign: "left",
-        background: isDark ? "#18181b" : "#fff",
-        borderRadius: 16,
-        border: isDark ? "1px solid #27272a" : "1px solid #e2e8f0",
-        padding: "14px 16px",
-        boxShadow: isDark ? "none" : "0 1px 4px rgba(0,0,0,0.05)",
-        transition: "box-shadow 0.15s",
-        display: "flex", flexDirection: "column", gap: 10,
-        minWidth: 160,
+        background: isDark ? "#18181b" : "#ffffff",
+        borderRadius: 18,
+        border: isDark ? "1px solid rgba(255,255,255,0.07)" : "1px solid #e8e8ec",
+        padding: 0,
+        boxShadow: isDark ? "0 2px 8px rgba(0,0,0,0.3)" : "0 2px 8px rgba(0,0,0,0.06)",
+        display: "flex", flexDirection: "column",
+        overflow: "hidden",
+        minWidth: 155,
+        transition: "box-shadow 0.2s",
       }}
     >
-      {/* Date header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-          <span style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: isDark ? "#52525b" : "#94a3b8" }}>{dayName}</span>
-          <span style={{ fontSize: 22, fontWeight: 900, lineHeight: 1, color: isDark ? "#fff" : "#111", fontVariantNumeric: "tabular-nums" }}>{dayNum}</span>
-          <span style={{ fontSize: 10, fontWeight: 700, color: isDark ? "#52525b" : "#94a3b8" }}>{monthYr}</span>
-        </div>
+      {/* ── Soft header with date ── */}
+      <div style={{
+        background: isDark
+          ? "linear-gradient(135deg, #2a2a2a 0%, #333333 100%)"
+          : "linear-gradient(135deg, #3a3a3a 0%, #525252 100%)",
+        padding: "14px 16px 12px",
+        position: "relative",
+        overflow: "hidden",
+      }}>
+        {/* Glow orb */}
         <div style={{
-          width: 36, height: 36, borderRadius: 10,
-          background: isDark ? "#111" : "#f8fafc",
-          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-        }}>
-          <span style={{ fontSize: 14, fontWeight: 900, color: isDark ? "#e4e4e7" : "#111", lineHeight: 1 }}>{orders.length}</span>
-          <span style={{ fontSize: 8, fontWeight: 700, color: isDark ? "#52525b" : "#94a3b8", textTransform: "uppercase" }}>orders</span>
+          position: "absolute", top: -20, right: -20,
+          width: 70, height: 70, borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(255,255,255,0.06), transparent 70%)",
+          pointerEvents: "none",
+        }} />
+
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div>
+            <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.12em", color: "rgba(255,255,255,0.35)", marginBottom: 2 }}>
+              {dayName}
+            </div>
+            <div style={{ fontSize: 28, fontWeight: 900, color: "#ffffff", lineHeight: 1, fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}>
+              {dayNum}
+            </div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>
+              {month} {year}
+            </div>
+          </div>
+
+          {/* Order count badge */}
+          <div style={{
+            background: "rgba(255,255,255,0.1)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: 10, padding: "5px 9px",
+            textAlign: "center",
+          }}>
+            <div style={{ fontSize: 15, fontWeight: 900, color: "#fff", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>{orders.length}</div>
+            <div style={{ fontSize: 7.5, fontWeight: 800, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.06em", marginTop: 1 }}>orders</div>
+          </div>
         </div>
       </div>
 
-      {/* Revenue */}
-      <div style={{ fontSize: 12, fontWeight: 800, color: isDark ? "#a1a1aa" : "#334155" }}>
-        ₹{revenue.toLocaleString("en-IN")}
-      </div>
+      {/* ── Body ── */}
+      <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
+        {/* Revenue */}
+        <div>
+          <div style={{ fontSize: 8.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.07em", color: isDark ? "#52525b" : "#94a3b8", marginBottom: 2 }}>
+            Revenue
+          </div>
+          <div style={{ fontSize: 14, fontWeight: 900, color: isDark ? "#e4e4e7" : "#111", fontVariantNumeric: "tabular-nums" }}>
+            ₹{revenue.toLocaleString("en-IN")}
+          </div>
+        </div>
 
-      {/* Status pills */}
-      <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-        {delivered > 0 && (
-          <span style={{ fontSize: 9.5, fontWeight: 800, background: "rgba(22,163,74,0.1)", color: "#16a34a", borderRadius: 6, padding: "2px 6px" }}>✓ {delivered}</span>
-        )}
-        {rto > 0 && (
-          <span style={{ fontSize: 9.5, fontWeight: 800, background: "rgba(234,88,12,0.1)", color: "#ea580c", borderRadius: 6, padding: "2px 6px" }}>↩ {rto}</span>
-        )}
-        {cancelled > 0 && (
-          <span style={{ fontSize: 9.5, fontWeight: 800, background: "rgba(239,68,68,0.1)", color: "#ef4444", borderRadius: 6, padding: "2px 6px" }}>✕ {cancelled}</span>
-        )}
-        {(orders.length - delivered - rto - cancelled) > 0 && (
-          <span style={{ fontSize: 9.5, fontWeight: 800, background: isDark ? "#27272a" : "#f1f5f9", color: isDark ? "#a1a1aa" : "#64748b", borderRadius: 6, padding: "2px 6px" }}>
-            ~ {orders.length - delivered - rto - cancelled}
-          </span>
-        )}
+        {/* Delivery rate bar */}
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
+            <div style={{ fontSize: 8.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: isDark ? "#52525b" : "#94a3b8" }}>
+              Delivery Rate
+            </div>
+            <div style={{ fontSize: 10, fontWeight: 900, color: deliveryRate >= 70 ? "#16a34a" : deliveryRate >= 40 ? "#f59e0b" : "#ef4444" }}>
+              {deliveryRate}%
+            </div>
+          </div>
+          <div style={{ height: 4, borderRadius: 99, background: isDark ? "rgba(255,255,255,0.06)" : "#f0f0f2", overflow: "hidden" }}>
+            <div style={{
+              height: "100%", borderRadius: 99,
+              width: `${deliveryRate}%`,
+              background: deliveryRate >= 70 ? "#16a34a" : deliveryRate >= 40 ? "#f59e0b" : "#ef4444",
+              transition: "width 0.6s ease",
+            }} />
+          </div>
+        </div>
+
+        {/* Status pills row */}
+        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+          {delivered > 0 && (
+            <span style={{
+              fontSize: 9.5, fontWeight: 800, borderRadius: 6, padding: "2px 7px",
+              background: "rgba(22,163,74,0.1)", color: "#16a34a",
+              border: "1px solid rgba(22,163,74,0.15)",
+            }}>✓ {delivered}</span>
+          )}
+          {rto > 0 && (
+            <span style={{
+              fontSize: 9.5, fontWeight: 800, borderRadius: 6, padding: "2px 7px",
+              background: "rgba(234,88,12,0.1)", color: "#ea580c",
+              border: "1px solid rgba(234,88,12,0.15)",
+            }}>↩ {rto}</span>
+          )}
+          {cancelled > 0 && (
+            <span style={{
+              fontSize: 9.5, fontWeight: 800, borderRadius: 6, padding: "2px 7px",
+              background: "rgba(239,68,68,0.1)", color: "#ef4444",
+              border: "1px solid rgba(239,68,68,0.15)",
+            }}>✕ {cancelled}</span>
+          )}
+          {pending > 0 && (
+            <span style={{
+              fontSize: 9.5, fontWeight: 800, borderRadius: 6, padding: "2px 7px",
+              background: isDark ? "rgba(255,255,255,0.05)" : "#f4f4f5",
+              color: isDark ? "#71717a" : "#6b7280",
+              border: isDark ? "1px solid rgba(255,255,255,0.07)" : "1px solid #e4e4e7",
+            }}>~ {pending}</span>
+          )}
+        </div>
       </div>
     </motion.button>
   );
 }
+
 
 // ── Main OrdersTab component ───────────────────────────────────────────
 

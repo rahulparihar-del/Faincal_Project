@@ -148,7 +148,18 @@ function parseReturnsCSVText(text: string): MeeshoReturn[] {
     return result;
   };
 
-  const headers = parseCSVRow(lines[0]).map(h => h.toLowerCase().replace(/[^a-z0-9]/g, ""));
+  // Find header row dynamically (usually Row 7 or 8 in Meesho supplier panel returns export)
+  let h = -1;
+  for (let r = 0; r < Math.min(lines.length, 15); r++) {
+    const rowText = lines[r].toLowerCase();
+    if (rowText.includes("suborder") || rowText.includes("sub-order") || rowText.includes("meeshopid") || rowText.includes("meesho pid")) {
+      h = r;
+      break;
+    }
+  }
+  if (h === -1) h = 0; // fallback to first row
+
+  const headers = parseCSVRow(lines[h]).map(x => x.toLowerCase().replace(/[^a-z0-9]/g, ""));
   
   const getCol = (...keys: string[]): number => {
     for (const key of keys) {
@@ -159,7 +170,7 @@ function parseReturnsCSVText(text: string): MeeshoReturn[] {
     return -1;
   };
 
-  const cSNo = getCol("sno", "serialnumber");
+  const cSNo = getCol("sno", "serialnumber", "no");
   const cProduct = getCol("productname", "product");
   const cSku = getCol("sku");
   const cVariation = getCol("variation", "size");
@@ -178,7 +189,7 @@ function parseReturnsCSVText(text: string): MeeshoReturn[] {
   const cStatus = getCol("status");
   const cAttempt = getCol("attempt");
   const cTrackingLink = getCol("trackinglink", "tracking");
-  const cReturnPriceType = getCol("returnpricetype");
+  const cReturnPriceType = getCol("returnpricetype", "returnprice");
   const cReturnReason = getCol("returnreason", "reason");
   const cDetailedReturnReason = getCol("detailedreturnreason", "details");
   const cDeliveredDate = getCol("delivereddate");
@@ -188,7 +199,7 @@ function parseReturnsCSVText(text: string): MeeshoReturn[] {
   if (cSuborderNumber === -1) return [];
 
   const returns: MeeshoReturn[] = [];
-  for (let i = 1; i < lines.length; i++) {
+  for (let i = h + 1; i < lines.length; i++) {
     const cols = parseCSVRow(lines[i]);
     if (cols.length < 2) continue;
 
@@ -405,6 +416,7 @@ export default function ReturnsTab() {
   const [dragActive, setDragActive] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [feedback, setFeedback] = useState<{ status: "success" | "error"; msg: string } | null>(null);
+  const [replaceMode, setReplaceMode] = useState(true);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -517,7 +529,7 @@ export default function ReturnsTab() {
             try {
               const newReturns = await processReturnsExcelBuffer(buffer, file.name);
               if (newReturns.length > 0) {
-                const existing = [...currentReturnsList];
+                const existing = replaceMode ? [] : [...currentReturnsList];
                 let addedCount = 0;
                 let updatedCount = 0;
                 
@@ -543,7 +555,9 @@ export default function ReturnsTab() {
                 }
                 setFeedback({
                   status: "success",
-                  msg: `Import completed! Successfully parsed ${newReturns.length} returns from Excel. Added ${addedCount} new records, updated ${updatedCount} existing records.`
+                  msg: replaceMode 
+                    ? `Fresh start! Replaced all records in this tab with ${newReturns.length} returns from Excel.`
+                    : `Import completed! Successfully parsed ${newReturns.length} returns from Excel. Added ${addedCount} new records, updated ${updatedCount} existing records.`
                 });
               } else {
                 setFeedback({ status: "error", msg: "Could not find any return rows inside Sheet 1. Make sure headers are on Row 8." });
@@ -563,7 +577,7 @@ export default function ReturnsTab() {
             try {
               const newReturns = parseReturnsCSVText(text);
               if (newReturns.length > 0) {
-                const existing = [...currentReturnsList];
+                const existing = replaceMode ? [] : [...currentReturnsList];
                 let addedCount = 0;
                 let updatedCount = 0;
                 
@@ -589,7 +603,9 @@ export default function ReturnsTab() {
                 }
                 setFeedback({
                   status: "success",
-                  msg: `Import completed! Successfully parsed ${newReturns.length} returns from CSV. Added ${addedCount} new records, updated ${updatedCount} existing records.`
+                  msg: replaceMode
+                    ? `Fresh start! Replaced all records in this tab with ${newReturns.length} returns from CSV.`
+                    : `Import completed! Successfully parsed ${newReturns.length} returns from CSV. Added ${addedCount} new records, updated ${updatedCount} existing records.`
                 });
               } else {
                 setFeedback({ status: "error", msg: "No valid return records found in CSV file." });
@@ -665,10 +681,10 @@ export default function ReturnsTab() {
                 border: isActive ? (isDark ? "1px solid #27272a" : "1px solid #cbd5e1") : "1px solid transparent",
                 borderBottom: isActive ? (isDark ? "1px solid #18181b" : "1px solid #ffffff") : "1px solid transparent",
                 borderRadius: "12px 12px 0 0",
-                color: isActive ? (isDark ? "#a78bfa" : "#4f46e5") : (isDark ? "#71717a" : "#64748b"),
+                color: isActive ? (isDark ? "#ffffff" : "#000000") : (isDark ? "#71717a" : "#64748b"),
                 padding: "10px 20px",
                 fontSize: 13,
-                fontWeight: isActive ? 700 : 550,
+                fontWeight: isActive ? 800 : 550,
                 cursor: "pointer",
                 marginBottom: -1,
                 position: "relative",
@@ -787,6 +803,31 @@ export default function ReturnsTab() {
         )}
 
         <div style={{ flex: 1 }} />
+
+        {/* Overwrite mode checkbox toggle */}
+        <label style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          cursor: "pointer",
+          fontSize: 12,
+          fontWeight: 700,
+          color: isDark ? "#a1a1aa" : "#475569",
+          marginRight: 6
+        }}>
+          <input
+            type="checkbox"
+            checked={replaceMode}
+            onChange={e => setReplaceMode(e.target.checked)}
+            style={{
+              accentColor: isDark ? "#fff" : "#000",
+              cursor: "pointer",
+              width: 14,
+              height: 14,
+            }}
+          />
+          <span>Replace existing records (Fresh start)</span>
+        </label>
 
         {/* Ingest Returns CSV/Excel */}
         <button
