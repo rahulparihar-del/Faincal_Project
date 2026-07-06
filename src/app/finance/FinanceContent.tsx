@@ -131,7 +131,7 @@ function EntryDrawer({
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
           {/* Type Toggle */}
           <div>
-            <label className="block text-[9px] font-bold text-neutral-450 uppercase tracking-widest mb-1.5">Transaction Type</label>
+            <label className="block text-[9px] font-bold text-neutral-455 uppercase tracking-widest mb-1.5">Transaction Type</label>
             <div className="grid grid-cols-3 gap-1.5 p-1 bg-neutral-100 rounded-xl">
               {(["Credit", "Debit", "Transfer"] as FinanceEntryType[]).map((t) => (
                 <button
@@ -159,9 +159,9 @@ function EntryDrawer({
 
           {/* Amount */}
           <div>
-            <label className="block text-[9px] font-bold text-neutral-450 uppercase tracking-widest mb-1.5">Amount (₹)</label>
+            <label className="block text-[9px] font-bold text-neutral-455 uppercase tracking-widest mb-1.5">Amount (₹)</label>
             <div className="relative">
-              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-neutral-950">₹</span>
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-neutral-955">₹</span>
               <input
                 type="number"
                 min={0}
@@ -169,40 +169,40 @@ function EntryDrawer({
                 value={form.amount || ""}
                 onChange={(e) => set("amount", parseFloat(e.target.value) || 0)}
                 placeholder="0"
-                className="w-full pl-8 pr-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-bold focus:outline-none focus:border-neutral-950 bg-white text-neutral-950"
+                className="w-full pl-8 pr-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-bold focus:outline-none focus:border-neutral-950 bg-white text-neutral-955"
               />
             </div>
           </div>
 
           {/* Description */}
           <div>
-            <label className="block text-[9px] font-bold text-neutral-450 uppercase tracking-widest mb-1.5">Description</label>
+            <label className="block text-[9px] font-bold text-neutral-455 uppercase tracking-widest mb-1.5">Description</label>
             <input
               type="text"
               value={form.description}
               onChange={(e) => set("description", e.target.value)}
               placeholder={form.type === "Transfer" ? "e.g. Savings to Current Transfer..." : "e.g. Monthly salary, office lease, groceries..."}
-              className="w-full px-3.5 py-2.5 border border-neutral-200 rounded-xl text-xs font-medium focus:outline-none focus:border-neutral-950 bg-white text-neutral-950"
+              className="w-full px-3.5 py-2.5 border border-neutral-200 rounded-xl text-xs font-medium focus:outline-none focus:border-neutral-950 bg-white text-neutral-955"
             />
           </div>
 
           {/* Date & Mode */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[9px] font-bold text-neutral-450 uppercase tracking-widest mb-1.5">Date</label>
+              <label className="block text-[9px] font-bold text-neutral-455 uppercase tracking-widest mb-1.5">Date</label>
               <input
                 type="date"
                 value={form.date}
                 onChange={(e) => set("date", e.target.value)}
-                className="w-full px-3.5 py-2.5 border border-neutral-200 rounded-xl text-xs font-medium focus:outline-none focus:border-neutral-950 bg-white text-neutral-950"
+                className="w-full px-3.5 py-2.5 border border-neutral-200 rounded-xl text-xs font-medium focus:outline-none focus:border-neutral-950 bg-white text-neutral-955"
               />
             </div>
             <div>
-              <label className="block text-[9px] font-bold text-neutral-450 uppercase tracking-widest mb-1.5">Payment Method</label>
+              <label className="block text-[9px] font-bold text-neutral-455 uppercase tracking-widest mb-1.5">Payment Method</label>
               <select
                 value={form.paymentMode}
                 onChange={(e) => set("paymentMode", e.target.value as PersonalFinanceEntry["paymentMode"])}
-                className="w-full px-3.5 py-2.5 border border-neutral-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-neutral-950 bg-white text-neutral-950"
+                className="w-full px-3.5 py-2.5 border border-neutral-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-neutral-950 bg-white text-neutral-955"
               >
                 <option>Cash</option>
                 <option>UPI</option>
@@ -212,11 +212,11 @@ function EntryDrawer({
             </div>
           </div>
 
-          {/* Account Selection (Rendered dynamically depending on transaction type) */}
+          {/* Account Selection */}
           {form.type === "Transfer" ? (
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[9px] font-bold text-neutral-450 uppercase tracking-widest mb-1.5">From Account</label>
+                <label className="block text-[9px] font-bold text-neutral-455 uppercase tracking-widest mb-1.5">From Account</label>
                 <div className="grid grid-cols-2 gap-1 p-1 bg-neutral-100 rounded-xl">
                   {(["Current", "Savings"] as const).map((acc) => (
                     <button
@@ -238,7 +238,7 @@ function EntryDrawer({
                 </div>
               </div>
               <div>
-                <label className="block text-[9px] font-bold text-neutral-450 uppercase tracking-widest mb-1.5">To Account</label>
+                <label className="block text-[9px] font-bold text-neutral-455 uppercase tracking-widest mb-1.5">To Account</label>
                 <div className="grid grid-cols-2 gap-1 p-1 bg-neutral-100 rounded-xl">
                   {(["Current", "Savings"] as const).map((acc) => (
                     <button
@@ -262,7 +262,7 @@ function EntryDrawer({
             </div>
           ) : (
             <div>
-              <label className="block text-[9px] font-bold text-neutral-450 uppercase tracking-widest mb-1.5">Account</label>
+              <label className="block text-[9px] font-bold text-neutral-455 uppercase tracking-widest mb-1.5">Account</label>
               <div className="grid grid-cols-2 gap-2 p-1 bg-neutral-100 rounded-xl">
                 {(["Current", "Savings"] as const).map((acc) => (
                   <button
@@ -282,7 +282,7 @@ function EntryDrawer({
             </div>
           )}
 
-          {/* Category (Hidden/disabled for Transfer type since it's always Savings Transfer) */}
+          {/* Category */}
           {form.type !== "Transfer" && (
             <div>
               <label className="block text-[9px] font-bold text-neutral-455 uppercase tracking-widest mb-2">Category</label>
@@ -294,7 +294,7 @@ function EntryDrawer({
                     className={`px-3 py-2 rounded-lg text-[11px] font-semibold border transition-all text-left truncate ${
                       form.category === cat
                         ? "border-neutral-950 bg-neutral-950 text-white"
-                        : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-305 hover:text-black"
+                        : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-350 hover:text-black"
                     }`}
                   >
                     {cat}
@@ -307,23 +307,23 @@ function EntryDrawer({
           {/* Tags & Notes */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[9px] font-bold text-neutral-450 uppercase tracking-widest mb-1.5">Tags</label>
+              <label className="block text-[9px] font-bold text-neutral-455 uppercase tracking-widest mb-1.5">Tags</label>
               <input
                 type="text"
                 value={form.tags ?? ""}
                 onChange={(e) => set("tags", e.target.value)}
                 placeholder="Comma separated..."
-                className="w-full px-3.5 py-2.5 border border-neutral-200 rounded-xl text-xs font-medium focus:outline-none focus:border-neutral-950 bg-white text-neutral-950"
+                className="w-full px-3.5 py-2.5 border border-neutral-200 rounded-xl text-xs font-medium focus:outline-none focus:border-neutral-950 bg-white text-neutral-955"
               />
             </div>
             <div>
-              <label className="block text-[9px] font-bold text-neutral-450 uppercase tracking-widest mb-1.5">Private Notes</label>
+              <label className="block text-[9px] font-bold text-neutral-455 uppercase tracking-widest mb-1.5">Private Notes</label>
               <input
                 type="text"
                 value={form.notes ?? ""}
                 onChange={(e) => set("notes", e.target.value)}
                 placeholder="Internal memo..."
-                className="w-full px-3.5 py-2.5 border border-neutral-200 rounded-xl text-xs font-medium focus:outline-none focus:border-neutral-950 bg-white text-neutral-950"
+                className="w-full px-3.5 py-2.5 border border-neutral-200 rounded-xl text-xs font-medium focus:outline-none focus:border-neutral-950 bg-white text-neutral-955"
               />
             </div>
           </div>
@@ -371,7 +371,7 @@ function SettingsModal({
       <div className="absolute inset-0 bg-black/25 backdrop-blur-[1px]" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 flex flex-col gap-4 border border-neutral-200 animate-fade-in">
         <div className="flex items-center justify-between pb-2 border-b border-neutral-100">
-          <h2 className="text-xs font-black uppercase tracking-widest text-neutral-950">Finance Settings</h2>
+          <h2 className="text-xs font-black uppercase tracking-widest text-neutral-955">Finance Settings</h2>
           <button onClick={onClose} className="w-8 h-8 rounded-lg border border-neutral-250 flex items-center justify-center hover:bg-neutral-50 transition-colors text-neutral-500">
             <X size={14} />
           </button>
@@ -383,16 +383,16 @@ function SettingsModal({
           { label: "Monthly Budget (₹)", key: "monthlyBudget" as const, placeholder: "e.g. 30000" },
         ].map(({ label, key, placeholder }) => (
           <div key={key}>
-            <label className="block text-[9px] font-bold text-neutral-450 uppercase tracking-widest mb-1.5">{label}</label>
+            <label className="block text-[9px] font-bold text-neutral-455 uppercase tracking-widest mb-1.5">{label}</label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-neutral-950">₹</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-neutral-955">₹</span>
               <input
                 type="number"
                 min={0}
                 value={form[key] || ""}
                 onChange={(e) => setForm((p) => ({ ...p, [key]: parseFloat(e.target.value) || 0 }))}
                 placeholder={placeholder}
-                className="w-full pl-7 pr-4 py-2 border border-neutral-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-neutral-950 bg-white text-neutral-950"
+                className="w-full pl-7 pr-4 py-2 border border-neutral-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-neutral-955 bg-white text-neutral-955"
               />
             </div>
           </div>
@@ -430,6 +430,9 @@ export default function FinanceContent() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editing, setEditing] = useState<PersonalFinanceEntry | null>(null);
+  
+  // Filtering States
+  const [filterAccount, setFilterAccount] = useState<"All" | "Current" | "Savings">("All");
   const [filterType, setFilterType] = useState<"All" | "Credit" | "Debit" | "Transfer">("All");
   const [filterMonth, setFilterMonth] = useState<string>("all");
   const [search, setSearch] = useState("");
@@ -444,7 +447,6 @@ export default function FinanceContent() {
     const currentCredit = financeEntries.filter((e) => e.type === "Credit" && (e.account === "Current" || !e.account)).reduce((s, e) => s + e.amount, 0);
     const currentDebit = financeEntries.filter((e) => e.type === "Debit" && (e.account === "Current" || !e.account)).reduce((s, e) => s + e.amount, 0);
     
-    // Transfers regarding Current Account
     const currentTransfersIn = financeEntries.filter((e) => e.type === "Transfer" && e.transferTo === "Current").reduce((s, e) => s + e.amount, 0);
     const currentTransfersOut = financeEntries.filter((e) => e.type === "Transfer" && e.account === "Current").reduce((s, e) => s + e.amount, 0);
     
@@ -454,7 +456,6 @@ export default function FinanceContent() {
     const savingsCredit = financeEntries.filter((e) => e.type === "Credit" && e.account === "Savings").reduce((s, e) => s + e.amount, 0);
     const savingsDebit = financeEntries.filter((e) => e.type === "Debit" && e.account === "Savings").reduce((s, e) => s + e.amount, 0);
     
-    // Transfers regarding Savings Account
     const savingsTransfersIn = financeEntries.filter((e) => e.type === "Transfer" && e.transferTo === "Savings").reduce((s, e) => s + e.amount, 0);
     const savingsTransfersOut = financeEntries.filter((e) => e.type === "Transfer" && e.account === "Savings").reduce((s, e) => s + e.amount, 0);
     
@@ -486,6 +487,15 @@ export default function FinanceContent() {
   /* ─── Filtered Entries ───────────────────────────────────── */
   const filtered = useMemo(() => {
     return financeEntries
+      .filter((e) => {
+        // Filter by Account selection (Savings, Current, or All)
+        if (filterAccount === "All") return true;
+        if (e.type === "Transfer") {
+          return e.account === filterAccount || e.transferTo === filterAccount;
+        }
+        const acc = e.account || "Current";
+        return acc === filterAccount;
+      })
       .filter((e) => filterType === "All" || e.type === filterType)
       .filter((e) => {
         if (filterMonth === "all") return true;
@@ -503,7 +513,39 @@ export default function FinanceContent() {
         );
       })
       .sort((a, b) => b.date.localeCompare(a.date));
-  }, [financeEntries, filterType, filterMonth, search]);
+  }, [financeEntries, filterAccount, filterType, filterMonth, search]);
+
+  /* ─── Filtered Inflow / Outflow Summary calculations ────── */
+  const flowSummary = useMemo(() => {
+    let inflow = 0;
+    let outflow = 0;
+
+    filtered.forEach((e) => {
+      const isCredit = e.type === "Credit";
+      const isDebit = e.type === "Debit";
+      const isTransfer = e.type === "Transfer";
+
+      if (filterAccount === "All") {
+        // Across both accounts: Transfers are net-zero, just sum external credits/debits
+        if (isCredit) inflow += e.amount;
+        if (isDebit) outflow += e.amount;
+      } else {
+        // Inside a single account (Current or Savings) view:
+        if (isTransfer) {
+          // Transfers into this filtered account are Inflows
+          if (e.transferTo === filterAccount) inflow += e.amount;
+          // Transfers out of this filtered account are Outflows
+          if (e.account === filterAccount) outflow += e.amount;
+        } else {
+          // External Credit/Debit on this filtered account
+          if (isCredit) inflow += e.amount;
+          if (isDebit) outflow += e.amount;
+        }
+      }
+    });
+
+    return { inflow, outflow };
+  }, [filtered, filterAccount]);
 
   /* ─── CRUD ───────────────────────────────────────────────── */
   const saveEntry = useCallback((entry: PersonalFinanceEntry) => {
@@ -570,7 +612,7 @@ export default function FinanceContent() {
           <div
             key={s.label}
             className={`border border-neutral-200 p-4 rounded-xl flex flex-col justify-between shadow-[0_1px_2px_rgba(0,0,0,0.02)] ${
-              s.highlight ? "bg-neutral-950 text-white border-neutral-950" : "bg-white text-neutral-900"
+              s.highlight ? "bg-neutral-950 text-white border-neutral-955" : "bg-white text-neutral-900"
             }`}
           >
             <span className={`text-[9px] font-bold uppercase tracking-wider ${s.highlight ? "text-neutral-455" : "text-neutral-400"}`}>
@@ -600,7 +642,29 @@ export default function FinanceContent() {
 
           {/* Filters Area */}
           <div className="flex flex-wrap items-center gap-2">
-            {/* Segmented controls (clean outline pill controls) */}
+            
+            {/* Account Selector (ALL / CURRENT / SAVINGS) */}
+            <div className="flex border border-neutral-200 p-0.5 bg-white rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.01)]">
+              {[
+                { key: "All" as const, label: "All Accounts" },
+                { key: "Current" as const, label: "Current" },
+                { key: "Savings" as const, label: "Savings" }
+              ].map((acc) => (
+                <button
+                  key={acc.key}
+                  onClick={() => setFilterAccount(acc.key)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    filterAccount === acc.key
+                      ? "bg-neutral-950 text-white"
+                      : "text-neutral-500 hover:text-neutral-950"
+                  }`}
+                >
+                  {acc.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Type Filter Control */}
             <div className="flex border border-neutral-200 p-0.5 bg-white rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.01)]">
               {(["All", "Credit", "Debit", "Transfer"] as const).map((t) => (
                 <button
@@ -609,7 +673,7 @@ export default function FinanceContent() {
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                     filterType === t
                       ? "bg-neutral-950 text-white"
-                      : "text-neutral-500 hover:text-neutral-950"
+                      : "text-neutral-500 hover:text-neutral-955"
                   }`}
                 >
                   {t}
@@ -617,7 +681,7 @@ export default function FinanceContent() {
               ))}
             </div>
 
-            {/* Custom styled select box */}
+            {/* Month dropdown */}
             <div className="relative border border-neutral-200 bg-white rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.01)] flex items-center pr-8 pl-3.5 py-1.5">
               <select
                 value={filterMonth}
@@ -660,6 +724,24 @@ export default function FinanceContent() {
                   const isTransfer = entry.type === "Transfer";
                   const acc = entry.account || "Current";
                   const toAcc = entry.transferTo || "Current";
+                  
+                  // For Account Specific view, display indicator if the transfer is Inflow or Outflow
+                  let transferIndicator: React.ReactNode = null;
+                  let customAmountStyle = isCredit ? "text-neutral-955 font-black" : "text-neutral-800 font-bold";
+                  let amountPrefix = isTransfer ? "" : isCredit ? "+" : "-";
+
+                  if (filterAccount !== "All" && isTransfer) {
+                    if (toAcc === filterAccount) {
+                      transferIndicator = <span className="text-[9px] uppercase tracking-wider font-extrabold text-neutral-950 bg-neutral-100 px-1.5 py-0.2 rounded mr-1">Inflow</span>;
+                      amountPrefix = "+";
+                      customAmountStyle = "text-neutral-955 font-black";
+                    } else if (acc === filterAccount) {
+                      transferIndicator = <span className="text-[9px] uppercase tracking-wider font-semibold text-neutral-450 bg-neutral-50 px-1.5 py-0.2 rounded border mr-1">Outflow</span>;
+                      amountPrefix = "-";
+                      customAmountStyle = "text-neutral-800 font-bold";
+                    }
+                  }
+
                   return (
                     <tr key={entry.id} className="hover:bg-neutral-50/30 transition-colors group">
                       {/* Date */}
@@ -690,11 +772,15 @@ export default function FinanceContent() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         {isTransfer ? (
                           <div className="flex items-center gap-1.5 text-[10px] font-bold tracking-tight">
-                            <span className="px-1.5 py-0.5 bg-neutral-100 rounded text-neutral-700 uppercase">
+                            <span className={`px-1.5 py-0.5 rounded uppercase ${
+                              acc === "Savings" ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-700"
+                            }`}>
                               {acc}
                             </span>
                             <ArrowRight size={10} className="text-neutral-400" />
-                            <span className="px-1.5 py-0.5 bg-neutral-950 text-white rounded uppercase">
+                            <span className={`px-1.5 py-0.5 rounded uppercase ${
+                              toAcc === "Savings" ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-700"
+                            }`}>
                               {toAcc}
                             </span>
                           </div>
@@ -742,10 +828,11 @@ export default function FinanceContent() {
                       </td>
 
                       {/* Amount */}
-                      <td className={`px-6 py-4 text-right font-black text-sm tracking-tight whitespace-nowrap ${
-                        isTransfer ? "text-neutral-600 font-bold" : isCredit ? "text-neutral-950 font-black" : "text-neutral-800 font-bold"
-                      }`}>
-                        {isTransfer ? "" : isCredit ? "+" : "-"}{fmt(entry.amount)}
+                      <td className={`px-6 py-4 text-right text-sm tracking-tight whitespace-nowrap ${customAmountStyle}`}>
+                        <div className="inline-flex items-center gap-1">
+                          {transferIndicator}
+                          <span>{amountPrefix}{fmt(entry.amount)}</span>
+                        </div>
                       </td>
 
                       {/* Actions */}
@@ -783,15 +870,19 @@ export default function FinanceContent() {
             </span>
             <div className="flex items-center gap-4 text-xs font-extrabold tracking-tight">
               <div className="flex items-center gap-1 bg-white border border-neutral-200 px-3 py-1 rounded-lg">
-                <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider mr-1">Inflow:</span>
+                <span className="text-[9px] font-bold text-neutral-455 uppercase tracking-wider mr-1">
+                  {filterAccount === "All" ? "Total Inflow" : `${filterAccount} Inflow`}:
+                </span>
                 <span className="text-neutral-900">
-                  +{fmt(filtered.filter((e) => e.type === "Credit").reduce((s, e) => s + e.amount, 0))}
+                  +{fmt(flowSummary.inflow)}
                 </span>
               </div>
               <div className="flex items-center gap-1 bg-white border border-neutral-200 px-3 py-1 rounded-lg">
-                <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider mr-1">Outflow:</span>
+                <span className="text-[9px] font-bold text-neutral-455 uppercase tracking-wider mr-1">
+                  {filterAccount === "All" ? "Total Outflow" : `${filterAccount} Outflow`}:
+                </span>
                 <span className="text-neutral-700">
-                  -{fmt(filtered.filter((e) => e.type === "Debit").reduce((s, e) => s + e.amount, 0))}
+                  -{fmt(flowSummary.outflow)}
                 </span>
               </div>
             </div>
