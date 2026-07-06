@@ -34,17 +34,17 @@ function monthLabel(y: number, m: number) { return `${MONTHS[m]} ${y}`; }
 /* ─── Empty State ─────────────────────────────────────────── */
 function EmptyState({ onAdd }: { onAdd: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center py-24 bg-white border border-dashed border-neutral-200 rounded-xl">
-      <div className="w-10 h-10 rounded-full border border-neutral-200 flex items-center justify-center mb-3">
-        <Plus size={14} className="text-neutral-400" />
+    <div className="flex flex-col items-center justify-center py-28 bg-white border border-dashed border-neutral-200 rounded-xl">
+      <div className="w-12 h-12 rounded-full border border-neutral-200 flex items-center justify-center mb-4">
+        <Plus size={16} className="text-neutral-400" />
       </div>
-      <p className="text-xs font-bold text-neutral-900 mb-1">No transactions</p>
-      <p className="text-[11px] text-neutral-400 mb-4 text-center max-w-xs leading-relaxed">Your ledger is currently empty. Record a new credit, debit, or transfer entry.</p>
+      <p className="text-sm font-bold text-neutral-900 mb-1">No transaction records</p>
+      <p className="text-xs text-neutral-450 mb-6 text-center max-w-sm leading-relaxed">Your ledger is currently empty. Record a new credit, debit, or transfer entry.</p>
       <button
         onClick={onAdd}
-        className="flex items-center gap-1 bg-neutral-950 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold hover:bg-black active:scale-95 transition-all shadow-sm"
+        className="flex items-center gap-1.5 bg-neutral-950 text-white px-5 py-2.5 rounded-lg text-xs font-bold hover:bg-black active:scale-95 transition-all shadow-md"
       >
-        <Plus size={12} />
+        <Plus size={14} />
         Add Entry
       </button>
     </div>
@@ -113,17 +113,17 @@ function EntryDrawer({
       <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" onClick={onClose} />
       <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl flex flex-col overflow-hidden animate-slide-in-right border-l border-neutral-200">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4.5 border-b border-neutral-100">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-neutral-100">
           <div>
-            <h2 className="text-xs font-black uppercase tracking-widest text-neutral-900">
+            <h2 className="text-sm font-black uppercase tracking-widest text-neutral-900">
               {initial ? "Edit Entry" : "Create Entry"}
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center rounded-lg border border-neutral-200 text-neutral-500 hover:text-black hover:bg-neutral-50 transition-colors"
+            className="w-8 h-8 flex items-center justify-center rounded-lg border border-neutral-200 text-neutral-500 hover:text-black hover:bg-neutral-50 transition-colors"
           >
-            <X size={13} />
+            <X size={14} />
           </button>
         </div>
 
@@ -131,7 +131,7 @@ function EntryDrawer({
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
           {/* Type Toggle */}
           <div>
-            <label className="block text-[9px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">Type</label>
+            <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">Type</label>
             <div className="grid grid-cols-3 gap-1 p-0.5 bg-neutral-100 rounded-lg">
               {(["Credit", "Debit", "Transfer"] as FinanceEntryType[]).map((t) => (
                 <button
@@ -145,7 +145,7 @@ function EntryDrawer({
                       set("transferTo", "Current");
                     }
                   }}
-                  className={`py-1.5 rounded-md text-[11px] font-bold transition-all ${
+                  className={`py-2 rounded-md text-xs font-bold transition-all ${
                     form.type === t
                       ? "bg-white text-neutral-955 shadow-sm"
                       : "text-neutral-500 hover:text-neutral-955"
@@ -159,9 +159,9 @@ function EntryDrawer({
 
           {/* Amount */}
           <div>
-            <label className="block text-[9px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">Amount</label>
+            <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">Amount</label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-neutral-900">₹</span>
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-neutral-900">₹</span>
               <input
                 type="number"
                 min={0}
@@ -169,40 +169,40 @@ function EntryDrawer({
                 value={form.amount || ""}
                 onChange={(e) => set("amount", parseFloat(e.target.value) || 0)}
                 placeholder="0"
-                className="w-full pl-9 pr-4 py-2 border border-neutral-200 rounded-lg text-xs font-bold focus:outline-none focus:border-neutral-955 bg-white text-neutral-950"
+                className="w-full pl-9 pr-4 py-2.5 border border-neutral-200 rounded-lg text-sm font-bold focus:outline-none focus:border-neutral-955 bg-white text-neutral-950"
               />
             </div>
           </div>
 
           {/* Description */}
           <div>
-            <label className="block text-[9px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">Description</label>
+            <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">Description</label>
             <input
               type="text"
               value={form.description}
               onChange={(e) => set("description", e.target.value)}
               placeholder={form.type === "Transfer" ? "Account transfer description..." : "Zomato, Client payment, Office rent..."}
-              className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-955 bg-white text-neutral-955"
+              className="w-full px-3 py-2.5 border border-neutral-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-955 bg-white text-neutral-955"
             />
           </div>
 
           {/* Date & Mode */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[9px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">Date</label>
+              <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">Date</label>
               <input
                 type="date"
                 value={form.date}
                 onChange={(e) => set("date", e.target.value)}
-                className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-955 bg-white text-neutral-955"
+                className="w-full px-3 py-2.5 border border-neutral-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-955 bg-white text-neutral-955"
               />
             </div>
             <div>
-              <label className="block text-[9px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">Method</label>
+              <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">Method</label>
               <select
                 value={form.paymentMode}
                 onChange={(e) => set("paymentMode", e.target.value as PersonalFinanceEntry["paymentMode"])}
-                className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-xs font-bold focus:outline-none focus:border-neutral-955 bg-white text-neutral-955"
+                className="w-full px-3 py-2.5 border border-neutral-200 rounded-lg text-xs font-bold focus:outline-none focus:border-neutral-955 bg-white text-neutral-955"
               >
                 <option>Cash</option>
                 <option>UPI</option>
@@ -216,7 +216,7 @@ function EntryDrawer({
           {form.type === "Transfer" ? (
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[9px] font-bold text-neutral-455 uppercase tracking-widest mb-1.5">From Account</label>
+                <label className="block text-[10px] font-bold text-neutral-455 uppercase tracking-widest mb-1.5">From Account</label>
                 <div className="grid grid-cols-2 gap-0.5 p-0.5 bg-neutral-100 rounded-lg">
                   {(["Current", "Savings"] as const).map((acc) => (
                     <button
@@ -226,7 +226,7 @@ function EntryDrawer({
                         set("account", acc);
                         set("transferTo", acc === "Current" ? "Savings" : "Current");
                       }}
-                      className={`py-1 rounded-md text-[10px] font-bold transition-all ${
+                      className={`py-1.5 rounded-md text-[11px] font-bold transition-all ${
                         form.account === acc
                           ? "bg-white text-neutral-950 shadow-sm"
                           : "text-neutral-500"
@@ -238,7 +238,7 @@ function EntryDrawer({
                 </div>
               </div>
               <div>
-                <label className="block text-[9px] font-bold text-neutral-455 uppercase tracking-widest mb-1.5">To Account</label>
+                <label className="block text-[10px] font-bold text-neutral-455 uppercase tracking-widest mb-1.5">To Account</label>
                 <div className="grid grid-cols-2 gap-0.5 p-0.5 bg-neutral-100 rounded-lg">
                   {(["Current", "Savings"] as const).map((acc) => (
                     <button
@@ -248,7 +248,7 @@ function EntryDrawer({
                         set("transferTo", acc);
                         set("account", acc === "Current" ? "Savings" : "Current");
                       }}
-                      className={`py-1 rounded-md text-[10px] font-bold transition-all ${
+                      className={`py-1.5 rounded-md text-[11px] font-bold transition-all ${
                         form.transferTo === acc
                           ? "bg-white text-neutral-955 shadow-sm"
                           : "text-neutral-500"
@@ -262,7 +262,7 @@ function EntryDrawer({
             </div>
           ) : (
             <div>
-              <label className="block text-[9px] font-bold text-neutral-455 uppercase tracking-widest mb-1.5">Account</label>
+              <label className="block text-[10px] font-bold text-neutral-455 uppercase tracking-widest mb-1.5">Account</label>
               <div className="grid grid-cols-2 gap-0.5 p-0.5 bg-neutral-100 rounded-lg">
                 {(["Current", "Savings"] as const).map((acc) => (
                   <button
@@ -275,7 +275,7 @@ function EntryDrawer({
                         : "text-neutral-500"
                     }`}
                   >
-                    {acc}
+                    {acc} Account
                   </button>
                 ))}
               </div>
@@ -285,13 +285,13 @@ function EntryDrawer({
           {/* Category */}
           {form.type !== "Transfer" && (
             <div>
-              <label className="block text-[9px] font-bold text-neutral-400 uppercase tracking-widest mb-2">Category</label>
+              <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-2">Category</label>
               <div className="grid grid-cols-2 gap-1.5">
                 {categories.map((cat) => (
                   <button
                     key={cat}
                     onClick={() => set("category", cat)}
-                    className={`px-3 py-1.5 rounded-lg text-[10px] font-semibold border transition-all text-left truncate ${
+                    className={`px-3 py-2 rounded-lg text-[11px] font-semibold border transition-all text-left truncate ${
                       form.category === cat
                         ? "border-neutral-955 bg-neutral-955 text-white"
                         : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:text-black"
@@ -307,7 +307,7 @@ function EntryDrawer({
           {/* Tags & Notes */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[9px] font-bold text-neutral-455 uppercase tracking-widest mb-1.5">Tags</label>
+              <label className="block text-[10px] font-bold text-neutral-455 uppercase tracking-widest mb-1.5">Tags</label>
               <input
                 type="text"
                 value={form.tags ?? ""}
@@ -317,7 +317,7 @@ function EntryDrawer({
               />
             </div>
             <div>
-              <label className="block text-[9px] font-bold text-neutral-455 uppercase tracking-widest mb-1.5">Notes</label>
+              <label className="block text-[10px] font-bold text-neutral-455 uppercase tracking-widest mb-1.5">Notes</label>
               <input
                 type="text"
                 value={form.notes ?? ""}
@@ -329,19 +329,19 @@ function EntryDrawer({
           </div>
 
           {/* Important Toggle Option */}
-          <div className="pt-2 border-t border-neutral-100 flex items-center justify-between">
+          <div className="pt-2.5 border-t border-neutral-100 flex items-center justify-between">
             <div className="flex flex-col">
-              <span className="text-[11px] font-bold text-neutral-900 flex items-center gap-1">
-                <Star size={12} className="text-neutral-400 fill-none" />
+              <span className="text-xs font-bold text-neutral-900 flex items-center gap-1">
+                <Star size={13} className="text-neutral-400 fill-none" />
                 Mark as Important
               </span>
-              <span className="text-[9px] text-neutral-400 mt-0.5">Highlight and pin this entry in the ledger</span>
+              <span className="text-[10px] text-neutral-400 mt-0.5">Highlight and pin this entry in the ledger</span>
             </div>
             <button
               type="button"
               onClick={() => set("isImportant", !form.isImportant)}
               className={`w-9 h-5 rounded-full p-0.5 transition-all duration-200 ${
-                form.isImportant ? "bg-neutral-950" : "bg-neutral-200"
+                form.isImportant ? "bg-neutral-955" : "bg-neutral-200"
               }`}
             >
               <div
@@ -354,16 +354,16 @@ function EntryDrawer({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-neutral-100 flex gap-2.5 bg-neutral-50/50">
+        <div className="px-6 py-4.5 border-t border-neutral-100 flex gap-3 bg-neutral-50/50">
           <button
             onClick={onClose}
-            className="flex-1 py-2 rounded-lg border border-neutral-200 text-xs font-bold text-neutral-600 bg-white hover:bg-neutral-100 hover:text-black transition-colors"
+            className="flex-1 py-2.5 rounded-lg border border-neutral-200 text-xs font-bold text-neutral-600 bg-white hover:bg-neutral-100 hover:text-black transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
-            className="flex-1 py-2 rounded-lg bg-neutral-950 text-white text-xs font-bold hover:bg-black transition-colors shadow-sm"
+            className="flex-1 py-2.5 rounded-lg bg-neutral-950 text-white text-xs font-bold hover:bg-black transition-colors shadow-sm"
           >
             Save
           </button>
@@ -407,7 +407,7 @@ function SettingsModal({
           { label: "Monthly Budget (₹)", key: "monthlyBudget" as const, placeholder: "e.g. 30000" },
         ].map(({ label, key, placeholder }) => (
           <div key={key}>
-            <label className="block text-[9px] font-bold text-neutral-400 uppercase tracking-widest mb-1">{label}</label>
+            <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-1">{label}</label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-neutral-955">₹</span>
               <input
@@ -416,19 +416,19 @@ function SettingsModal({
                 value={form[key] || ""}
                 onChange={(e) => setForm((p) => ({ ...p, [key]: parseFloat(e.target.value) || 0 }))}
                 placeholder={placeholder}
-                className="w-full pl-7 pr-4 py-1.5 border border-neutral-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-950 bg-white text-neutral-950"
+                className="w-full pl-6 pr-4 py-2 border border-neutral-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-950 bg-white text-neutral-950"
               />
             </div>
           </div>
         ))}
 
         <div className="flex gap-2 mt-2 pt-2 border-t border-neutral-100">
-          <button onClick={onClose} className="flex-1 py-2 rounded-lg border border-neutral-200 text-xs font-bold text-neutral-600 hover:bg-neutral-50 hover:text-black transition-colors bg-white">
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-lg border border-neutral-200 text-xs font-bold text-neutral-600 hover:bg-neutral-50 hover:text-black transition-colors bg-white">
             Cancel
           </button>
           <button
             onClick={() => { onSave(form); onClose(); }}
-            className="flex-1 py-2 rounded-lg bg-neutral-950 text-white text-xs font-bold hover:bg-black transition-colors"
+            className="flex-1 py-2.5 rounded-lg bg-neutral-950 text-white text-xs font-bold hover:bg-black transition-colors"
           >
             Save
           </button>
@@ -595,35 +595,35 @@ export default function FinanceContent() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="w-full space-y-7 px-1 md:px-3">
       {/* ── Header ── */}
-      <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-neutral-100">
         <div>
-          <h1 className="text-sm font-black tracking-widest uppercase text-neutral-900 leading-none">
-            Ledger & Finance
+          <h1 className="text-xl md:text-2xl font-black tracking-tight text-neutral-900 leading-tight">
+            Personal Finance Ledger
           </h1>
-          <p className="text-[10px] font-semibold text-neutral-455 tracking-wider mt-1.5">Bookkeeping list, splits & cash flow logs</p>
+          <p className="text-xs font-semibold text-neutral-450 tracking-wider mt-1">Bookkeeping list, splits & cash flow logs</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <button
             onClick={() => setSettingsOpen(true)}
-            className="flex items-center gap-1 px-3 py-1.5 border border-neutral-250 rounded-lg text-[10px] font-bold text-neutral-600 bg-white hover:bg-neutral-50 transition-all active:scale-95"
+            className="flex items-center gap-1.5 px-4 py-2 border border-neutral-200 rounded-lg text-xs font-bold text-neutral-600 bg-white hover:bg-neutral-50 transition-all active:scale-95 shadow-sm"
           >
-            <Settings size={12} />
+            <Settings size={14} />
             Configure
           </button>
           <button
             onClick={() => { setEditing(null); setDrawerOpen(true); }}
-            className="flex items-center gap-1 px-3.5 py-1.5 bg-neutral-950 text-white text-[10px] font-bold rounded-lg hover:bg-black transition-all active:scale-95 shadow-sm"
+            className="flex items-center gap-1.5 px-4.5 py-2 bg-neutral-950 text-white text-xs font-bold rounded-lg hover:bg-black transition-all active:scale-95 shadow-md"
           >
-            <Plus size={12} />
-            Add Entry
+            <Plus size={14} />
+            Add Transaction
           </button>
         </div>
       </div>
 
-      {/* ── Compact Stat Cards ── */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      {/* ── Metric Cards ── */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {[
           { label: "Current Balance", value: fmt(stats.currentBalance) },
           { label: "Savings Balance", value: fmt(stats.savingsBalance) },
@@ -633,40 +633,40 @@ export default function FinanceContent() {
         ].map((s) => (
           <div
             key={s.label}
-            className={`border border-neutral-150 p-3.5 rounded-lg flex flex-col justify-between ${
+            className={`border border-neutral-150 p-4.5 rounded-xl flex flex-col justify-between shadow-[0_1px_3px_rgba(0,0,0,0.02)] transition-all ${
               s.highlight ? "bg-neutral-950 text-white border-neutral-950" : "bg-white text-neutral-900"
             }`}
           >
-            <span className={`text-[8px] font-bold uppercase tracking-widest ${s.highlight ? "text-neutral-400" : "text-neutral-400"}`}>
+            <span className={`text-[10px] font-bold uppercase tracking-wider ${s.highlight ? "text-neutral-400" : "text-neutral-400"}`}>
               {s.label}
             </span>
-            <p className="text-sm font-black mt-1 font-mono leading-none tracking-tight">{s.value}</p>
+            <p className="text-lg md:text-xl font-extrabold mt-2 leading-none tracking-tight font-mono">{s.value}</p>
           </div>
         ))}
       </div>
 
       {/* ── Table & Filter Area (Linear-inspired SaaS style) ── */}
-      <div className="bg-white rounded-xl border border-neutral-150 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl border border-neutral-150 shadow-sm overflow-hidden w-full">
         
-        {/* Unified Search & Filters Row */}
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3.5 p-3.5 bg-neutral-50/50 border-b border-neutral-155">
+        {/* Unified Search & Filters Row (Refined Responsive Grid) */}
+        <div className="flex flex-col xl:flex-row items-stretch xl:items-center gap-4 p-4 bg-neutral-50/50 border-b border-neutral-155">
           {/* Search bar */}
           <div className="relative flex-1">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+            <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search ledger by description or tags..."
-              className="w-full pl-10 pr-3 py-1.5 border border-neutral-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-neutral-955 focus:ring-1 focus:ring-neutral-955 bg-white text-neutral-900 placeholder-neutral-400 transition-all"
+              placeholder="Search description, tags, category..."
+              className="w-full pl-10 pr-4 py-2 border border-neutral-200 rounded-lg text-sm font-semibold focus:outline-none focus:border-neutral-955 focus:ring-1 focus:ring-neutral-955 bg-white text-neutral-900 placeholder-neutral-400 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.01)]"
             />
           </div>
 
           {/* Filters Area */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2.5">
             
-            {/* Account Selector Segmented Control */}
-            <div className="flex border border-neutral-200 p-0.5 bg-neutral-100/50 rounded-lg">
+            {/* Account Selector */}
+            <div className="flex border border-neutral-200 p-0.5 bg-neutral-100/50 rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.01)]">
               {[
                 { key: "All" as const, label: "All Accounts" },
                 { key: "Current" as const, label: "Current" },
@@ -675,10 +675,10 @@ export default function FinanceContent() {
                 <button
                   key={acc.key}
                   onClick={() => setFilterAccount(acc.key)}
-                  className={`px-3 py-1 rounded-md text-[10px] font-bold transition-all ${
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
                     filterAccount === acc.key
-                      ? "bg-white text-neutral-950 shadow-sm"
-                      : "text-neutral-500 hover:text-neutral-905"
+                      ? "bg-white text-neutral-955 shadow-sm"
+                      : "text-neutral-500 hover:text-neutral-900"
                   }`}
                 >
                   {acc.label}
@@ -686,15 +686,15 @@ export default function FinanceContent() {
               ))}
             </div>
 
-            {/* Type Filter Control */}
-            <div className="flex border border-neutral-200 p-0.5 bg-neutral-100/50 rounded-lg">
+            {/* Type Selector */}
+            <div className="flex border border-neutral-200 p-0.5 bg-neutral-100/50 rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.01)]">
               {(["All", "Credit", "Debit", "Transfer"] as const).map((t) => (
                 <button
                   key={t}
                   onClick={() => setFilterType(t)}
-                  className={`px-3 py-1 rounded-md text-[10px] font-bold transition-all ${
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
                     filterType === t
-                      ? "bg-white text-neutral-950 shadow-sm"
+                      ? "bg-white text-neutral-955 shadow-sm"
                       : "text-neutral-500 hover:text-neutral-950"
                   }`}
                 >
@@ -704,56 +704,56 @@ export default function FinanceContent() {
             </div>
 
             {/* Month select dropdown */}
-            <div className="relative border border-neutral-200 bg-white rounded-lg flex items-center pr-7 pl-3 py-1">
+            <div className="relative border border-neutral-200 bg-white rounded-lg flex items-center pr-8 pl-3.5 py-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.01)]">
               <select
                 value={filterMonth}
                 onChange={(e) => setFilterMonth(e.target.value)}
-                className="appearance-none text-[10px] font-bold text-neutral-600 bg-transparent focus:outline-none cursor-pointer w-full"
+                className="appearance-none text-xs font-bold text-neutral-700 bg-transparent focus:outline-none cursor-pointer w-full"
               >
                 <option value="all">All Months</option>
                 {monthOptions.map((m) => (
                   <option key={m.key} value={m.key}>{m.label}</option>
                 ))}
               </select>
-              <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-450 pointer-events-none" />
+              <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-450 pointer-events-none" />
             </div>
 
             {/* Important Only Toggle Button */}
             <button
               onClick={() => setFilterImportant(!filterImportant)}
-              className={`flex items-center gap-1 px-3 py-1 rounded-lg text-[10px] font-bold border transition-all ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold border transition-all shadow-[0_1px_2px_rgba(0,0,0,0.01)] ${
                 filterImportant
                   ? "bg-neutral-955 text-white border-neutral-955"
                   : "bg-white text-neutral-500 border-neutral-200 hover:text-neutral-950"
               }`}
             >
-              <Star size={11} className={filterImportant ? "fill-white text-white" : "text-neutral-400"} />
+              <Star size={12} className={filterImportant ? "fill-white text-white" : "text-neutral-400"} />
               Important
             </button>
           </div>
         </div>
 
         {/* High-End Ledger Table */}
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto w-full">
           {filtered.length === 0 ? (
             <div className="p-4">
               <EmptyState onAdd={() => { setEditing(null); setDrawerOpen(true); }} />
             </div>
           ) : (
-            <table className="w-full text-left border-collapse table-auto">
+            <table className="w-full text-left border-collapse table-auto min-w-[900px] lg:min-w-0">
               <thead>
-                <tr className="border-b border-neutral-150 bg-neutral-50/20 text-[9px] font-bold text-neutral-400 uppercase tracking-widest select-none">
-                  <th className="px-6 py-3 w-28 font-semibold">Date</th>
-                  <th className="px-6 py-3 font-semibold">Description</th>
-                  <th className="px-6 py-3 w-32 font-semibold">Category</th>
-                  <th className="px-6 py-3 w-40 font-semibold">Account Route</th>
-                  <th className="px-6 py-3 w-24 font-semibold">Method</th>
-                  <th className="px-6 py-3 w-24 font-semibold text-center">Type</th>
-                  <th className="px-6 py-3 w-36 font-semibold text-right">Amount</th>
-                  <th className="px-6 py-3 w-20 font-semibold text-right">Actions</th>
+                <tr className="border-b border-neutral-150 bg-neutral-50/20 text-[10px] font-bold text-neutral-400 uppercase tracking-wider select-none">
+                  <th className="px-6 py-4 w-32 font-semibold">Date</th>
+                  <th className="px-6 py-4 font-semibold">Description</th>
+                  <th className="px-6 py-4 w-36 font-semibold">Category</th>
+                  <th className="px-6 py-4 w-44 font-semibold">Account Route</th>
+                  <th className="px-6 py-4 w-28 font-semibold">Method</th>
+                  <th className="px-6 py-4 w-28 font-semibold text-center">Type</th>
+                  <th className="px-6 py-4 w-40 font-semibold text-right">Amount</th>
+                  <th className="px-6 py-4 w-24 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-neutral-100 text-xs font-semibold text-neutral-900 bg-white">
+              <tbody className="divide-y divide-neutral-100 text-sm font-semibold text-neutral-900 bg-white">
                 {filtered.map((entry) => {
                   const isCredit = entry.type === "Credit";
                   const isTransfer = entry.type === "Transfer";
@@ -768,7 +768,7 @@ export default function FinanceContent() {
                   if (filterAccount !== "All" && isTransfer) {
                     if (toAcc === filterAccount) {
                       transferIndicator = (
-                        <span className="text-[8px] uppercase tracking-wider font-extrabold text-neutral-900 border border-neutral-200 px-1 py-0.2 rounded mr-1.5 bg-neutral-50">
+                        <span className="text-[9px] uppercase tracking-wider font-extrabold text-neutral-900 border border-neutral-200 px-2 py-0.5 rounded mr-2 bg-neutral-50">
                           inflow
                         </span>
                       );
@@ -776,7 +776,7 @@ export default function FinanceContent() {
                       customAmountStyle = "text-neutral-950 font-black";
                     } else if (acc === filterAccount) {
                       transferIndicator = (
-                        <span className="text-[8px] uppercase tracking-wider font-semibold text-neutral-400 border border-neutral-150 px-1 py-0.2 rounded mr-1.5 bg-neutral-50/50">
+                        <span className="text-[9px] uppercase tracking-wider font-semibold text-neutral-400 border border-neutral-150 px-2 py-0.5 rounded mr-2 bg-neutral-50/50">
                           outflow
                         </span>
                       );
@@ -795,21 +795,21 @@ export default function FinanceContent() {
                       }`}
                     >
                       {/* Date */}
-                      <td className="px-6 py-3.5 text-neutral-450 font-mono tracking-tight whitespace-nowrap">
+                      <td className="px-6 py-4.5 text-neutral-450 font-mono tracking-tight whitespace-nowrap text-xs">
                         {entry.date}
                       </td>
 
                       {/* Description */}
-                      <td className="px-6 py-3.5 max-w-xs md:max-w-md truncate">
+                      <td className="px-6 py-4.5">
                         <div className="flex flex-col">
-                          <span className="font-bold text-neutral-900 tracking-tight flex items-center gap-1">
+                          <span className="font-bold text-neutral-950 tracking-tight text-sm flex items-center gap-1.5">
                             {entry.description}
                             {isImp && (
-                              <Star size={11} className="text-neutral-950 fill-neutral-950 flex-shrink-0 animate-pulse" />
+                              <Star size={12} className="text-neutral-950 fill-neutral-955 flex-shrink-0 animate-pulse" />
                             )}
                           </span>
                           {entry.tags && (
-                            <span className="text-[9px] text-neutral-400 font-normal mt-0.5 tracking-tight font-mono">
+                            <span className="text-[10px] text-neutral-400 font-normal mt-1 tracking-tight font-mono">
                               #{entry.tags.split(",").map(t=>t.trim()).join(" #")}
                             </span>
                           )}
@@ -817,28 +817,28 @@ export default function FinanceContent() {
                       </td>
 
                       {/* Category */}
-                      <td className="px-6 py-3.5 whitespace-nowrap">
-                        <span className="inline-block px-2 py-0.5 bg-neutral-50 text-neutral-700 rounded border border-neutral-200 text-[10px] font-bold tracking-tight">
+                      <td className="px-6 py-4.5 whitespace-nowrap">
+                        <span className="inline-block px-2.5 py-1 bg-neutral-50 text-neutral-700 rounded border border-neutral-200 text-xs font-bold tracking-tight">
                           {entry.category}
                         </span>
                       </td>
 
                       {/* Account Route */}
-                      <td className="px-6 py-3.5 whitespace-nowrap">
+                      <td className="px-6 py-4.5 whitespace-nowrap">
                         {isTransfer ? (
-                          <div className="flex items-center gap-1.5 text-[9px] font-bold tracking-tight">
-                            <span className={`px-1.5 py-0.5 rounded border border-neutral-200 text-neutral-700 font-mono`}>
+                          <div className="flex items-center gap-2 text-[10px] font-bold tracking-tight">
+                            <span className="px-2 py-0.5 rounded border border-neutral-200 text-neutral-700 font-mono">
                               {acc.toUpperCase()}
                             </span>
-                            <ArrowRight size={8} className="text-neutral-400 stroke-[3]" />
-                            <span className={`px-1.5 py-0.5 rounded border border-neutral-300 text-neutral-955 font-mono bg-neutral-50`}>
+                            <ArrowRight size={10} className="text-neutral-400 stroke-[3]" />
+                            <span className="px-2 py-0.5 rounded border border-neutral-300 text-neutral-955 font-mono bg-neutral-50">
                               {toAcc.toUpperCase()}
                             </span>
                           </div>
                         ) : (
-                          <span className={`inline-block px-1.5 py-0.5 rounded border text-[9px] font-bold tracking-wider font-mono ${
+                          <span className={`inline-block px-2 py-0.5 rounded border text-[10px] font-bold tracking-wider font-mono ${
                             acc === "Savings" 
-                              ? "bg-neutral-950 text-white border-neutral-955" 
+                              ? "bg-neutral-955 text-white border-neutral-955" 
                               : "bg-white text-neutral-600 border-neutral-200"
                           }`}>
                             {acc.toUpperCase()}
@@ -847,18 +847,18 @@ export default function FinanceContent() {
                       </td>
 
                       {/* Method */}
-                      <td className="px-6 py-3.5 text-neutral-500 font-bold whitespace-nowrap">
+                      <td className="px-6 py-4.5 text-neutral-500 font-bold whitespace-nowrap text-xs">
                         {entry.paymentMode}
                       </td>
 
                       {/* Type Label */}
-                      <td className="px-6 py-3.5 text-center whitespace-nowrap select-none">
+                      <td className="px-6 py-4.5 text-center whitespace-nowrap select-none text-xs">
                         {isTransfer ? (
-                          <span className="text-[9px] font-bold text-neutral-450 font-mono tracking-wider uppercase">
+                          <span className="font-bold text-neutral-450 font-mono tracking-wider uppercase">
                             Transfer
                           </span>
                         ) : (
-                          <span className={`text-[9px] font-extrabold font-mono tracking-wider uppercase ${
+                          <span className={`font-extrabold font-mono tracking-wider uppercase ${
                             isCredit ? "text-neutral-900" : "text-neutral-400"
                           }`}>
                             {isCredit ? "Credit" : "Debit"}
@@ -867,29 +867,29 @@ export default function FinanceContent() {
                       </td>
 
                       {/* Amount */}
-                      <td className={`px-6 py-3.5 text-right font-mono text-xs tracking-tight whitespace-nowrap ${customAmountStyle}`}>
+                      <td className={`px-6 py-4.5 text-right font-mono text-sm tracking-tight whitespace-nowrap ${customAmountStyle}`}>
                         <div className="inline-flex items-center justify-end">
                           {transferIndicator}
-                          <span className="font-bold">{amountPrefix}{fmt(entry.amount)}</span>
+                          <span className="font-extrabold">{amountPrefix}{fmt(entry.amount)}</span>
                         </div>
                       </td>
 
                       {/* Actions */}
-                      <td className="px-6 py-3.5 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <td className="px-6 py-4.5 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => openEdit(entry)}
-                            className="p-0.5 rounded text-neutral-455 hover:text-neutral-955 transition-colors"
+                            className="p-1 rounded text-neutral-455 hover:text-neutral-955 transition-colors hover:bg-neutral-50"
                             title="Edit"
                           >
-                            <Edit2 size={11} />
+                            <Edit2 size={12} />
                           </button>
                           <button
                             onClick={() => deleteEntry(entry.id)}
-                            className="p-0.5 rounded text-neutral-455 hover:text-neutral-955 transition-colors"
+                            className="p-1 rounded text-neutral-455 hover:text-neutral-955 transition-colors hover:bg-neutral-50"
                             title="Delete"
                           >
-                            <Trash2 size={11} />
+                            <Trash2 size={12} />
                           </button>
                         </div>
                       </td>
@@ -903,21 +903,21 @@ export default function FinanceContent() {
 
         {/* Ledger Summary Stats Footer */}
         {filtered.length > 0 && (
-          <div className="px-6 py-3 border-t border-neutral-150 flex flex-col sm:flex-row items-center justify-between gap-3 bg-neutral-50/20 select-none">
-            <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-widest">
+          <div className="px-6 py-4 border-t border-neutral-150 flex flex-col sm:flex-row items-center justify-between gap-4 bg-neutral-50/20 select-none">
+            <span className="text-[10px] font-bold text-neutral-450 uppercase tracking-widest">
               Ledger Summary · {filtered.length} row(s)
             </span>
-            <div className="flex items-center gap-3 text-[10px] font-extrabold tracking-tight">
-              <div className="flex items-center gap-1.5 bg-white border border-neutral-200 px-2.5 py-1 rounded-md">
-                <span className="text-[8px] font-bold text-neutral-400 uppercase tracking-wider">
+            <div className="flex items-center gap-3.5 text-xs font-extrabold tracking-tight">
+              <div className="flex items-center gap-2 bg-white border border-neutral-200 px-3 py-1.5 rounded-md">
+                <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider">
                   {filterAccount === "All" ? "Inflow" : `${filterAccount} Inflow`}:
                 </span>
-                <span className="text-neutral-900 font-mono font-bold">
+                <span className="text-neutral-950 font-mono font-bold">
                   +{fmt(flowSummary.inflow)}
                 </span>
               </div>
-              <div className="flex items-center gap-1.5 bg-white border border-neutral-200 px-2.5 py-1 rounded-md">
-                <span className="text-[8px] font-bold text-neutral-400 uppercase tracking-wider">
+              <div className="flex items-center gap-2 bg-white border border-neutral-200 px-3 py-1.5 rounded-md">
+                <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider">
                   {filterAccount === "All" ? "Outflow" : `${filterAccount} Outflow`}:
                 </span>
                 <span className="text-neutral-700 font-mono font-bold">
