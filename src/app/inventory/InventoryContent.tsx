@@ -7,7 +7,7 @@ import { useTheme } from "@/context/ThemeContext";
 import {
   Package, Search, Zap, Sparkles, History,
   FileDown, Share2, Plus, X, Check, RefreshCw,
-  LayoutDashboard, Boxes,
+  LayoutDashboard, Boxes, AlertTriangle, CheckCircle, BarChart3, TrendingUp,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -98,7 +98,7 @@ function lowStockCount(cats: InventoryCategory[]) {
 function slug(s: string) { return s.toLowerCase().replace(/[^a-z0-9]+/g, ""); }
 
 /* ══════════════════════════════════════════════════════════════
-   OVERVIEW TAB - CLEAN FLAT DESIGN
+   OVERVIEW TAB - PREMIUM FLAT DESIGN
 ══════════════════════════════════════════════════════════════ */
 function OverviewTab({ ordered }: { ordered: InventoryCategory[] }) {
   const grandTotal = ordered.reduce((s, c) => s + catTotal(c), 0);
@@ -123,17 +123,22 @@ function OverviewTab({ ordered }: { ordered: InventoryCategory[] }) {
       {/* Stat grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Total Inventory", value: grandTotal, sub: "Pieces in stock" },
-          { label: "Categories", value: ordered.length, sub: "Product categories" },
-          { label: "Out of Stock", value: oos, sub: "Combo items at 0" },
-          { label: "Low Stock", value: low, sub: "Combo items ≤ 5" },
+          { label: "Total Inventory", value: grandTotal, sub: "Pieces in stock", icon: Boxes, style: "text-gray-900 dark:text-white" },
+          { label: "Categories", value: ordered.length, sub: "Product categories", icon: Package, style: "text-gray-650 dark:text-zinc-400" },
+          { label: "Out of Stock", value: oos, sub: "Combo items at 0", icon: AlertTriangle, style: oos > 0 ? "text-red-500 dark:text-red-400" : "text-gray-400" },
+          { label: "Low Stock", value: low, sub: "Combo items ≤ 5", icon: TrendingUp, style: low > 0 ? "text-amber-500 dark:text-amber-400" : "text-gray-400" },
         ].map(item => (
-          <div key={item.label} className="p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl">
-            <div className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">{item.label}</div>
-            <div className="text-3xl font-black text-zinc-900 dark:text-white mt-1.5" style={{ fontVariantNumeric: "tabular-nums" }}>
-              {item.value.toLocaleString("en-IN")}
+          <div key={item.label} className="p-5 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.01)] flex items-start justify-between">
+            <div className="space-y-1.5">
+              <div className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider">{item.label}</div>
+              <div className={`text-2xl md:text-3xl font-black font-mono leading-none ${item.style}`}>
+                {item.value.toLocaleString("en-IN")}
+              </div>
+              <div className="text-[11px] text-gray-400 dark:text-zinc-500">{item.sub}</div>
             </div>
-            <div className="text-xs text-zinc-500 mt-1">{item.sub}</div>
+            <div className={`w-8 h-8 rounded-lg bg-gray-50 dark:bg-zinc-950 flex items-center justify-center border border-gray-150 dark:border-zinc-850 ${item.style}`}>
+              <item.icon size={16} />
+            </div>
           </div>
         ))}
       </div>
@@ -141,20 +146,23 @@ function OverviewTab({ ordered }: { ordered: InventoryCategory[] }) {
       {/* Main lists */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Categories list */}
-        <div className="p-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl space-y-4">
-          <h3 className="text-sm font-bold text-zinc-900 dark:text-white uppercase tracking-wider">Category Stock</h3>
-          <div className="space-y-4">
+        <div className="p-6 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl space-y-5 shadow-[0_1px_3px_rgba(0,0,0,0.01)]">
+          <div className="flex items-center gap-2 pb-2 border-b border-gray-100 dark:border-zinc-850">
+            <BarChart3 size={15} className="text-gray-450" />
+            <h3 className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-wider">Category Stock</h3>
+          </div>
+          <div className="space-y-4.5">
             {ordered.map(c => {
               const total = catTotal(c);
               const pct = (total / maxCat) * 100;
               return (
-                <div key={c.id} className="space-y-1.5">
-                  <div className="flex justify-between text-xs font-bold text-zinc-700 dark:text-zinc-300">
+                <div key={c.id} className="space-y-2">
+                  <div className="flex justify-between text-xs font-bold text-gray-700 dark:text-zinc-300">
                     <span>{c.name}</span>
-                    <span>{total.toLocaleString("en-IN")} pcs</span>
+                    <span className="font-mono">{total.toLocaleString("en-IN")} pcs</span>
                   </div>
-                  <div className="h-1.5 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-zinc-900 dark:bg-white rounded-full" style={{ width: `${pct}%` }} />
+                  <div className="h-2 w-full bg-gray-100 dark:bg-zinc-950 rounded-full overflow-hidden border border-gray-200/20">
+                    <div className="h-full bg-gray-900 dark:bg-zinc-250 rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
                   </div>
                 </div>
               );
@@ -163,19 +171,22 @@ function OverviewTab({ ordered }: { ordered: InventoryCategory[] }) {
         </div>
 
         {/* Prints distribution */}
-        <div className="p-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl space-y-4">
-          <h3 className="text-sm font-bold text-zinc-900 dark:text-white uppercase tracking-wider">Top Prints</h3>
-          <div className="space-y-4">
+        <div className="p-6 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl space-y-5 shadow-[0_1px_3px_rgba(0,0,0,0.01)]">
+          <div className="flex items-center gap-2 pb-2 border-b border-gray-100 dark:border-zinc-850">
+            <TrendingUp size={15} className="text-gray-455" />
+            <h3 className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-wider">Top Prints</h3>
+          </div>
+          <div className="space-y-4.5">
             {topPrints.map(([print, total]) => {
               const pct = (total / maxPrint) * 100;
               return (
-                <div key={print} className="space-y-1.5">
-                  <div className="flex justify-between text-xs font-bold text-zinc-700 dark:text-zinc-300">
+                <div key={print} className="space-y-2">
+                  <div className="flex justify-between text-xs font-bold text-gray-700 dark:text-zinc-300">
                     <span>{print}</span>
-                    <span>{total} pcs</span>
+                    <span className="font-mono">{total} pcs</span>
                   </div>
-                  <div className="h-1.5 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-zinc-400 dark:bg-zinc-500 rounded-full" style={{ width: `${pct}%` }} />
+                  <div className="h-2 w-full bg-gray-100 dark:bg-zinc-950 rounded-full overflow-hidden border border-gray-200/20">
+                    <div className="h-full bg-amber-500 dark:bg-amber-400 rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
                   </div>
                 </div>
               );
@@ -187,9 +198,7 @@ function OverviewTab({ ordered }: { ordered: InventoryCategory[] }) {
   );
 }
 
-/* ══════════════════════════════════════════════════════════════
-   STOCK TAB - FLAT LIST TABLE LAYOUT
-══════════════════════════════════════════════════════════════ */
+/* ─── Stock Tab ─── */
 function StockTab({
   ordered, cats, setCats,
   quickSale, setQuickSale,
@@ -274,16 +283,16 @@ function StockTab({
             exit={{ opacity: 0, y: -20, x: "-50%" }}
             className="fixed top-20 left-1/2 z-[60] flex items-center gap-2 px-5 py-3 rounded-xl shadow-lg bg-zinc-900 dark:bg-white border border-zinc-800 dark:border-white/20 text-white dark:text-black text-xs font-bold"
           >
-            <Check size={14} />
+            <Check size={14} className="text-emerald-500 dark:text-emerald-600" />
             <span>Changes synced to database</span>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Category Horizontal Buttons */}
-      <div className="flex gap-2 overflow-x-auto pb-1 shrink-0">
+      {/* Category Horizontal Buttons (Modern Segmented Tab Bar) */}
+      <div className="flex bg-gray-100/65 dark:bg-zinc-950/60 p-1 rounded-xl border border-gray-200/50 dark:border-zinc-800/50 gap-1.5 overflow-x-auto pb-1.5 shrink-0 select-none">
         {ordered.map(c => {
-          if (c.id === "cat-new-nightsuit") return null; // Hide the separate new nightsuit tab
+          if (c.id === "cat-new-nightsuit") return null;
           const on = activeCatId === c.id || (c.id === "cat-nightsuit" && activeCatId === "cat-new-nightsuit");
           const totalPcs = c.id === "cat-nightsuit" 
             ? catTotal(c) + (ordered.find(x => x.id === "cat-new-nightsuit") ? catTotal(ordered.find(x => x.id === "cat-new-nightsuit")!) : 0)
@@ -300,13 +309,16 @@ function StockTab({
                 setSearch(""); 
                 setEditingCell(null); 
               }}
-              className={`px-4 py-2 text-xs font-bold rounded-lg border transition-all cursor-pointer whitespace-nowrap ${
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 ${
                 on 
-                  ? "bg-zinc-900 dark:bg-white text-white dark:text-black border-zinc-900 dark:border-white" 
-                  : "bg-white dark:bg-zinc-900 text-zinc-650 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-850"
+                  ? "bg-white dark:bg-zinc-900 text-gray-900 dark:text-white shadow-sm border border-gray-200/40 dark:border-zinc-800" 
+                  : "text-gray-500 dark:text-zinc-450 hover:text-gray-900 dark:hover:text-zinc-300"
               }`}
             >
-              {c.name} · <span className="opacity-60">{totalPcs} pcs</span>
+              <span>{c.name}</span>
+              <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${on ? "bg-gray-100 dark:bg-zinc-800 text-gray-900 dark:text-white" : "bg-gray-200/30 dark:bg-zinc-900/30 text-gray-400 dark:text-zinc-600"}`}>
+                {totalPcs}
+              </span>
             </button>
           );
         })}
@@ -314,139 +326,175 @@ function StockTab({
 
       {/* Main content grid - Locked Height */}
       {active && (
-        <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 items-stretch h-[calc(100vh-170px)] overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6 items-stretch h-[calc(100vh-170px)] overflow-hidden">
           
-          {/* Left Side: Product Image Display Card - Scrollable internally if needed */}
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 flex flex-col justify-between overflow-y-auto">
-            <div className="space-y-3">
-              <div className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Product Image</div>
-              <div className="relative aspect-square w-full rounded-lg overflow-hidden bg-zinc-50 border border-zinc-100 dark:border-zinc-850 shrink-0">
+          {/* Left Side: Product Image Display Card */}
+          <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-4.5 flex flex-col justify-between overflow-y-auto shadow-[0_1px_3px_rgba(0,0,0,0.01)]">
+            <div className="space-y-4">
+              <div className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest pb-1 border-b border-gray-55 dark:border-zinc-850">Catalog Item</div>
+              <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-gray-50 dark:bg-zinc-955 border border-gray-100 dark:border-zinc-850 shrink-0 shadow-[inset_0_1px_4px_rgba(0,0,0,0.02)]">
                 {img ? (
-                  <Image src={img} alt={active.name} fill sizes="260px" className="object-cover" priority />
+                  <Image src={img} alt={active.name} fill sizes="280px" className="object-cover transition-transform duration-300 hover:scale-105" priority />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-zinc-300 dark:text-zinc-700">
+                  <div className="w-full h-full flex items-center justify-center text-gray-300 dark:text-zinc-750">
                     <Package size={48} />
                   </div>
                 )}
               </div>
-              <div>
-                <h2 className="text-md font-black text-zinc-900 dark:text-white leading-tight">{active.name}</h2>
-                <p className="text-[11px] text-zinc-400 mt-0.5">{catTotal(active)} Total Pieces</p>
+              <div className="space-y-1">
+                <h2 className="text-base font-black text-gray-900 dark:text-white leading-tight tracking-tight">{active.name}</h2>
+                <div className="inline-flex px-2 py-0.5 rounded bg-gray-100 dark:bg-zinc-950 border border-gray-200/50 dark:border-zinc-800/80 text-[10px] font-bold text-gray-600 dark:text-zinc-400 font-mono">
+                  {catTotal(active).toLocaleString("en-IN")} pcs total
+                </div>
               </div>
               
               {/* Quick stats list */}
-              <div className="divide-y divide-zinc-100 dark:divide-zinc-850 text-xs">
-                <div className="py-1.5 flex justify-between">
-                  <span className="text-zinc-500">Prints count</span>
-                  <span className="font-bold text-zinc-900 dark:text-white">{active.prints.length}</span>
+              <div className="divide-y divide-gray-100 dark:divide-zinc-855/80 text-xs pt-1">
+                <div className="py-2.5 flex justify-between items-center">
+                  <span className="text-gray-500 dark:text-zinc-400">Total Patterns</span>
+                  <span className="font-bold font-mono text-gray-900 dark:text-white bg-gray-55 dark:bg-zinc-950 px-2 py-0.5 rounded border border-gray-100 dark:border-zinc-850">{active.prints.length}</span>
                 </div>
-                <div className="py-1.5 flex justify-between">
-                  <span className="text-zinc-500">Sizes count</span>
-                  <span className="font-bold text-zinc-900 dark:text-white">{active.sizes.length}</span>
+                <div className="py-2.5 flex justify-between items-center">
+                  <span className="text-gray-500 dark:text-zinc-400">Size Ranges</span>
+                  <span className="font-bold font-mono text-gray-900 dark:text-white bg-gray-55 dark:bg-zinc-950 px-2 py-0.5 rounded border border-gray-100 dark:border-zinc-850">{active.sizes.length}</span>
                 </div>
               </div>
             </div>
 
             {/* Quick controls panel */}
-            <div className="space-y-2 pt-2 border-t border-zinc-100 dark:border-zinc-850 mt-2 shrink-0">
+            <div className="space-y-3 pt-3 border-t border-gray-100 dark:border-zinc-850 mt-4 shrink-0">
               <button
                 onClick={() => setQuickSale(!quickSale)}
-                className={`w-full py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
+                className={`w-full py-2.5 rounded-lg text-xs font-bold transition-all border flex items-center justify-center gap-2 cursor-pointer shadow-sm ${
                   quickSale 
-                    ? "bg-zinc-900 text-white dark:bg-white dark:text-black border-zinc-900 dark:border-white" 
-                    : "bg-white dark:bg-zinc-900 text-zinc-700 dark:text-white border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-850"
+                    ? "bg-amber-50 dark:bg-amber-955/20 text-amber-700 dark:text-amber-400 border-amber-250 dark:border-amber-900/40" 
+                    : "bg-white dark:bg-zinc-900 text-gray-700 dark:text-zinc-300 border-gray-200 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-850"
                 }`}
               >
-                {quickSale ? "Quick Sale ON" : "Quick Sale Mode"}
+                <span className={`w-1.5 h-1.5 rounded-full ${quickSale ? "bg-amber-500 animate-pulse" : "bg-gray-400"}`} />
+                {quickSale ? "Quick Sale: ON" : "Quick Sale Mode"}
               </button>
               <div className="grid grid-cols-2 gap-2">
-                <button onClick={() => setDimModalOpen(true)} className="py-1.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-white rounded-lg text-[10px] font-bold hover:bg-zinc-100 transition-all cursor-pointer">
-                  Add Size/Print
+                <button
+                  onClick={() => setDimModalOpen(true)}
+                  className="py-2 bg-gray-55 dark:bg-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-750 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
+                >
+                  <Plus size={11} /> Add Option
                 </button>
-                <button onClick={() => setParseOpen(true)} className="py-1.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-white rounded-lg text-[10px] font-bold hover:bg-zinc-100 transition-all cursor-pointer">
-                  AI Parse
+                <button
+                  onClick={() => setParseOpen(true)}
+                  className="py-2 bg-gray-55 dark:bg-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-750 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
+                >
+                  <Sparkles size={11} className="text-amber-550" /> AI Parse
                 </button>
               </div>
-              <div className="grid grid-cols-3 gap-2 text-center text-zinc-500 text-[10px] pt-1">
-                <button onClick={exportPdf} className="hover:text-zinc-900 dark:hover:text-white cursor-pointer font-bold">PDF</button>
-                <button onClick={shareWhatsApp} className="hover:text-zinc-900 dark:hover:text-white cursor-pointer font-bold">WhatsApp</button>
-                <button onClick={() => setShowLog(true)} className="hover:text-zinc-900 dark:hover:text-white cursor-pointer font-bold">Log</button>
+
+              {/* Action utilities */}
+              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-gray-100 dark:border-zinc-850">
+                <button
+                  onClick={exportPdf}
+                  className="flex flex-col items-center gap-1 py-1.5 text-[9px] font-bold text-gray-500 hover:text-gray-900 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer"
+                >
+                  <FileDown size={14} /> PDF
+                </button>
+                <button
+                  onClick={shareWhatsApp}
+                  className="flex flex-col items-center gap-1 py-1.5 text-[9px] font-bold text-gray-500 hover:text-gray-900 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer"
+                >
+                  <Share2 size={14} /> Share
+                </button>
+                <button
+                  onClick={() => setShowLog(true)}
+                  className="flex flex-col items-center gap-1 py-1.5 text-[9px] font-bold text-gray-500 hover:text-gray-900 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer"
+                >
+                  <History size={14} /> Logs
+                </button>
               </div>
             </div>
           </div>
 
-          {/* Right Side: Clean Flat Spreadsheet Table - Locked Height with inner scroll */}
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm flex flex-col h-full">
+          {/* Right Side: Clean Spreadsheet Table */}
+          <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm flex flex-col h-full">
             {/* Table controls */}
-            <div className="p-3 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-4 shrink-0 bg-white dark:bg-zinc-900">
+            <div className="p-3.5 border-b border-gray-200 dark:border-zinc-800 flex items-center justify-between gap-4 shrink-0 bg-gray-50/50 dark:bg-zinc-950/20">
               <div className="flex items-center gap-4 flex-1">
-                <div className="flex items-center gap-2 max-w-xs flex-1">
-                  <Search size={14} className="text-zinc-400" />
+                {/* Search bar */}
+                <div className="relative flex-1 max-w-xs h-[32px]">
+                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-zinc-505" />
                   <input
                     value={search}
                     onChange={e => setSearch(e.target.value)}
                     placeholder="Filter prints..."
-                    className="w-full bg-transparent text-xs text-zinc-900 dark:text-white placeholder:text-zinc-400 outline-none border-none"
+                    className="w-full h-full pl-8 pr-3 text-xs bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-zinc-500 outline-none focus:border-gray-900 dark:focus:border-white transition-all shadow-[0_1px_2px_rgba(0,0,0,0.01)]"
                   />
                 </div>
                 
-                {/* Night Suit Sub-tab Toggles (Original / New Collection) */}
+                {/* Night Suit Sub-tab Toggles */}
                 {(active.id === "cat-nightsuit" || active.id === "cat-new-nightsuit") && (
-                  <div className="flex bg-zinc-100 dark:bg-zinc-800 p-0.5 rounded-lg border border-zinc-200 dark:border-zinc-700 shrink-0">
+                  <div className="flex bg-gray-100 dark:bg-zinc-950 p-0.5 rounded-lg border border-gray-200 dark:border-zinc-800 shrink-0">
                     <button
                       onClick={() => { setActiveCatId("cat-nightsuit"); setEditingCell(null); }}
-                      className={`px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                      className={`px-3.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
                         active.id === "cat-nightsuit"
-                          ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm border border-zinc-250/30 dark:border-zinc-700"
-                          : "text-zinc-450 dark:text-zinc-500 hover:text-zinc-750 dark:hover:text-zinc-350"
+                          ? "bg-white dark:bg-zinc-900 text-gray-900 dark:text-white shadow-sm border border-gray-200/50 dark:border-zinc-700/50"
+                          : "text-gray-500 dark:text-zinc-500 hover:text-gray-900 dark:hover:text-zinc-300"
                       }`}
                     >
-                      Old Print
+                      Old Prints
                     </button>
                     <button
                       onClick={() => { setActiveCatId("cat-new-nightsuit"); setEditingCell(null); }}
-                      className={`px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                      className={`px-3.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
                         active.id === "cat-new-nightsuit"
-                          ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm border border-zinc-250/30 dark:border-zinc-700"
-                          : "text-zinc-450 dark:text-zinc-500 hover:text-zinc-750 dark:hover:text-zinc-350"
+                          ? "bg-white dark:bg-zinc-900 text-gray-900 dark:text-white shadow-sm border border-gray-200/50 dark:border-zinc-700/50"
+                          : "text-gray-500 dark:text-zinc-500 hover:text-gray-900 dark:hover:text-zinc-300"
                       }`}
                     >
-                      New Print
+                      New Prints
                     </button>
                   </div>
                 )}
               </div>
 
               {quickSale && (
-                <div className="text-[9px] font-bold text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded">
-                  ⚡ Tap any cell to subtract 1
+                <div className="text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-955/20 border border-amber-100 dark:border-amber-900/20 px-2.5 py-1 rounded-lg animate-pulse">
+                  ⚡ Tap any cell to sell (-1)
                 </div>
               )}
             </div>
 
             {/* Scrollable table container */}
             <div className="overflow-x-auto overflow-y-auto flex-1">
-              <table className="w-full text-left border-collapse">
-                <thead className="sticky top-0 z-10 bg-zinc-50 dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 text-[10px] font-bold text-zinc-400 dark:text-zinc-550 uppercase tracking-wider">
+              <table className="w-full text-left border-collapse table-auto">
+                <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-zinc-950 border-b border-gray-200 dark:border-zinc-800 text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider">
                   <tr>
-                    <th className="px-4 py-3 bg-zinc-50 dark:bg-zinc-950">Print Pattern</th>
+                    <th className="px-5 py-3.5 bg-gray-50 dark:bg-zinc-950 font-semibold w-40">Print Pattern</th>
                     {active.sizes.map(size => (
-                      <th key={size} className="px-3 py-3 text-center bg-zinc-50 dark:bg-zinc-950">{size}</th>
+                      <th key={size} className="px-3 py-3.5 text-center bg-gray-50 dark:bg-zinc-950 font-semibold">{size}</th>
                     ))}
-                    <th className="px-4 py-3 text-right bg-zinc-50 dark:bg-zinc-950">Total</th>
+                    <th className="px-5 py-3.5 text-right bg-gray-50 dark:bg-zinc-950 font-semibold w-24">Total</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-250/60 dark:divide-zinc-800 text-xs">
+                <tbody className="divide-y divide-gray-100 dark:divide-zinc-800/60 text-xs bg-white dark:bg-zinc-900">
                   {visiblePrints.map(print => {
                     const colTot = colTotal(active, print);
                     return (
-                      <tr key={print} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/30 transition-colors">
-                        <td className="px-4 py-2.5 font-semibold text-zinc-800 dark:text-zinc-200">{print}</td>
+                      <tr key={print} className="hover:bg-gray-55/40 dark:hover:bg-zinc-850/20 transition-colors">
+                        <td className="px-5 py-3 font-bold text-gray-900 dark:text-zinc-100">{print}</td>
                         {active.sizes.map(size => {
                           const val = active.qty[size]?.[print] ?? 0;
                           const isEditing = editingCell?.print === print && editingCell?.size === size;
+                          
+                          // Style class calculations
+                          let cellStyle = "text-gray-800 dark:text-zinc-200 bg-gray-50 dark:bg-zinc-800/60 border-gray-150 dark:border-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-700";
+                          if (val === 0) {
+                            cellStyle = "text-gray-300 dark:text-zinc-700 bg-gray-50/20 dark:bg-zinc-900/10 border-gray-200/50 dark:border-zinc-850/50 border-dashed hover:border-gray-300 dark:hover:border-zinc-700";
+                          } else if (val > 0 && val <= 5) {
+                            cellStyle = "text-amber-700 dark:text-amber-400 bg-amber-50/80 dark:bg-amber-955/20 border-amber-200/60 dark:border-amber-900/30 hover:bg-amber-100/80 dark:hover:bg-amber-955/40";
+                          }
+
                           return (
-                            <td key={size} className="px-1.5 py-1 text-center">
+                            <td key={size} className="px-1.5 py-1.5 text-center">
                               {isEditing ? (
                                 <input
                                   type="number"
@@ -458,24 +506,20 @@ function StockTab({
                                   onChange={e => setQty(size, print, parseInt(e.target.value, 10))}
                                   onBlur={() => setEditingCell(null)}
                                   onKeyDown={e => { if (e.key === "Enter") setEditingCell(null); }}
-                                  className="w-12 h-7 text-center font-bold bg-zinc-100 dark:bg-zinc-950 border border-zinc-350 dark:border-zinc-750 text-zinc-900 dark:text-white rounded"
+                                  className="w-12 h-7.5 text-center font-black bg-white dark:bg-zinc-950 border border-gray-900 dark:border-white text-gray-900 dark:text-white rounded focus:ring-1 focus:ring-gray-900 dark:focus:ring-white outline-none shadow-sm"
                                 />
                               ) : (
                                 <div
                                   onClick={() => handleCellClick(size, print, val)}
-                                  className={`w-10 h-7 mx-auto flex items-center justify-center font-bold rounded cursor-pointer border ${
-                                    val === 0 
-                                      ? "text-zinc-300 dark:text-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/10 border-zinc-200 dark:border-zinc-850 border-dashed" 
-                                      : "text-zinc-800 dark:text-zinc-200 bg-zinc-100/70 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-750"
-                                  }`}
+                                  className={`w-10 h-7.5 mx-auto flex items-center justify-center font-black rounded-lg cursor-pointer border text-xs font-mono transition-all duration-150 select-none ${cellStyle}`}
                                 >
-                                  {val}
+                                  {val === 0 ? "-" : val}
                                 </div>
                               )}
                             </td>
                           );
                         })}
-                        <td className="px-4 py-2.5 text-right font-black text-zinc-900 dark:text-white" style={{ fontVariantNumeric: "tabular-nums" }}>
+                        <td className="px-5 py-3 text-right font-black text-gray-900 dark:text-white text-xs font-mono" style={{ fontVariantNumeric: "tabular-nums" }}>
                           {colTot}
                         </td>
                       </tr>
@@ -485,7 +529,6 @@ function StockTab({
               </table>
             </div>
           </div>
-
         </div>
       )}
     </div>
@@ -620,7 +663,7 @@ export default function InventoryPage() {
         </div>
 
         {/* Tab switch */}
-        <div className="flex items-center gap-1 p-1 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+        <div className="flex items-center gap-1 p-1 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-[0_1px_2px_rgba(0,0,0,0.01)]">
           {[
             { id: "overview", label: "Overview", icon: LayoutDashboard },
             { id: "stock",    label: "Stock",    icon: Boxes },
@@ -632,7 +675,7 @@ export default function InventoryPage() {
                 onClick={() => setTab(t.id as any)}
                 className={`flex items-center gap-1.5 px-4 py-2 rounded text-xs font-bold transition-all cursor-pointer ${
                   on 
-                    ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm" 
+                    ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm border border-gray-200 dark:border-zinc-700/50" 
                     : "text-zinc-500 dark:text-white/30 hover:text-zinc-700 dark:hover:text-white/60"
                 }`}
               >
@@ -673,7 +716,7 @@ export default function InventoryPage() {
         {dimModalOpen && activeDim && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div onClick={() => setDimModalOpen(false)} className="absolute inset-0 bg-black/50 backdrop-blur-xs" />
-            <div className="relative w-full max-w-sm rounded-xl p-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xl flex flex-col gap-4">
+            <div className="relative w-full max-w-sm rounded-xl p-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xl flex flex-col gap-4 animate-fade-in">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="font-bold text-zinc-900 dark:text-white text-sm flex items-center gap-1.5"><Plus size={15} /> Add Dimension</h3>
@@ -706,7 +749,7 @@ export default function InventoryPage() {
                 <button onClick={() => setDimModalOpen(false)} className="px-3 py-2 font-bold text-zinc-450 hover:text-zinc-700 cursor-pointer">Cancel</button>
                 <button
                   onClick={() => { dimType === "print" ? addPrint(activeDim.id) : addSize(activeDim.id); setDimModalOpen(false); }}
-                  className="px-4 py-2 font-black text-white dark:text-black bg-zinc-900 dark:bg-white rounded-lg cursor-pointer"
+                  className="px-4 py-2 font-black text-white dark:text-black bg-zinc-900 dark:bg-white rounded-lg cursor-pointer shadow"
                 >
                   Add
                 </button>
@@ -721,7 +764,7 @@ export default function InventoryPage() {
         {showLog && (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" onClick={() => setShowLog(false)}>
             <div className="absolute inset-0 bg-black/50 backdrop-blur-xs" />
-            <div className="relative w-full max-w-md rounded-xl overflow-hidden bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xl flex flex-col" style={{ maxHeight: "60vh" }}>
+            <div className="relative w-full max-w-md rounded-xl overflow-hidden bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xl flex flex-col animate-fade-in" style={{ maxHeight: "60vh" }}>
               <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100 dark:border-zinc-850">
                 <h3 className="font-bold text-zinc-900 dark:text-white flex items-center gap-1.5"><History size={14} /> Activity Log</h3>
                 <button onClick={() => setShowLog(false)} className="text-zinc-400 hover:text-zinc-700 dark:hover:text-white cursor-pointer"><X size={16} /></button>
@@ -771,13 +814,13 @@ function ParseModal({ onClose, onApply }: { onClose: () => void; onApply: (raw: 
   };
 
   return (
-    <div onClick={e => e.stopPropagation()} className="relative w-full max-w-lg rounded-xl p-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xl flex flex-col gap-4">
+    <div onClick={e => e.stopPropagation()} className="relative w-full max-w-lg rounded-xl p-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xl flex flex-col gap-4 animate-fade-in">
       <div className="flex items-center justify-between">
         <h3 className="font-bold text-zinc-900 dark:text-white text-sm flex items-center gap-1.5"><Sparkles size={15} /> Parse Sales</h3>
         <button onClick={onClose} className="text-zinc-400 hover:text-zinc-700 dark:hover:text-white cursor-pointer"><X size={16} /></button>
       </div>
       <p className="text-[10px] text-zinc-400">
-        One entry per line: <code className="text-zinc-700 dark:text-white/70 font-mono bg-zinc-100 dark:bg-white/5 px-1 py-0.5 rounded">sold 2 jabla 3-6 bear</code>
+        One entry per line: <code className="text-zinc-750 dark:text-white/70 font-mono bg-zinc-100 dark:bg-white/5 px-1 py-0.5 rounded">sold 2 jabla 3-6 bear</code>
       </p>
       <textarea
         ref={ref} value={text}
