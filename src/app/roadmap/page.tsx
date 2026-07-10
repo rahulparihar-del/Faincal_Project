@@ -11,6 +11,7 @@ import {
 import { RoadmapCanvas } from "@/components/roadmap/RoadmapCanvas";
 import { NodeDetailPanel } from "@/components/roadmap/NodeDetailPanel";
 import { RoadmapToolbar } from "@/components/roadmap/RoadmapToolbar";
+import { InstagramSettingsModal } from "@/components/roadmap/InstagramSettingsModal";
 
 /* ── Helpers ─────────────────────────────────────────────── */
 function uid() {
@@ -110,6 +111,7 @@ export default function RoadmapPage() {
   const activeProjectId = "instagram";
   const { theme } = useTheme();
   const [selectedNode, setSelectedNode] = useState<RoadmapNode | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
   const [canvasTransform, setCanvasTransform] = useState({ x: 80, y: 60, scale: 0.85 }); // Zoomed out slightly by default
   const canvasRef = useRef<HTMLDivElement>(null);
 
@@ -327,6 +329,7 @@ export default function RoadmapPage() {
               onAutoLayout={handleAutoLayout}
               onResetView={handleResetView}
               onExportPng={handleExportPng}
+              onOpenSettings={() => setShowSettings(true)}
               nodeCount={projectNodes.length}
               edgeCount={projectEdges.length}
             />
@@ -352,6 +355,12 @@ export default function RoadmapPage() {
               onClose={() => setSelectedNode(null)}
               onUpdate={(patch) => selectedNode && handleNodeUpdate(selectedNode.id, patch)}
               onDelete={handleNodeDelete}
+            />
+
+            {/* Instagram settings modal */}
+            <InstagramSettingsModal
+              isOpen={showSettings}
+              onClose={() => setShowSettings(false)}
             />
           </>
         )}

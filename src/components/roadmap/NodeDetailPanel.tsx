@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Trash2, Tag, Calendar, ChevronDown, Camera, Upload, Check, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, Trash2, Tag, Calendar, ChevronDown, Camera, Upload, Check, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import { RoadmapNode, NodeStatus, NodePriority, STATUS_META, PRIORITY_META, NODE_ACCENT_COLORS } from "./types";
 import { useTheme } from "@/context/ThemeContext";
 
@@ -32,10 +32,44 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
   const [pastedUrl, setPastedUrl] = useState("");
   const [activeTab, setActiveTab] = useState<"presets" | "upload" | "url">("presets");
   const [isUploading, setIsUploading] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
   
   // Track active image in modal preview
   const [activePreviewIndex, setActivePreviewIndex] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePublishToInstagram = async () => {
+    if (!node) return;
+    setIsPublishing(true);
+    try {
+      const res = await fetch("/api/roadmap/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nodeId: node.id }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to publish post.");
+      }
+
+      const result = data.results?.[0];
+      if (result && result.success) {
+        alert("Success! Your post has been published to Instagram!");
+        onUpdate({ 
+          status: "done", 
+          instagramPostId: result.instagramPostId,
+          publishedAt: new Date().toISOString()
+        });
+      } else {
+        throw new Error(result?.error || "Failed to publish post.");
+      }
+    } catch (err) {
+      alert("Automation Error: " + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setIsPublishing(false);
+    }
+  };
 
   // Sync state when node changes
   useEffect(() => {
@@ -950,7 +984,8 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
                 borderTop: isDark ? "1px solid #2d2d2d" : "1px solid #efefef",
                 paddingTop: "16px",
                 display: "flex",
-                justifyContent: "flex-end",
+                justifyContent: "space-between",
+                alignItems: "center",
                 marginTop: "auto",
               }}
             >
@@ -979,6 +1014,36 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
                 <Trash2 size={13} />
                 Delete Post
               </button>
+
+              {node.status !== "done" ? (
+                <button
+                  onClick={handlePublishToInstagram}
+                  disabled={isPublishing || images.length === 0}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "8px 16px",
+                    background: "linear-gradient(45deg, #f09433 0%, #dc2743 50%, #bc1888 100%)",
+                    border: "none",
+                    borderRadius: "10px",
+                    color: "#fff",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    cursor: (isPublishing || images.length === 0) ? "not-allowed" : "pointer",
+                    opacity: (isPublishing || images.length === 0) ? 0.6 : 1,
+                    boxShadow: "0 4px 12px rgba(220, 39, 67, 0.2)",
+                  }}
+                >
+                  <RefreshCw size={13} className={isPublishing ? "animate-spin" : ""} />
+                  {isPublishing ? "Publishing..." : "Publish to Instagram"}
+                </button>
+              ) : (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "12px", color: "#059669", fontWeight: 700 }}>
+                  <Check size={14} />
+                  Published to Instagram
+                </div>
+              )}
             </div>
           </div>
         </motion.div>

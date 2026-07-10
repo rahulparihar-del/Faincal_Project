@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Plus, ZoomIn, ZoomOut, Maximize2, LayoutTemplate, Download } from "lucide-react";
+import { Plus, ZoomIn, ZoomOut, Maximize2, LayoutTemplate, Download, Settings } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 
 interface CanvasTransform {
@@ -17,6 +17,7 @@ interface Props {
   onAutoLayout: () => void;
   onResetView: () => void;
   onExportPng: () => void;
+  onOpenSettings: () => void;
   nodeCount: number;
   edgeCount: number;
 }
@@ -28,6 +29,7 @@ export function RoadmapToolbar({
   onAutoLayout,
   onResetView,
   onExportPng,
+  onOpenSettings,
   nodeCount,
   edgeCount,
 }: Props) {
@@ -170,6 +172,10 @@ export function RoadmapToolbar({
 
         <button className="w-9 h-9 rounded-xl rm-tb-btn" onClick={onExportPng} title="Export as PNG">
           <Download size={15} />
+        </button>
+
+        <button className="w-9 h-9 rounded-xl rm-tb-btn" onClick={onOpenSettings} title="Instagram Automation Settings">
+          <Settings size={15} />
         </button>
       </div>
 
