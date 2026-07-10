@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
-import { useLocalStorage } from "@/lib/hooks/useLocalStorage";
+import { useSupabaseTable } from "@/lib/hooks/useSupabaseTable";
 import {
   RoadmapProject,
   RoadmapNode,
@@ -22,23 +22,23 @@ function uid() {
 function makeDefaultProject(): RoadmapProject {
   return {
     id: uid(),
-    name: "My Brand Strategy",
+    name: "Instagram Post Strategy",
     color: PROJECT_COLORS[0],
     createdAt: new Date().toISOString(),
   };
 }
 
-function makeDefaultNode(projectId: string, x: number, y: number): RoadmapNode {
+function makeDefaultNode(projectId: string, x: number, y: number, dayNumber: number): RoadmapNode {
   return {
     id: uid(),
     projectId,
-    title: "New Node",
+    title: `Day ${dayNumber}: Post Title`,
     richContent: "",
     status: "todo",
     priority: "medium",
-    tags: [],
+    tags: ["strategy"],
     progress: 0,
-    dueDate: "",
+    dueDate: new Date().toISOString().split("T")[0],
     x,
     y,
     color: NODE_ACCENT_COLORS[Math.floor(Math.random() * NODE_ACCENT_COLORS.length)],
@@ -49,8 +49,8 @@ function makeDefaultNode(projectId: string, x: number, y: number): RoadmapNode {
 function autoLayout(nodes: RoadmapNode[], edges: RoadmapEdge[]): RoadmapNode[] {
   if (nodes.length === 0) return nodes;
 
-  const NODE_W = 280;
-  const NODE_H = 160;
+  const NODE_W = 260;
+  const NODE_H = 260; // larger for Instagram square images
   const H_GAP = 60;
   const V_GAP = 80;
 
@@ -71,7 +71,6 @@ function autoLayout(nodes: RoadmapNode[], edges: RoadmapEdge[]): RoadmapNode[] {
   const visited = new Set<string>();
 
   // BFS layout
-  let col = 0;
   const queue: { id: string; depth: number }[] = roots.map((id) => ({ id, depth: 0 }));
   const depthCols: Record<number, number> = {};
 
@@ -108,29 +107,113 @@ function autoLayout(nodes: RoadmapNode[], edges: RoadmapEdge[]): RoadmapNode[] {
 
 /* ── Page ────────────────────────────────────────────────── */
 export default function RoadmapPage() {
-  const [projects, setProjects, projectsReady] = useLocalStorage<RoadmapProject[]>(
+  const [projects, setProjects, projectsReady] = useSupabaseTable<RoadmapProject>(
+    "roadmap_projects",
     "biztrack_rm_projects",
     []
   );
-  const [nodes, setNodes] = useLocalStorage<RoadmapNode[]>("biztrack_rm_nodes", []);
-  const [edges, setEdges] = useLocalStorage<RoadmapEdge[]>("biztrack_rm_edges", []);
+  const [nodes, setNodes, nodesReady] = useSupabaseTable<RoadmapNode>(
+    "roadmap_nodes",
+    "biztrack_rm_nodes",
+    []
+  );
+  const [edges, setEdges, edgesReady] = useSupabaseTable<RoadmapEdge>(
+    "roadmap_edges",
+    "biztrack_rm_edges",
+    []
+  );
 
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<RoadmapNode | null>(null);
-  const [canvasTransform, setCanvasTransform] = useState({ x: 80, y: 60, scale: 1 });
+  const [canvasTransform, setCanvasTransform] = useState({ x: 80, y: 60, scale: 0.85 }); // Zoomed out slightly by default
   const canvasRef = useRef<HTMLDivElement>(null);
 
-  // Initialize default project once ready
+  // Initialize default project and nodes once ready
   useEffect(() => {
-    if (!projectsReady) return;
+    if (!projectsReady || !nodesReady || !edgesReady) return;
     if (projects.length === 0) {
       const p = makeDefaultProject();
       setProjects([p]);
       setActiveProjectId(p.id);
+
+      // Prepopulate sequence of 3 mock days for beautiful default view
+      const day1Id = uid();
+      const day2Id = uid();
+      const day3Id = uid();
+
+      const initialNodes: RoadmapNode[] = [
+        {
+          id: day1Id,
+          projectId: p.id,
+          title: "Day 1: Brand Introduction",
+          richContent: "Introduce the faces behind the brand! Share your founding story, core values, and what to expect on this account.<br><br>Call to Action: Read our story in the caption and say hi in the comments!",
+          status: "done",
+          priority: "medium", // Carousel
+          tags: ["branding", "storytelling", "intro"],
+          progress: 100,
+          dueDate: new Date().toISOString().split("T")[0],
+          x: 120,
+          y: 80,
+          color: "#7c3aed",
+          imageUrl: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=500&q=80",
+        },
+        {
+          id: day2Id,
+          projectId: p.id,
+          title: "Day 2: Core Educational Value",
+          richContent: "Provide immediate, high-value advice on a major pain point your audience faces. Keep it clear, quick, and highly practical.<br><br>Call to Action: Save this Reel so you can reference it later!",
+          status: "in-progress",
+          priority: "low", // Reel
+          tags: ["education", "marketing", "quicktips"],
+          progress: 40,
+          dueDate: new Date(Date.now() + 86400000).toISOString().split("T")[0],
+          x: 120,
+          y: 440,
+          color: "#2563eb",
+          imageUrl: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=500&q=80",
+        },
+        {
+          id: day3Id,
+          projectId: p.id,
+          title: "Day 3: Call to Action Offer",
+          richContent: "Introduce your primary product or coaching offer with a limited-time bonus discount. Make sure to explain exactly how it benefits the reader.<br><br>Call to Action: DM us the word 'STRATEGY' to get access!",
+          status: "todo",
+          priority: "high", // Single Image
+          tags: ["sales", "strategy", "promo"],
+          progress: 0,
+          dueDate: new Date(Date.now() + 172800000).toISOString().split("T")[0],
+          x: 120,
+          y: 800,
+          color: "#db2777",
+          imageUrl: "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?auto=format&fit=crop&w=500&q=80",
+        }
+      ];
+
+      const initialEdges: RoadmapEdge[] = [
+        {
+          id: uid(),
+          projectId: p.id,
+          fromNodeId: day1Id,
+          toNodeId: day2Id,
+          fromHandle: "bottom",
+          toHandle: "top",
+        },
+        {
+          id: uid(),
+          projectId: p.id,
+          fromNodeId: day2Id,
+          toNodeId: day3Id,
+          fromHandle: "bottom",
+          toHandle: "top",
+        }
+      ];
+
+      setNodes(initialNodes);
+      setEdges(initialEdges);
     } else if (!activeProjectId) {
       setActiveProjectId(projects[0].id);
     }
-  }, [projectsReady]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [projectsReady, nodesReady, edgesReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const projectNodes = nodes.filter((n) => n.projectId === activeProjectId);
   const projectEdges = edges.filter((e) => e.projectId === activeProjectId);
@@ -141,9 +224,13 @@ export default function RoadmapPage() {
       if (!activeProjectId) return;
       const canvasX = x ?? (canvasRef.current?.clientWidth ?? 800) / 2 / canvasTransform.scale - 130 + Math.random() * 40;
       const canvasY = y ?? 200 + Math.random() * 60;
-      const node = makeDefaultNode(activeProjectId, canvasX, canvasY);
-      setNodes((prev) => [...prev, node]);
-      setSelectedNode(node);
+      
+      setNodes((prev) => {
+        const count = prev.filter((n) => n.projectId === activeProjectId).length;
+        const node = makeDefaultNode(activeProjectId, canvasX, canvasY, count + 1);
+        setSelectedNode(node);
+        return [...prev, node];
+      });
     },
     [activeProjectId, canvasTransform.scale, setNodes]
   );
@@ -247,7 +334,7 @@ export default function RoadmapPage() {
     return acc;
   }, {});
 
-  if (!projectsReady) {
+  if (!projectsReady || !nodesReady || !edgesReady) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="w-8 h-8 rounded-full border-2 border-violet-500/30 border-t-violet-500 animate-spin" />

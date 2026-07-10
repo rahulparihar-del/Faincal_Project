@@ -243,3 +243,40 @@ begin
     );
   end loop;
 end $$;
+
+-- ---------- Roadmap: projects, nodes + edges ----------
+create table if not exists public.roadmap_projects (
+  id          text primary key,
+  data        jsonb not null,
+  created_at  timestamptz not null default now()
+);
+
+create table if not exists public.roadmap_nodes (
+  id          text primary key,
+  data        jsonb not null,
+  created_at  timestamptz not null default now()
+);
+
+create table if not exists public.roadmap_edges (
+  id          text primary key,
+  data        jsonb not null,
+  created_at  timestamptz not null default now()
+);
+
+alter table public.roadmap_projects enable row level security;
+alter table public.roadmap_nodes    enable row level security;
+alter table public.roadmap_edges    enable row level security;
+
+do $$
+declare
+  t text;
+begin
+  foreach t in array array['roadmap_projects','roadmap_nodes','roadmap_edges']
+  loop
+    execute format('drop policy if exists "anon_full_access" on public.%I;', t);
+    execute format(
+      'create policy "anon_full_access" on public.%I for all to anon, authenticated using (true) with check (true);',
+      t
+    );
+  end loop;
+end $$;

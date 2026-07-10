@@ -2,14 +2,15 @@
 
 import React, { useRef } from "react";
 import { RoadmapNode, HandleSide, STATUS_META, PRIORITY_META } from "./types";
+import { Film, Layers, Image as ImageIcon, Sparkles, Heart, MessageCircle, Send, Bookmark, Camera } from "lucide-react";
 
 const HANDLE_SIDES: HandleSide[] = ["top", "bottom", "left", "right"];
 
 const HANDLE_POSITIONS: Record<HandleSide, React.CSSProperties> = {
-  top:    { top: -8, left: "50%", transform: "translateX(-50%)" },
-  bottom: { bottom: -8, left: "50%", transform: "translateX(-50%)" },
-  left:   { left: -8, top: "50%", transform: "translateY(-50%)" },
-  right:  { right: -8, top: "50%", transform: "translateY(-50%)" },
+  top:    { top: -7, left: "50%", transform: "translateX(-50%)" },
+  bottom: { bottom: -7, left: "50%", transform: "translateX(-50%)" },
+  left:   { left: -7, top: "50%", transform: "translateY(-50%)" },
+  right:  { right: -7, top: "50%", transform: "translateY(-50%)" },
 };
 
 interface Props {
@@ -59,22 +60,33 @@ export function RoadmapNodeCard({
   };
 
   const stripHtml = (html: string) =>
-    html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 80);
+    html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 70);
+
+  const getPostTypeIcon = (priority: string) => {
+    switch (priority) {
+      case "low": return <Film size={13} style={{ color: "#db2777" }} />;
+      case "medium": return <Layers size={13} style={{ color: "#7c3aed" }} />;
+      case "high": return <ImageIcon size={13} style={{ color: "#0891b2" }} />;
+      case "critical": return <Sparkles size={13} style={{ color: "#d97706" }} />;
+      default: return <ImageIcon size={13} />;
+    }
+  };
 
   return (
     <div
       data-node="true"
       style={{
         position: "relative",
-        borderRadius: 16,
+        borderRadius: 14,
         background: "#ffffff",
-        border: `1px solid #e8e8e8`,
-        borderTop: `3px solid ${node.color}`,
-        boxShadow: `0 2px 12px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)`,
+        border: "1px solid #dbdbdb",
+        boxShadow: "0 4px 18px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04)",
         cursor: "grab",
         userSelect: "none",
         transition: "box-shadow 0.2s ease, transform 0.15s ease",
-        minHeight: 120,
+        width: 260,
+        height: 430,
+        overflow: "visible",
       }}
       className="rm-node group"
       onPointerDown={handlePointerDown}
@@ -93,12 +105,12 @@ export function RoadmapNodeCard({
             height: 14,
             borderRadius: "50%",
             background: node.color,
-            border: "2px solid #fff",
+            border: "3.5px solid #ffffff",
             cursor: "crosshair",
             opacity: 0,
             transition: "opacity 0.15s, transform 0.15s",
-            zIndex: 20,
-            boxShadow: `0 2px 8px ${node.color}66`,
+            zIndex: 30,
+            boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
           }}
           className="rm-handle"
           onPointerDown={(e) => {
@@ -111,7 +123,7 @@ export function RoadmapNodeCard({
           }}
           onPointerEnter={(e) => {
             (e.currentTarget as HTMLElement).style.opacity = "1";
-            (e.currentTarget as HTMLElement).style.transform = `${(HANDLE_POSITIONS[side].transform as string) || ""} scale(1.3)`;
+            (e.currentTarget as HTMLElement).style.transform = `${(HANDLE_POSITIONS[side].transform as string) || ""} scale(1.35)`;
           }}
           onPointerLeave={(e) => {
             (e.currentTarget as HTMLElement).style.opacity = "0";
@@ -120,128 +132,208 @@ export function RoadmapNodeCard({
         />
       ))}
 
-      {/* Card content */}
-      <div style={{ padding: "14px 16px 12px" }}>
-        {/* Top row: status + priority */}
-        <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}>
-          <span
-            style={{
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-              color: statusMeta.color,
-              background: statusMeta.bg,
-              border: `1px solid ${statusMeta.border}`,
-              padding: "2px 7px",
-              borderRadius: 99,
-            }}
-          >
-            {statusMeta.label}
-          </span>
-          <span
-            style={{
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-              color: priorityMeta.color,
-              background: priorityMeta.bg,
-              padding: "2px 7px",
-              borderRadius: 99,
-            }}
-          >
-            {priorityMeta.label}
-          </span>
-        </div>
-
-        {/* Title */}
-        <div
-          style={{
-            fontSize: 14,
-            fontWeight: 700,
-            color: "#1a1a1a",
-            lineHeight: 1.3,
-            marginBottom: 6,
-            letterSpacing: "-0.01em",
-          }}
-        >
-          {node.title || "Untitled Node"}
-        </div>
-
-        {/* Content preview */}
-        {node.richContent && (
+      {/* Card Header (Instagram Profile style) */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "10px 12px",
+          borderBottom: "1px solid #efefef",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {/* Avatar with IG gradient border */}
           <div
             style={{
-              fontSize: 11,
-              color: "#888",
-              lineHeight: 1.5,
-              marginBottom: 10,
-              overflow: "hidden",
-              display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
-            }}
-          >
-            {stripHtml(node.richContent)}
-          </div>
-        )}
-
-        {/* Progress bar */}
-        <div style={{ marginTop: 8 }}>
-          <div
-            style={{
-              height: 3,
-              borderRadius: 99,
-              background: "#f0f0f0",
-              overflow: "hidden",
+              width: 26,
+              height: 26,
+              borderRadius: "50%",
+              padding: 1.5,
+              background: "linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
             <div
               style={{
+                width: "100%",
                 height: "100%",
-                width: `${node.progress}%`,
-                background: `linear-gradient(90deg, ${node.color}, ${node.color}cc)`,
-                borderRadius: 99,
-                transition: "width 0.4s ease",
+                borderRadius: "50%",
+                background: "#fff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 10,
+                fontWeight: 700,
+                color: "#262626",
               }}
-            />
+            >
+              IG
+            </div>
           </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginTop: 4,
-              fontSize: 9,
-              color: "#bbb",
-              fontWeight: 600,
-            }}
-          >
-            <span>Progress</span>
-            <span>{node.progress}%</span>
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: "#262626",
+                maxWidth: 110,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                lineHeight: 1.2,
+              }}
+            >
+              {node.title || "Untitled Post"}
+            </span>
+            <span
+              style={{
+                fontSize: 9,
+                color: "#8e8e8e",
+                display: "flex",
+                alignItems: "center",
+                gap: 3,
+                lineHeight: 1,
+                marginTop: 1,
+              }}
+            >
+              {getPostTypeIcon(node.priority)}
+              {priorityMeta.label}
+            </span>
           </div>
         </div>
 
-        {/* Tags */}
+        {/* Status Badge */}
+        <span
+          style={{
+            fontSize: 9,
+            fontWeight: 700,
+            color: statusMeta.color,
+            background: statusMeta.bg,
+            border: `1px solid ${statusMeta.border}`,
+            padding: "2px 6px",
+            borderRadius: 4,
+            textTransform: "uppercase",
+            letterSpacing: "0.04em",
+          }}
+        >
+          {statusMeta.label}
+        </span>
+      </div>
+
+      {/* Main Square Post Image */}
+      <div
+        style={{
+          width: "100%",
+          paddingBottom: "100%", // aspect-ratio 1:1
+          position: "relative",
+          background: "#fafafa",
+          overflow: "hidden",
+          borderBottom: "1px solid #efefef",
+        }}
+      >
+        {node.imageUrl ? (
+          <img
+            src={node.imageUrl}
+            alt={node.title}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              background: `linear-gradient(135deg, ${node.color}22, ${node.color}11)`,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+            }}
+          >
+            <Camera size={26} style={{ color: node.color, opacity: 0.6 }} />
+            <span style={{ fontSize: 10, color: "#8e8e8e", fontWeight: 600 }}>Click to add image</span>
+          </div>
+        )}
+      </div>
+
+      {/* IG Action Icons bar */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "8px 10px 4px",
+          color: "#262626",
+        }}
+      >
+        <div style={{ display: "flex", gap: 10 }}>
+          <Heart size={16} style={{ cursor: "pointer" }} />
+          <MessageCircle size={16} style={{ cursor: "pointer" }} />
+          <Send size={15} style={{ cursor: "pointer" }} />
+        </div>
+        <Bookmark size={16} style={{ cursor: "pointer" }} />
+      </div>
+
+      {/* Caption Content Area */}
+      <div style={{ padding: "0 10px 12px" }}>
+        {/* Caption text */}
+        {node.richContent ? (
+          <div
+            style={{
+              fontSize: 11,
+              color: "#262626",
+              lineHeight: 1.4,
+              overflow: "hidden",
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              marginBottom: 4,
+            }}
+          >
+            <span style={{ fontWeight: 700, marginRight: 5 }}>brand_strategy</span>
+            {stripHtml(node.richContent)}
+          </div>
+        ) : (
+          <div style={{ fontSize: 10, color: "#8e8e8e", fontStyle: "italic", marginBottom: 4 }}>
+            No description added yet.
+          </div>
+        )}
+
+        {/* Tags / Hashtags */}
         {node.tags.length > 0 && (
-          <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 8 }}>
-            {node.tags.slice(0, 3).map((tag) => (
+          <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 4 }}>
+            {node.tags.slice(0, 4).map((tag) => (
               <span
                 key={tag}
                 style={{
-                  fontSize: 9,
+                  fontSize: 10,
                   fontWeight: 600,
-                  color: "#888",
-                  background: "#f5f5f5",
-                  padding: "2px 6px",
-                  borderRadius: 99,
-                  letterSpacing: "0.04em",
-                  border: "1px solid #eee",
+                  color: "#00376b", // Instagram blue tag link color
                 }}
               >
                 #{tag}
               </span>
             ))}
+          </div>
+        )}
+
+        {/* Scheduled date indicator */}
+        {node.dueDate && (
+          <div style={{ fontSize: 9, color: "#8e8e8e", marginTop: 6, fontWeight: 500 }}>
+            Scheduled for: {node.dueDate}
           </div>
         )}
       </div>
@@ -252,8 +344,9 @@ export function RoadmapNodeCard({
           opacity: 1 !important;
         }
         .rm-node:hover {
-          box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06) !important;
-          transform: translateY(-1px);
+          box-shadow: 0 10px 30px rgba(0,0,0,0.12), 0 3px 10px rgba(0,0,0,0.06) !important;
+          transform: translateY(-2px);
+          border-color: #a8a8a8 !important;
         }
       `}</style>
     </div>

@@ -1,42 +1,9 @@
 "use client";
 
-import React, { useRef, useEffect, useState, useCallback } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  X, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight,
-  List, ListOrdered, Trash2, Tag, Calendar, Minus, Plus,
-  ChevronDown, Type, Palette
-} from "lucide-react";
+import { X, Trash2, Tag, Calendar, ChevronDown, Camera, Link, Upload, Image as ImageIcon, Check } from "lucide-react";
 import { RoadmapNode, NodeStatus, NodePriority, STATUS_META, PRIORITY_META, NODE_ACCENT_COLORS } from "./types";
-
-/* ── Font families ────────────────────────────────────── */
-const FONTS = [
-  { name: "Inter",            value: "Inter, sans-serif" },
-  { name: "Playfair Display", value: "'Playfair Display', serif" },
-  { name: "Space Grotesk",    value: "'Space Grotesk', sans-serif" },
-  { name: "Outfit",           value: "'Outfit', sans-serif" },
-  { name: "Fira Code",        value: "'Fira Code', monospace" },
-  { name: "DM Serif Display", value: "'DM Serif Display', serif" },
-];
-
-/* ── Highlight colors ─────────────────────────────────── */
-const HIGHLIGHTS = [
-  { label: "None",    bg: "transparent",      text: "inherit"    },
-  { label: "Yellow",  bg: "#fef08a",           text: "#78350f"    },
-  { label: "Mint",    bg: "#bbf7d0",           text: "#14532d"    },
-  { label: "Sky",     bg: "#bae6fd",           text: "#0c4a6e"    },
-  { label: "Pink",    bg: "#fbcfe8",           text: "#831843"    },
-  { label: "Violet",  bg: "#ddd6fe",           text: "#4c1d95"    },
-  { label: "Orange",  bg: "#fed7aa",           text: "#7c2d12"    },
-  { label: "Red",     bg: "#fecaca",           text: "#7f1d1d"    },
-];
-
-/* ── Text colors ──────────────────────────────────────── */
-const TEXT_COLORS = [
-  "#1a1a1a", "#555555", "#ef4444", "#f97316",
-  "#eab308", "#22c55e", "#3b82f6", "#a855f7",
-  "#ec4899", "#10b981", "#0ea5e9", "#8b5cf6",
-];
 
 interface Props {
   node: RoadmapNode | null;
@@ -45,689 +12,566 @@ interface Props {
   onDelete: (id: string) => void;
 }
 
+const IMAGE_PRESETS = [
+  { label: "Marketing", url: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=500&q=80" },
+  { label: "Creative", url: "https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?auto=format&fit=crop&w=500&q=80" },
+  { label: "Business", url: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=500&q=80" },
+  { label: "Coding", url: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=500&q=80" },
+  { label: "Minimalist", url: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=500&q=80" },
+  { label: "Instagram", url: "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?auto=format&fit=crop&w=500&q=80" },
+];
+
 export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
-  const editorRef = useRef<HTMLDivElement>(null);
   const [title, setTitle] = useState("");
+  const [caption, setCaption] = useState("");
   const [tagInput, setTagInput] = useState("");
-  const [activeFontFamily, setActiveFontFamily] = useState(FONTS[0].value);
-  const [showFontPicker, setShowFontPicker] = useState(false);
-  const [showHighlights, setShowHighlights] = useState(false);
-  const [showTextColors, setShowTextColors] = useState(false);
-  const [fontSize, setFontSize] = useState(14);
-  const savedSelection = useRef<Range | null>(null);
+  const [pastedUrl, setPastedUrl] = useState("");
+  const [activeTab, setActiveTab] = useState<"presets" | "upload" | "url">("presets");
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Sync state when node changes
   useEffect(() => {
     if (!node) return;
     setTitle(node.title);
-    if (editorRef.current && node.richContent !== editorRef.current.innerHTML) {
-      editorRef.current.innerHTML = node.richContent || "";
-    }
+    const plainText = node.richContent
+      ? node.richContent.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]*>/g, "")
+      : "";
+    setCaption(plainText);
+    setPastedUrl(node.imageUrl && !node.imageUrl.startsWith("data:") ? node.imageUrl : "");
   }, [node?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  /* ── Save selection before toolbar interaction ───────── */
-  const saveSelection = () => {
-    const sel = window.getSelection();
-    if (sel && sel.rangeCount > 0) {
-      savedSelection.current = sel.getRangeAt(0).cloneRange();
-    }
-  };
-
-  const restoreSelection = () => {
-    if (!savedSelection.current) return;
-    const sel = window.getSelection();
-    if (sel) {
-      sel.removeAllRanges();
-      sel.addRange(savedSelection.current);
-    }
-  };
-
-  /* ── execCommand helpers ─────────────────────────────── */
-  const exec = useCallback((cmd: string, value?: string) => {
-    editorRef.current?.focus();
-    restoreSelection();
-    document.execCommand(cmd, false, value);
-    saveContent();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const saveContent = () => {
-    if (editorRef.current && node) {
-      onUpdate({ richContent: editorRef.current.innerHTML });
-    }
-  };
-
-  const applyFont = (fontValue: string) => {
-    setActiveFontFamily(fontValue);
-    setShowFontPicker(false);
-    exec("fontName", fontValue);
-  };
-
-  const applyHighlight = (bg: string, color: string) => {
-    setShowHighlights(false);
-    editorRef.current?.focus();
-    restoreSelection();
-    if (bg === "transparent") {
-      document.execCommand("removeFormat", false, undefined);
-    } else {
-      document.execCommand("hiliteColor", false, bg);
-      document.execCommand("foreColor", false, color);
-    }
-    saveContent();
-  };
-
-  const applyTextColor = (color: string) => {
-    setShowTextColors(false);
-    exec("foreColor", color);
-  };
-
-  const applyFontSize = (size: number) => {
-    const clamped = Math.min(Math.max(size, 8), 72);
-    setFontSize(clamped);
-    exec("fontSize", "7");
-    const fontElements = editorRef.current?.querySelectorAll("font[size='7']");
-    fontElements?.forEach((el) => {
-      (el as HTMLElement).style.fontSize = `${clamped}px`;
-      el.removeAttribute("size");
-    });
-  };
-
-  const applyHeading = (level: number) => {
-    editorRef.current?.focus();
-    restoreSelection();
-    document.execCommand("formatBlock", false, `h${level}`);
-    saveContent();
-  };
-
-  const addTag = () => {
-    const tag = tagInput.trim().toLowerCase().replace(/\s+/g, "-");
-    if (!tag || !node || node.tags.includes(tag)) { setTagInput(""); return; }
-    onUpdate({ tags: [...node.tags, tag] });
-    setTagInput("");
-  };
-
-  const removeTag = (tag: string) => {
-    if (!node) return;
-    onUpdate({ tags: node.tags.filter((t) => t !== tag) });
-  };
 
   if (!node) return null;
 
   const statusMeta = STATUS_META[node.status];
   const priorityMeta = PRIORITY_META[node.priority];
 
-  const toolbarBtnCls = "w-7 h-7 flex items-center justify-center rounded-lg text-[#555] hover:text-black hover:bg-[#f0f0f0] transition-all cursor-pointer";
+  const handleCaptionChange = (val: string) => {
+    setCaption(val);
+    const htmlContent = val.replace(/\n/g, "<br>");
+    onUpdate({ richContent: htmlContent });
+  };
+
+  const handleTitleBlur = () => {
+    onUpdate({ title });
+  };
+
+  const addTag = () => {
+    const cleanTag = tagInput.trim().toLowerCase().replace(/\s+/g, "-").replace(/#/g, "");
+    if (!cleanTag || node.tags.includes(cleanTag)) {
+      setTagInput("");
+      return;
+    }
+    onUpdate({ tags: [...node.tags, cleanTag] });
+    setTagInput("");
+  };
+
+  const removeTag = (tag: string) => {
+    onUpdate({ tags: node.tags.filter((t) => t !== tag) });
+  };
+
+  // Compress and convert file to Base64
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setIsUploading(true);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+        const MAX_SIZE = 500;
+        
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height = Math.round((height * MAX_SIZE) / width);
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width = Math.round((width * MAX_SIZE) / height);
+            height = MAX_SIZE;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
+        onUpdate({ imageUrl: dataUrl });
+        setIsUploading(false);
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handlePresetSelect = (url: string) => {
+    onUpdate({ imageUrl: url });
+  };
+
+  const handleUrlSubmit = () => {
+    if (pastedUrl.trim()) {
+      onUpdate({ imageUrl: pastedUrl.trim() });
+    }
+  };
+
+  const handleRemoveImage = () => {
+    onUpdate({ imageUrl: "" });
+    setPastedUrl("");
+  };
 
   return (
     <AnimatePresence>
-      {node && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 z-40"
-            style={{ background: "rgba(0,0,0,0.15)", backdropFilter: "blur(2px)" }}
-            onClick={onClose}
-          />
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 1000,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "16px",
+        }}
+      >
+        {/* Dark Backdrop */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "rgba(0, 0, 0, 0.65)",
+            backdropFilter: "blur(4px)",
+          }}
+          onClick={onClose}
+        />
 
-          {/* Panel */}
-          <motion.div
-            initial={{ x: "100%", opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: "100%", opacity: 0 }}
-            transition={{ type: "spring", stiffness: 340, damping: 30 }}
-            className="absolute right-0 top-0 bottom-0 z-50 flex flex-col"
+        {/* Modal Window */}
+        <motion.div
+          initial={{ scale: 0.85, opacity: 0, y: 15 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.85, opacity: 0, y: 15 }}
+          transition={{ type: "spring", damping: 25, stiffness: 350 }}
+          style={{
+            position: "relative",
+            width: "100%",
+            maxWidth: "860px",
+            background: "#ffffff",
+            borderRadius: "20px",
+            boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+            display: "flex",
+            flexDirection: "row",
+            overflow: "hidden",
+            zIndex: 1010,
+            maxHeight: "90vh",
+          }}
+          className="flex-col md:flex-row"
+        >
+          {/* ── LEFT PANE: Image Selection & Settings ────────────────── */}
+          <div
             style={{
-              width: "min(520px, 90vw)",
-              background: "#ffffff",
-              borderLeft: "1px solid #e8e8e8",
-              boxShadow: "-8px 0 40px rgba(0,0,0,0.08)",
-              overflow: "hidden",
+              flex: "1",
+              background: "#fafafa",
+              borderRight: "1px solid #efefef",
+              display: "flex",
+              flexDirection: "column",
+              height: "100%",
+              minWidth: "300px",
             }}
-            onClick={(e) => e.stopPropagation()}
+            className="w-full md:w-1/2"
           >
-            {/* ── Header ────────────────────────────────── */}
             <div
               style={{
-                padding: "16px 20px 14px",
-                borderBottom: "1px solid #f0f0f0",
+                padding: "16px",
                 display: "flex",
-                alignItems: "flex-start",
-                gap: 12,
+                alignItems: "center",
+                justifyContent: "space-between",
+                borderBottom: "1px solid #f0f0f0",
               }}
             >
-              {/* Color dot */}
+              <span style={{ fontSize: "12px", fontWeight: 700, color: "#8e8e8e", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                Post Image Workspace
+              </span>
+              {node.imageUrl && (
+                <button
+                  onClick={handleRemoveImage}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#ed4956",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Remove Image
+                </button>
+              )}
+            </div>
+
+            <div
+              style={{
+                width: "100%",
+                paddingTop: "75%",
+                position: "relative",
+                background: "#f0f0f0",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                overflow: "hidden",
+              }}
+            >
+              {node.imageUrl ? (
+                <img
+                  src={node.imageUrl}
+                  alt={node.title}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    height: "100%",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "10px",
+                    background: `linear-gradient(135deg, ${node.color}15, ${node.color}05)`,
+                  }}
+                >
+                  <Camera size={38} style={{ color: node.color, opacity: 0.6 }} />
+                  <span style={{ fontSize: "12px", color: "#8e8e8e", fontWeight: 600 }}>No Image Selected</span>
+                </div>
+              )}
+            </div>
+
+            <div style={{ padding: "16px", flex: 1, display: "flex", flexDirection: "column" }}>
               <div
                 style={{
-                  width: 12,
-                  height: 12,
-                  borderRadius: "50%",
-                  background: node.color,
-                  marginTop: 6,
-                  boxShadow: `0 0 8px ${node.color}88`,
-                  flexShrink: 0,
+                  display: "flex",
+                  borderBottom: "1px solid #efefef",
+                  marginBottom: "14px",
+                  fontSize: "12px",
+                  fontWeight: 600,
                 }}
-              />
+              >
+                {(["presets", "upload", "url"] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    style={{
+                      flex: 1,
+                      padding: "8px 0",
+                      background: "none",
+                      border: "none",
+                      borderBottom: activeTab === tab ? "2px solid #262626" : "2px solid transparent",
+                      color: activeTab === tab ? "#262626" : "#8e8e8e",
+                      cursor: "pointer",
+                      textTransform: "capitalize",
+                    }}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
 
-              {/* Title input */}
-              <input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                onBlur={() => onUpdate({ title })}
-                placeholder="Node title…"
-                style={{
-                  flex: 1,
-                  background: "transparent",
-                  border: "none",
-                  outline: "none",
-                  color: "#1a1a1a",
-                  fontSize: 18,
-                  fontWeight: 700,
-                  letterSpacing: "-0.02em",
-                  fontFamily: "inherit",
-                }}
-              />
+              <div style={{ flex: 1, overflowY: "auto" }}>
+                {activeTab === "presets" && (
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(3, 1fr)",
+                      gap: "8px",
+                    }}
+                  >
+                    {IMAGE_PRESETS.map((preset) => (
+                      <button
+                        key={preset.label}
+                        onClick={() => handlePresetSelect(preset.url)}
+                        style={{
+                          border: node.imageUrl === preset.url ? `2px solid ${node.color}` : "2px solid transparent",
+                          borderRadius: "8px",
+                          overflow: "hidden",
+                          aspectRatio: "1/1",
+                          position: "relative",
+                          padding: 0,
+                          cursor: "pointer",
+                        }}
+                      >
+                        <img
+                          src={preset.url}
+                          alt={preset.label}
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        />
+                        <div
+                          style={{
+                            position: "absolute",
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            background: "rgba(0,0,0,0.6)",
+                            color: "#fff",
+                            fontSize: "9px",
+                            padding: "2px 0",
+                            textAlign: "center",
+                          }}
+                        >
+                          {preset.label}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
 
-              {/* Close */}
+                {activeTab === "upload" && (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "10px 0" }}>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileChange}
+                      accept="image/*"
+                      style={{ display: "none" }}
+                    />
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploading}
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: "10px",
+                        padding: "24px 20px",
+                        border: "2px dashed #dbdbdb",
+                        borderRadius: "12px",
+                        background: "#fff",
+                        cursor: "pointer",
+                        width: "100%",
+                        color: "#8e8e8e",
+                        transition: "border-color 0.2s",
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.borderColor = node.color)}
+                      onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#dbdbdb")}
+                    >
+                      <Upload size={24} style={{ color: node.color }} />
+                      <span style={{ fontSize: "12px", fontWeight: 600, color: "#262626" }}>
+                        {isUploading ? "Uploading & Resizing..." : "Select Local Image"}
+                      </span>
+                      <span style={{ fontSize: "10px" }}>Resizes & compresses base64 string automatically</span>
+                    </button>
+                  </div>
+                )}
+
+                {activeTab === "url" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <label style={{ fontSize: "11px", fontWeight: 600, color: "#8e8e8e" }}>PASTE IMAGE URL</label>
+                    <div style={{ display: "flex", gap: "6px" }}>
+                      <input
+                        value={pastedUrl}
+                        onChange={(e) => setPastedUrl(e.target.value)}
+                        placeholder="https://example.com/photo.jpg"
+                        style={{
+                          flex: 1,
+                          padding: "8px 12px",
+                          border: "1px solid #dbdbdb",
+                          borderRadius: "8px",
+                          fontSize: "12px",
+                          outline: "none",
+                        }}
+                      />
+                      <button
+                        onClick={handleUrlSubmit}
+                        style={{
+                          padding: "8px 14px",
+                          background: node.color,
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: "8px",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Set
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* ── RIGHT PANE: Instagram Post Details ────────────────── */}
+          <div
+            style={{
+              flex: "1.2",
+              padding: "20px",
+              display: "flex",
+              flexDirection: "column",
+              height: "100%",
+              overflowY: "auto",
+            }}
+            className="w-full md:w-1/2"
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: "16px",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <div
+                  style={{
+                    width: "30px",
+                    height: "30px",
+                    borderRadius: "50%",
+                    padding: "1.5px",
+                    background: "linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      borderRadius: "50%",
+                      background: "#fff",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "10px",
+                      fontWeight: 700,
+                      color: "#262626",
+                    }}
+                  >
+                    IG
+                  </div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                  <span style={{ fontSize: "12px", fontWeight: 700, color: "#262626" }}>brand_strategy</span>
+                  <span style={{ fontSize: "10px", color: "#8e8e8e" }}>Instagram Planner</span>
+                </div>
+              </div>
+
               <button
                 onClick={onClose}
                 style={{
-                  width: 30,
-                  height: 30,
-                  borderRadius: 8,
-                  background: "#f5f5f5",
+                  width: "32px",
+                  height: "32px",
+                  borderRadius: "50%",
+                  background: "#f3f3f3",
                   border: "none",
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  color: "#888",
-                  flexShrink: 0,
+                  color: "#262626",
                 }}
               >
-                <X size={15} />
+                <X size={16} />
               </button>
             </div>
 
-            {/* ── Meta row ──────────────────────────── */}
-            <div
-              style={{
-                padding: "12px 20px",
-                borderBottom: "1px solid #f0f0f0",
-                display: "flex",
-                gap: 8,
-                flexWrap: "wrap",
-                alignItems: "center",
-              }}
-            >
-              {/* Status */}
-              <div style={{ position: "relative" }}>
-                <select
-                  value={node.status}
-                  onChange={(e) => onUpdate({ status: e.target.value as NodeStatus })}
-                  style={{
-                    background: `${statusMeta.color}22`,
-                    border: `1px solid ${statusMeta.color}44`,
-                    color: statusMeta.color,
-                    padding: "4px 8px",
-                    borderRadius: 99,
-                    fontSize: 11,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    outline: "none",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
-                    appearance: "none",
-                    paddingRight: 24,
-                  }}
-                >
-                  {(Object.keys(STATUS_META) as NodeStatus[]).map((s) => (
-                    <option key={s} value={s} style={{ background: "#fff", color: "#1a1a1a" }}>
-                      {STATUS_META[s].label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Priority */}
-              <select
-                value={node.priority}
-                onChange={(e) => onUpdate({ priority: e.target.value as NodePriority })}
-                style={{
-                  background: `${priorityMeta.color}22`,
-                  border: `1px solid ${priorityMeta.color}44`,
-                  color: priorityMeta.color,
-                  padding: "4px 8px",
-                  borderRadius: 99,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  outline: "none",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.06em",
-                  appearance: "none",
-                }}
-              >
-                {(Object.keys(PRIORITY_META) as NodePriority[]).map((p) => (
-                  <option key={p} value={p} style={{ background: "#fff", color: "#1a1a1a" }}>
-                    {PRIORITY_META[p].label}
-                  </option>
-                ))}
-              </select>
-
-              {/* Due date */}
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 5,
-                  fontSize: 11,
-                  color: "#888",
-                  cursor: "pointer",
-                }}
-              >
-                <Calendar size={12} />
-                <input
-                  type="date"
-                  value={node.dueDate}
-                  onChange={(e) => onUpdate({ dueDate: e.target.value })}
-                  style={{
-                    background: "transparent",
-                    border: "none",
-                    outline: "none",
-                    color: "rgba(255,255,255,0.55)",
-                    fontSize: 11,
-                    fontFamily: "inherit",
-                    cursor: "pointer",
-                  }}
-                />
+            <div style={{ marginBottom: "16px" }}>
+              <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#8e8e8e", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "6px" }}>
+                POST TITLE / DAY
               </label>
-
-              {/* Node color */}
-              <div style={{ display: "flex", gap: 4 }}>
-                {NODE_ACCENT_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => onUpdate({ color: c })}
-                    style={{
-                      width: 14,
-                      height: 14,
-                      borderRadius: "50%",
-                      background: c,
-                      border: node.color === c ? `2px solid ${c}` : "2px solid transparent",
-                      cursor: "pointer",
-                      transition: "transform 0.15s",
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.3)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* ── Rich Text Toolbar ───────────────── */}
-            <div
-              style={{
-                padding: "8px 12px",
-                borderBottom: "1px solid #f0f0f0",
-                display: "flex",
-                alignItems: "center",
-                gap: 2,
-                flexWrap: "wrap",
-                background: "#fafafa",
-              }}
-              onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
-            >
-              {/* Font family */}
-              <div style={{ position: "relative" }}>
-                <button
-                  className={toolbarBtnCls}
-                  style={{ width: "auto", padding: "0 8px", gap: 4, fontSize: 11 }}
-                  onClick={() => { setShowFontPicker((v) => !v); setShowHighlights(false); setShowTextColors(false); }}
-                >
-                  <Type size={12} />
-                  <span style={{ maxWidth: 80, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", fontSize: 10 }}>
-                    {FONTS.find((f) => f.value === activeFontFamily)?.name ?? "Font"}
-                  </span>
-                  <ChevronDown size={10} />
-                </button>
-                {showFontPicker && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: "calc(100% + 4px)",
-                      left: 0,
-                      background: "#ffffff",
-                      border: "1px solid #e8e8e8",
-                      borderRadius: 10,
-                      padding: 6,
-                      zIndex: 100,
-                      minWidth: 180,
-                      boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
-                    }}
-                  >
-                    {FONTS.map((f) => (
-                      <button
-                        key={f.value}
-                        onMouseDown={(e) => { e.preventDefault(); applyFont(f.value); }}
-                        style={{
-                          display: "block",
-                          width: "100%",
-                          textAlign: "left",
-                          padding: "6px 10px",
-                          borderRadius: 7,
-                          fontSize: 13,
-                          fontFamily: f.value,
-                          color: "#1a1a1a",
-                          background: activeFontFamily === f.value ? "#f5f0ff" : "transparent",
-                          border: "none",
-                          cursor: "pointer",
-                        }}
-                      >
-                        {f.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Font size */}
-              <div style={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <button className={toolbarBtnCls} onMouseDown={(e) => { e.preventDefault(); applyFontSize(fontSize - 2); }}>
-                  <Minus size={10} />
-                </button>
-                <input
-                  type="number"
-                  value={fontSize}
-                  onChange={(e) => applyFontSize(Number(e.target.value))}
-                  style={{
-                    width: 32,
-                    background: "#f0f0f0",
-                    border: "none",
-                    borderRadius: 5,
-                    color: "#555",
-                    textAlign: "center",
-                    fontSize: 11,
-                    outline: "none",
-                    padding: "2px 0",
-                  }}
-                />
-                <button className={toolbarBtnCls} onMouseDown={(e) => { e.preventDefault(); applyFontSize(fontSize + 2); }}>
-                  <Plus size={10} />
-                </button>
-              </div>
-
-              <div style={{ width: 1, height: 18, background: "#e8e8e8", margin: "0 2px" }} />
-
-              {/* Heading buttons */}
-              {[1, 2, 3].map((level) => (
-                <button
-                  key={level}
-                  className={toolbarBtnCls}
-                  style={{ fontSize: 11, fontWeight: 700, width: "auto", padding: "0 6px" }}
-                  onMouseDown={(e) => { e.preventDefault(); applyHeading(level); }}
-                >
-                  H{level}
-                </button>
-              ))}
-
-              <div style={{ width: 1, height: 18, background: "#e8e8e8", margin: "0 2px" }} />
-
-              {/* Bold / Italic / Underline */}
-              <button className={toolbarBtnCls} onMouseDown={(e) => { e.preventDefault(); exec("bold"); }}>
-                <Bold size={13} />
-              </button>
-              <button className={toolbarBtnCls} onMouseDown={(e) => { e.preventDefault(); exec("italic"); }}>
-                <Italic size={13} />
-              </button>
-              <button className={toolbarBtnCls} onMouseDown={(e) => { e.preventDefault(); exec("underline"); }}>
-                <Underline size={13} />
-              </button>
-
-              <div style={{ width: 1, height: 18, background: "rgba(255,255,255,0.1)", margin: "0 2px" }} />
-
-              {/* Alignment */}
-              <button className={toolbarBtnCls} onMouseDown={(e) => { e.preventDefault(); exec("justifyLeft"); }}>
-                <AlignLeft size={13} />
-              </button>
-              <button className={toolbarBtnCls} onMouseDown={(e) => { e.preventDefault(); exec("justifyCenter"); }}>
-                <AlignCenter size={13} />
-              </button>
-              <button className={toolbarBtnCls} onMouseDown={(e) => { e.preventDefault(); exec("justifyRight"); }}>
-                <AlignRight size={13} />
-              </button>
-
-              <div style={{ width: 1, height: 18, background: "rgba(255,255,255,0.1)", margin: "0 2px" }} />
-
-              {/* Lists */}
-              <button className={toolbarBtnCls} onMouseDown={(e) => { e.preventDefault(); exec("insertUnorderedList"); }}>
-                <List size={13} />
-              </button>
-              <button className={toolbarBtnCls} onMouseDown={(e) => { e.preventDefault(); exec("insertOrderedList"); }}>
-                <ListOrdered size={13} />
-              </button>
-
-              <div style={{ width: 1, height: 18, background: "#e8e8e8", margin: "0 2px" }} />
-
-              {/* Text color */}
-              <div style={{ position: "relative" }}>
-                <button
-                  className={toolbarBtnCls}
-                  onClick={() => { setShowTextColors((v) => !v); setShowHighlights(false); setShowFontPicker(false); }}
-                  title="Text color"
-                >
-                  <Palette size={13} />
-                </button>
-                {showTextColors && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: "calc(100% + 4px)",
-                      left: 0,
-                      background: "#ffffff",
-                      border: "1px solid #e8e8e8",
-                      borderRadius: 10,
-                      padding: 8,
-                      zIndex: 100,
-                      boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
-                      display: "grid",
-                      gridTemplateColumns: "repeat(6, 1fr)",
-                      gap: 4,
-                    }}
-                  >
-                    {TEXT_COLORS.map((c) => (
-                      <button
-                        key={c}
-                        onMouseDown={(e) => { e.preventDefault(); applyTextColor(c); }}
-                        style={{
-                          width: 20,
-                          height: 20,
-                          borderRadius: "50%",
-                          background: c,
-                          border: "2px solid #e8e8e8",
-                          cursor: "pointer",
-                        }}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Highlight */}
-              <div style={{ position: "relative" }}>
-                <button
-                  className={toolbarBtnCls}
-                  onClick={() => { setShowHighlights((v) => !v); setShowTextColors(false); setShowFontPicker(false); }}
-                  title="Highlight"
-                  style={{ fontSize: 11 }}
-                >
-                  ✏️
-                </button>
-                {showHighlights && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: "calc(100% + 4px)",
-                      left: 0,
-                      background: "#ffffff",
-                      border: "1px solid #e8e8e8",
-                      borderRadius: 10,
-                      padding: 8,
-                      zIndex: 100,
-                      boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
-                      display: "flex",
-                      gap: 4,
-                      flexWrap: "wrap",
-                      width: 180,
-                    }}
-                  >
-                    {HIGHLIGHTS.map((h) => (
-                      <button
-                        key={h.label}
-                        onMouseDown={(e) => { e.preventDefault(); applyHighlight(h.bg, h.text); }}
-                        style={{
-                          padding: "3px 8px",
-                          borderRadius: 6,
-                          fontSize: 10,
-                          fontWeight: 700,
-                          background: h.bg === "transparent" ? "#f5f5f5" : h.bg,
-                          color: h.text === "inherit" ? "#888" : h.text,
-                          border: "1px solid rgba(0,0,0,0.08)",
-                          cursor: "pointer",
-                        }}
-                      >
-                        {h.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* ── Editor ───────────────────────────────────── */}
-            <div
-              style={{ flex: 1, overflow: "auto", padding: "16px 20px" }}
-              onClick={() => { setShowFontPicker(false); setShowHighlights(false); setShowTextColors(false); }}
-            >
-              <div
-                ref={editorRef}
-                contentEditable
-                suppressContentEditableWarning
-                onInput={saveContent}
-                onMouseUp={saveSelection}
-                onKeyUp={saveSelection}
-                data-placeholder="Start writing your strategy, notes, details…"
-                style={{
-                  minHeight: 200,
-                  outline: "none",
-                  color: "#1a1a1a",
-                  fontSize: 14,
-                  lineHeight: 1.7,
-                  fontFamily: "Inter, sans-serif",
-                  caretColor: "#7c3aed",
-                }}
-              />
-            </div>
-
-            {/* ── Progress ──────────────────────────────── */}
-            <div
-              style={{
-                padding: "12px 20px",
-                borderTop: "1px solid #f0f0f0",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: 8,
-                }}
-              >
-                <span style={{ fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                  Progress
-                </span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: node.color }}>
-                  {node.progress}%
-                </span>
-              </div>
               <input
-                type="range"
-                min={0}
-                max={100}
-                value={node.progress}
-                onChange={(e) => onUpdate({ progress: Number(e.target.value) })}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                onBlur={handleTitleBlur}
+                placeholder="Day 1: Launch strategy"
                 style={{
                   width: "100%",
-                  accentColor: node.color,
-                  cursor: "pointer",
-                  height: 4,
+                  padding: "10px 12px",
+                  border: "1px solid #dbdbdb",
+                  borderRadius: "10px",
+                  fontSize: "14px",
+                  fontWeight: 700,
+                  outline: "none",
+                  color: "#262626",
                 }}
               />
             </div>
 
-            {/* ── Tags ─────────────────────────────────── */}
-            <div
-              style={{
-                padding: "12px 20px",
-                borderTop: "1px solid #f0f0f0",
-              }}
-            >
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
-                {node.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 5,
-                      fontSize: 11,
-                      fontWeight: 600,
-                      color: "#555",
-                      background: "#f5f5f5",
-                      padding: "3px 8px",
-                      borderRadius: 99,
-                      border: "1px solid #e8e8e8",
-                    }}
-                  >
-                    #{tag}
-                    <button
-                      onClick={() => removeTag(tag)}
-                      style={{ background: "none", border: "none", cursor: "pointer", color: "#bbb", padding: 0 }}
-                    >
-                      <X size={10} />
-                    </button>
-                  </span>
-                ))}
+            <div style={{ marginBottom: "16px", flex: 1, display: "flex", flexDirection: "column" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                <label style={{ fontSize: "11px", fontWeight: 700, color: "#8e8e8e", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                  CAPTION / DESCRIPTION
+                </label>
+                <span style={{ fontSize: "10px", color: "#b0b0b0" }}>{caption.length} chars</span>
               </div>
-              <div style={{ display: "flex", gap: 6 }}>
+              <textarea
+                value={caption}
+                onChange={(e) => handleCaptionChange(e.target.value)}
+                placeholder="Write your Instagram post caption here... Add your message, calls-to-action, etc."
+                style={{
+                  width: "100%",
+                  height: "120px",
+                  padding: "12px",
+                  border: "1px solid #dbdbdb",
+                  borderRadius: "10px",
+                  fontSize: "13px",
+                  lineHeight: "1.5",
+                  outline: "none",
+                  resize: "none",
+                  color: "#262626",
+                  fontFamily: "Inter, sans-serif",
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: "16px" }}>
+              <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#8e8e8e", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "6px" }}>
+                HASHTAGS
+              </label>
+              <div style={{ display: "flex", gap: "6px", marginBottom: "8px" }}>
                 <div
                   style={{
                     flex: 1,
                     display: "flex",
                     alignItems: "center",
-                    gap: 6,
-                    background: "#f8f8f8",
-                    border: "1px solid #e8e8e8",
-                    borderRadius: 8,
-                    padding: "6px 10px",
+                    gap: "6px",
+                    background: "#fafafa",
+                    border: "1px solid #dbdbdb",
+                    borderRadius: "8px",
+                    padding: "6px 12px",
                   }}
                 >
-                  <Tag size={11} style={{ color: "#bbb", flexShrink: 0 }} />
+                  <Tag size={12} style={{ color: "#aaa" }} />
                   <input
                     value={tagInput}
                     onChange={(e) => setTagInput(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && addTag()}
-                    placeholder="Add tag…"
+                    placeholder="Enter tag (press Enter)"
                     style={{
                       flex: 1,
                       background: "transparent",
                       border: "none",
                       outline: "none",
-                      color: "#1a1a1a",
-                      fontSize: 12,
-                      fontFamily: "inherit",
+                      fontSize: "12px",
+                      color: "#262626",
                     }}
                   />
                 </div>
@@ -735,59 +579,215 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
                   onClick={addTag}
                   style={{
                     padding: "6px 12px",
-                    background: "#f5f5f5",
-                    border: "1px solid #e8e8e8",
-                    borderRadius: 8,
-                    color: "#555",
-                    fontSize: 11,
-                    fontWeight: 700,
+                    background: "#f0f0f0",
+                    border: "1px solid #dbdbdb",
+                    borderRadius: "8px",
+                    fontSize: "12px",
+                    fontWeight: 600,
                     cursor: "pointer",
                   }}
                 >
                   Add
                 </button>
               </div>
+
+              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                {node.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      color: "#00376b",
+                      background: "#f0f7ff",
+                      padding: "4px 8px",
+                      borderRadius: "6px",
+                      border: "1px solid #cce4ff",
+                    }}
+                  >
+                    #{tag}
+                    <button
+                      onClick={() => removeTag(tag)}
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "#00376b", padding: 0, display: "flex" }}
+                    >
+                      <X size={10} />
+                    </button>
+                  </span>
+                ))}
+              </div>
             </div>
 
-            {/* ── Footer: delete ───────────────────────── */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "10px", marginBottom: "16px" }}>
+              <div>
+                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#8e8e8e", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "6px" }}>
+                  STATUS
+                </label>
+                <div style={{ position: "relative" }}>
+                  <select
+                    value={node.status}
+                    onChange={(e) => onUpdate({ status: e.target.value as NodeStatus })}
+                    style={{
+                      width: "100%",
+                      background: "#fff",
+                      border: "1px solid #dbdbdb",
+                      color: statusMeta.color,
+                      padding: "8px 12px",
+                      borderRadius: "8px",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      outline: "none",
+                      appearance: "none",
+                    }}
+                  >
+                    {(Object.keys(STATUS_META) as NodeStatus[]).map((s) => (
+                      <option key={s} value={s} style={{ background: "#fff", color: "#262626" }}>
+                        {STATUS_META[s].label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown size={14} style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "#8e8e8e" }} />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#8e8e8e", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "6px" }}>
+                  POST TYPE
+                </label>
+                <div style={{ position: "relative" }}>
+                  <select
+                    value={node.priority}
+                    onChange={(e) => onUpdate({ priority: e.target.value as NodePriority })}
+                    style={{
+                      width: "100%",
+                      background: "#fff",
+                      border: "1px solid #dbdbdb",
+                      color: priorityMeta.color,
+                      padding: "8px 12px",
+                      borderRadius: "8px",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      outline: "none",
+                      appearance: "none",
+                    }}
+                  >
+                    {(Object.keys(PRIORITY_META) as NodePriority[]).map((p) => (
+                      <option key={p} value={p} style={{ background: "#fff", color: "#262626" }}>
+                        {PRIORITY_META[p].label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown size={14} style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "#8e8e8e" }} />
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "10px", marginBottom: "20px" }}>
+              <div>
+                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#8e8e8e", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "6px" }}>
+                  PLAN DATE
+                </label>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    border: "1px solid #dbdbdb",
+                    borderRadius: "8px",
+                    padding: "8px 12px",
+                    background: "#fff",
+                  }}
+                >
+                  <Calendar size={13} style={{ color: "#aaa" }} />
+                  <input
+                    type="date"
+                    value={node.dueDate}
+                    onChange={(e) => onUpdate({ dueDate: e.target.value })}
+                    style={{
+                      border: "none",
+                      outline: "none",
+                      color: "#262626",
+                      fontSize: "12px",
+                      fontFamily: "inherit",
+                      cursor: "pointer",
+                      width: "100%",
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#8e8e8e", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "8px" }}>
+                  CANVAS HIGHLIGHT
+                </label>
+                <div style={{ display: "flex", gap: "5px", flexWrap: "wrap" }}>
+                  {NODE_ACCENT_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => onUpdate({ color: c })}
+                      style={{
+                        width: "18px",
+                        height: "18px",
+                        borderRadius: "50%",
+                        background: c,
+                        border: node.color === c ? "2px solid #262626" : "2px solid transparent",
+                        cursor: "pointer",
+                        padding: 0,
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      {node.color === c && <Check size={10} style={{ color: "#fff" }} />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
             <div
               style={{
-                padding: "12px 20px",
-                borderTop: "1px solid #f0f0f0",
+                borderTop: "1px solid #efefef",
+                paddingTop: "16px",
                 display: "flex",
                 justifyContent: "flex-end",
+                marginTop: "auto",
               }}
             >
               <button
-                onClick={() => { onDelete(node.id); onClose(); }}
+                onClick={() => {
+                  onDelete(node.id);
+                  onClose();
+                }}
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 6,
-                  padding: "6px 14px",
-                  background: "rgba(239,68,68,0.1)",
-                  border: "1px solid rgba(239,68,68,0.2)",
-                  borderRadius: 8,
-                  color: "#ef4444",
-                  fontSize: 12,
-                  fontWeight: 600,
+                  gap: "6px",
+                  padding: "8px 16px",
+                  background: "rgba(237, 73, 86, 0.08)",
+                  border: "1px solid rgba(237, 73, 86, 0.2)",
+                  borderRadius: "10px",
+                  color: "#ed4956",
+                  fontSize: "12px",
+                  fontWeight: 700,
                   cursor: "pointer",
-                  transition: "all 0.2s",
+                  transition: "background-color 0.2s",
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "rgba(239,68,68,0.2)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "rgba(239,68,68,0.1)";
-                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(237, 73, 86, 0.15)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(237, 73, 86, 0.08)")}
               >
                 <Trash2 size={13} />
-                Delete node
+                Delete Post
               </button>
             </div>
-          </motion.div>
-        </>
-      )}
+          </div>
+        </motion.div>
+      </div>
     </AnimatePresence>
   );
 }

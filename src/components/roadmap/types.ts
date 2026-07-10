@@ -22,6 +22,7 @@ export interface RoadmapNode {
   x: number;
   y: number;
   color: string; // accent color hex
+  imageUrl?: string; // base64 or URL for Instagram strategy post image
 }
 
 export interface RoadmapEdge {
@@ -34,17 +35,17 @@ export interface RoadmapEdge {
 }
 
 export const STATUS_META: Record<NodeStatus, { label: string; color: string; bg: string; border: string }> = {
-  todo:        { label: 'To Do',       color: '#6b7280', bg: '#f3f4f6', border: '#d1d5db' },
-  'in-progress': { label: 'In Progress', color: '#8b5cf6', bg: '#f5f3ff', border: '#c4b5fd' },
-  done:        { label: 'Done',        color: '#10b981', bg: '#ecfdf5', border: '#6ee7b7' },
-  blocked:     { label: 'Blocked',     color: '#ef4444', bg: '#fef2f2', border: '#fca5a5' },
+  todo:        { label: 'Draft',       color: '#6b7280', bg: '#f3f4f6', border: '#d1d5db' },
+  'in-progress': { label: 'Scheduled', color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
+  done:        { label: 'Published',   color: '#059669', bg: '#ecfdf5', border: '#a7f3d0' },
+  blocked:     { label: 'Archived',    color: '#dc2626', bg: '#fef2f2', border: '#fca5a5' },
 };
 
 export const PRIORITY_META: Record<NodePriority, { label: string; color: string; bg: string }> = {
-  low:      { label: 'Low',      color: '#6b7280', bg: '#f3f4f6' },
-  medium:   { label: 'Medium',   color: '#f59e0b', bg: '#fffbeb' },
-  high:     { label: 'High',     color: '#ef4444', bg: '#fef2f2' },
-  critical: { label: 'Critical', color: '#7c3aed', bg: '#f5f3ff' },
+  low:      { label: 'Reel',      color: '#db2777', bg: '#fdf2f8' },
+  medium:   { label: 'Carousel',  color: '#7c3aed', bg: '#f5f3ff' },
+  high:     { label: 'Single Image', color: '#0891b2', bg: '#ecfeff' },
+  critical: { label: 'Story',     color: '#d97706', bg: '#fffbeb' },
 };
 
 export const NODE_ACCENT_COLORS = [

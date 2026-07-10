@@ -197,7 +197,7 @@ export function RoadmapCanvas({
   /* ── Node center positions for edge rendering ───────── */
   const getHandlePos = (node: NodeType, handle: HandleSide) => {
     const W = 260;
-    const H = 140;
+    const H = 430;
     switch (handle) {
       case "top":    return { x: node.x + W / 2, y: node.y };
       case "bottom": return { x: node.x + W / 2, y: node.y + H };
