@@ -3,29 +3,17 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useSupabaseTable } from "@/lib/hooks/useSupabaseTable";
 import {
-  RoadmapProject,
   RoadmapNode,
   RoadmapEdge,
   NODE_ACCENT_COLORS,
-  PROJECT_COLORS,
 } from "@/components/roadmap/types";
 import { RoadmapCanvas } from "@/components/roadmap/RoadmapCanvas";
 import { NodeDetailPanel } from "@/components/roadmap/NodeDetailPanel";
 import { RoadmapToolbar } from "@/components/roadmap/RoadmapToolbar";
-import { ProjectManager } from "@/components/roadmap/ProjectManager";
 
 /* ── Helpers ─────────────────────────────────────────────── */
 function uid() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
-}
-
-function makeDefaultProject(): RoadmapProject {
-  return {
-    id: uid(),
-    name: "Instagram Post Strategy",
-    color: PROJECT_COLORS[0],
-    createdAt: new Date().toISOString(),
-  };
 }
 
 function makeDefaultNode(projectId: string, x: number, y: number, dayNumber: number): RoadmapNode {
@@ -107,11 +95,6 @@ function autoLayout(nodes: RoadmapNode[], edges: RoadmapEdge[]): RoadmapNode[] {
 
 /* ── Page ────────────────────────────────────────────────── */
 export default function RoadmapPage() {
-  const [projects, setProjects, projectsReady] = useSupabaseTable<RoadmapProject>(
-    "roadmap_projects",
-    "biztrack_rm_projects",
-    []
-  );
   const [nodes, setNodes, nodesReady] = useSupabaseTable<RoadmapNode>(
     "roadmap_nodes",
     "biztrack_rm_nodes",
@@ -123,19 +106,17 @@ export default function RoadmapPage() {
     []
   );
 
-  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const activeProjectId = "instagram";
   const [selectedNode, setSelectedNode] = useState<RoadmapNode | null>(null);
   const [canvasTransform, setCanvasTransform] = useState({ x: 80, y: 60, scale: 0.85 }); // Zoomed out slightly by default
   const canvasRef = useRef<HTMLDivElement>(null);
 
   // Initialize default project and nodes once ready
   useEffect(() => {
-    if (!projectsReady || !nodesReady || !edgesReady) return;
-    if (projects.length === 0) {
-      const p = makeDefaultProject();
-      setProjects([p]);
-      setActiveProjectId(p.id);
-
+    if (!nodesReady || !edgesReady) return;
+    
+    const instagramNodes = nodes.filter((n) => n.projectId === activeProjectId);
+    if (instagramNodes.length === 0) {
       // Prepopulate sequence of 3 mock days for beautiful default view
       const day1Id = uid();
       const day2Id = uid();
@@ -144,7 +125,7 @@ export default function RoadmapPage() {
       const initialNodes: RoadmapNode[] = [
         {
           id: day1Id,
-          projectId: p.id,
+          projectId: activeProjectId,
           title: "Day 1: Brand Introduction",
           richContent: "Introduce the faces behind the brand! Share your founding story, core values, and what to expect on this account.<br><br>Call to Action: Read our story in the caption and say hi in the comments!",
           status: "done",
@@ -159,7 +140,7 @@ export default function RoadmapPage() {
         },
         {
           id: day2Id,
-          projectId: p.id,
+          projectId: activeProjectId,
           title: "Day 2: Core Educational Value",
           richContent: "Provide immediate, high-value advice on a major pain point your audience faces. Keep it clear, quick, and highly practical.<br><br>Call to Action: Save this Reel so you can reference it later!",
           status: "in-progress",
@@ -174,7 +155,7 @@ export default function RoadmapPage() {
         },
         {
           id: day3Id,
-          projectId: p.id,
+          projectId: activeProjectId,
           title: "Day 3: Call to Action Offer",
           richContent: "Introduce your primary product or coaching offer with a limited-time bonus discount. Make sure to explain exactly how it benefits the reader.<br><br>Call to Action: DM us the word 'STRATEGY' to get access!",
           status: "todo",
@@ -192,7 +173,7 @@ export default function RoadmapPage() {
       const initialEdges: RoadmapEdge[] = [
         {
           id: uid(),
-          projectId: p.id,
+          projectId: activeProjectId,
           fromNodeId: day1Id,
           toNodeId: day2Id,
           fromHandle: "bottom",
@@ -200,7 +181,7 @@ export default function RoadmapPage() {
         },
         {
           id: uid(),
-          projectId: p.id,
+          projectId: activeProjectId,
           fromNodeId: day2Id,
           toNodeId: day3Id,
           fromHandle: "bottom",
@@ -208,12 +189,10 @@ export default function RoadmapPage() {
         }
       ];
 
-      setNodes(initialNodes);
-      setEdges(initialEdges);
-    } else if (!activeProjectId) {
-      setActiveProjectId(projects[0].id);
+      setNodes((prev) => [...prev, ...initialNodes]);
+      setEdges((prev) => [...prev, ...initialEdges]);
     }
-  }, [projectsReady, nodesReady, edgesReady]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [nodesReady, edgesReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const projectNodes = nodes.filter((n) => n.projectId === activeProjectId);
   const projectEdges = edges.filter((e) => e.projectId === activeProjectId);
@@ -221,7 +200,6 @@ export default function RoadmapPage() {
   /* ── Node handlers ─────────────────────────────────────── */
   const handleAddNode = useCallback(
     (x?: number, y?: number) => {
-      if (!activeProjectId) return;
       const canvasX = x ?? (canvasRef.current?.clientWidth ?? 800) / 2 / canvasTransform.scale - 130 + Math.random() * 40;
       const canvasY = y ?? 200 + Math.random() * 60;
       
@@ -232,7 +210,7 @@ export default function RoadmapPage() {
         return [...prev, node];
       });
     },
-    [activeProjectId, canvasTransform.scale, setNodes]
+    [canvasTransform.scale, setNodes]
   );
 
   const handleNodeUpdate = useCallback(
@@ -255,7 +233,7 @@ export default function RoadmapPage() {
   /* ── Edge handlers ─────────────────────────────────────── */
   const handleEdgeAdd = useCallback(
     (edge: Omit<RoadmapEdge, "id">) => {
-      setEdges((prev) => [...prev, { ...edge, id: uid() }]);
+      setEdges((prev) => [...prev, { ...edge, id: uid(), projectId: activeProjectId }]);
     },
     [setEdges]
   );
@@ -265,44 +243,6 @@ export default function RoadmapPage() {
       setEdges((prev) => prev.filter((e) => e.id !== id));
     },
     [setEdges]
-  );
-
-  /* ── Project handlers ──────────────────────────────────── */
-  const handleAddProject = useCallback(
-    (name: string, color: string) => {
-      const p: RoadmapProject = { id: uid(), name, color, createdAt: new Date().toISOString() };
-      setProjects((prev) => [...prev, p]);
-      setActiveProjectId(p.id);
-      setSelectedNode(null);
-      setCanvasTransform({ x: 80, y: 60, scale: 1 });
-    },
-    [setProjects]
-  );
-
-  const handleDeleteProject = useCallback(
-    (id: string) => {
-      setProjects((prev) => {
-        const filtered = prev.filter((p) => p.id !== id);
-        if (filtered.length === 0) {
-          const newP = makeDefaultProject();
-          setActiveProjectId(newP.id);
-          return [newP];
-        }
-        setActiveProjectId(filtered[0].id);
-        return filtered;
-      });
-      setNodes((prev) => prev.filter((n) => n.projectId !== id));
-      setEdges((prev) => prev.filter((e) => e.projectId !== id));
-      setSelectedNode(null);
-    },
-    [setProjects, setNodes, setEdges]
-  );
-
-  const handleRenameProject = useCallback(
-    (id: string, name: string) => {
-      setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, name } : p)));
-    },
-    [setProjects]
   );
 
   /* ── Auto layout ───────────────────────────────────────── */
@@ -321,20 +261,12 @@ export default function RoadmapPage() {
     setCanvasTransform({ x: 80, y: 60, scale: 1 });
   }, []);
 
-  /* ── Export PNG (simple screenshot) ──────────────────────
-     We use a hidden canvas trick or open-in-new-tab approach.
-     For a real export we'd use html2canvas, but we avoid extra deps. */
+  /* ── Export PNG (simple screenshot) ────────────────────── */
   const handleExportPng = useCallback(() => {
     alert("Export: Right-click on the canvas and choose 'Save as Image', or use browser screenshot.");
   }, []);
 
-  /* ── Node count per project ─────────────────────────────── */
-  const nodeCountMap = projects.reduce<Record<string, number>>((acc, p) => {
-    acc[p.id] = nodes.filter((n) => n.projectId === p.id).length;
-    return acc;
-  }, {});
-
-  if (!projectsReady || !nodesReady || !edgesReady) {
+  if (!nodesReady || !edgesReady) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="w-8 h-8 rounded-full border-2 border-violet-500/30 border-t-violet-500 animate-spin" />
@@ -380,21 +312,6 @@ export default function RoadmapPage() {
           cursor: pointer;
         }
       `}</style>
-
-      {/* Project tab bar */}
-      <ProjectManager
-        projects={projects}
-        activeProjectId={activeProjectId}
-        onSelect={(id) => {
-          setActiveProjectId(id);
-          setSelectedNode(null);
-          setCanvasTransform({ x: 80, y: 60, scale: 1 });
-        }}
-        onAdd={handleAddProject}
-        onDelete={handleDeleteProject}
-        onRename={handleRenameProject}
-        nodeCountMap={nodeCountMap}
-      />
 
       {/* Canvas area */}
       <div ref={canvasRef} style={{ flex: 1, position: "relative", overflow: "hidden" }}>
