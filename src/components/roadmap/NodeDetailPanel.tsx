@@ -98,7 +98,7 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
         const canvas = document.createElement("canvas");
         let width = img.width;
         let height = img.height;
-        const MAX_SIZE = 500;
+        const MAX_SIZE = 1200;
         
         if (width > height) {
           if (width > MAX_SIZE) {
@@ -115,9 +115,16 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext("2d");
+        
+        // Use better image scaling quality
+        if (ctx) {
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = "high";
+        }
+        
         ctx?.drawImage(img, 0, 0, width, height);
         
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
         
         // Append image to carousel
         const nextImages = [...images, dataUrl];
