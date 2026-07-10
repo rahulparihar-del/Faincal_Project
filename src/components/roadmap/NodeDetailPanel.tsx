@@ -14,12 +14,12 @@ interface Props {
 }
 
 const IMAGE_PRESETS = [
-  { label: "Marketing", url: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=500&q=80" },
-  { label: "Creative", url: "https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?auto=format&fit=crop&w=500&q=80" },
-  { label: "Business", url: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=500&q=80" },
-  { label: "Coding", url: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=500&q=80" },
-  { label: "Minimalist", url: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=500&q=80" },
-  { label: "Instagram", url: "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?auto=format&fit=crop&w=500&q=80" },
+  { label: "Marketing", url: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=90" },
+  { label: "Creative", url: "https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?auto=format&fit=crop&w=1200&q=90" },
+  { label: "Business", url: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1200&q=90" },
+  { label: "Coding", url: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=90" },
+  { label: "Minimalist", url: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=90" },
+  { label: "Instagram", url: "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?auto=format&fit=crop&w=1200&q=90" },
 ];
 
 export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
@@ -98,7 +98,7 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
         const canvas = document.createElement("canvas");
         let width = img.width;
         let height = img.height;
-        const MAX_SIZE = 1200;
+        const MAX_SIZE = 1600;
         
         if (width > height) {
           if (width > MAX_SIZE) {

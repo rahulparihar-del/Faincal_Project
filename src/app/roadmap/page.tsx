@@ -138,7 +138,7 @@ export default function RoadmapPage() {
           x: 120,
           y: 80,
           color: "#7c3aed",
-          imageUrl: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=500&q=80",
+          imageUrl: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1200&q=90",
         },
         {
           id: day2Id,
@@ -153,7 +153,7 @@ export default function RoadmapPage() {
           x: 120,
           y: 440,
           color: "#2563eb",
-          imageUrl: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=500&q=80",
+          imageUrl: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=90",
         },
         {
           id: day3Id,
@@ -168,7 +168,7 @@ export default function RoadmapPage() {
           x: 120,
           y: 800,
           color: "#db2777",
-          imageUrl: "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?auto=format&fit=crop&w=500&q=80",
+          imageUrl: "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?auto=format&fit=crop&w=1200&q=90",
         }
       ];
 
