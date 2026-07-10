@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { RoadmapNode, HandleSide, STATUS_META, PRIORITY_META } from "./types";
-import { Film, Layers, Image as ImageIcon, Sparkles, Heart, MessageCircle, Send, Bookmark, Camera } from "lucide-react";
+import { Film, Layers, Image as ImageIcon, Sparkles, Heart, MessageCircle, Send, Bookmark, Camera, ChevronLeft, ChevronRight } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 
 const HANDLE_SIDES: HandleSide[] = ["top", "bottom", "left", "right"];
@@ -41,8 +41,17 @@ export function RoadmapNodeCard({
   const isDraggingRef = useRef(false);
   const downPosRef = useRef({ x: 0, y: 0 });
 
+  // Carousel image list (fallback to imageUrl if imageUrls not initialized)
+  const images = node.imageUrls && node.imageUrls.length > 0
+    ? node.imageUrls
+    : node.imageUrl
+      ? [node.imageUrl]
+      : [];
+
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+
   const handlePointerDown = (e: React.PointerEvent) => {
-    if ((e.target as HTMLElement).closest("[data-handle]")) return;
+    if ((e.target as HTMLElement).closest("[data-handle]") || (e.target as HTMLElement).closest(".rm-carousel-btn")) return;
     downPosRef.current = { x: e.clientX, y: e.clientY };
     isDraggingRef.current = false;
     onDragStart(e);
@@ -240,19 +249,79 @@ export function RoadmapNodeCard({
           borderBottom: isDark ? "1px solid #2d2d2d" : "1px solid #efefef",
         }}
       >
-        {node.imageUrl ? (
-          <img
-            src={node.imageUrl}
-            alt={node.title}
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-            }}
-          />
+        {images.length > 0 ? (
+          <>
+            <img
+              src={images[activeImageIndex]}
+              alt={node.title}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+              }}
+            />
+            {/* Arrows overlay */}
+            {images.length > 1 && (
+              <>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    setActiveImageIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1));
+                  }}
+                  className="rm-carousel-btn"
+                  style={{ left: 8 }}
+                  title="Previous image"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    setActiveImageIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0));
+                  }}
+                  className="rm-carousel-btn"
+                  style={{ right: 8 }}
+                  title="Next image"
+                >
+                  <ChevronRight size={14} />
+                </button>
+                
+                {/* Dots indicators */}
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: 10,
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    display: "flex",
+                    gap: 4,
+                    zIndex: 10,
+                    background: "rgba(0,0,0,0.35)",
+                    padding: "3px 6px",
+                    borderRadius: 99,
+                  }}
+                >
+                  {images.map((_, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        width: 5,
+                        height: 5,
+                        borderRadius: "50%",
+                        background: activeImageIndex === idx ? "#ffffff" : "rgba(255,255,255,0.4)",
+                        transition: "all 0.15s ease",
+                      }}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </>
         ) : (
           <div
             style={{
@@ -359,6 +428,32 @@ export function RoadmapNodeCard({
           };
           transform: translateY(-2px);
           border-color: ${isDark ? "#555555" : "#a8a8a8"} !important;
+        }
+        .rm-carousel-btn {
+          position: absolute;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          background: ${isDark ? "rgba(28,28,30,0.9)" : "rgba(255,255,255,0.9)"};
+          color: ${isDark ? "#ffffff" : "#262626"};
+          border: none;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          opacity: 0;
+          transition: opacity 0.2s, background 0.15s, transform 0.15s;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+          z-index: 10;
+        }
+        .rm-node:hover .rm-carousel-btn {
+          opacity: 1;
+        }
+        .rm-carousel-btn:hover {
+          background: ${isDark ? "#2c2c2e" : "#ffffff"};
+          transform: translateY(-50%) scale(1.1);
         }
       `}</style>
     </div>

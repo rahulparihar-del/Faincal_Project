@@ -23,6 +23,7 @@ export interface RoadmapNode {
   y: number;
   color: string; // accent color hex
   imageUrl?: string; // base64 or URL for Instagram strategy post image
+  imageUrls?: string[]; // multiple images for Carousel posts
 }
 
 export interface RoadmapEdge {

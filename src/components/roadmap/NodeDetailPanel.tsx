@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Trash2, Tag, Calendar, ChevronDown, Camera, Upload, Check } from "lucide-react";
+import { X, Trash2, Tag, Calendar, ChevronDown, Camera, Upload, Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { RoadmapNode, NodeStatus, NodePriority, STATUS_META, PRIORITY_META, NODE_ACCENT_COLORS } from "./types";
 import { useTheme } from "@/context/ThemeContext";
 
@@ -32,6 +32,9 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
   const [pastedUrl, setPastedUrl] = useState("");
   const [activeTab, setActiveTab] = useState<"presets" | "upload" | "url">("presets");
   const [isUploading, setIsUploading] = useState(false);
+  
+  // Track active image in modal preview
+  const [activePreviewIndex, setActivePreviewIndex] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Sync state when node changes
@@ -42,13 +45,21 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
       ? node.richContent.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]*>/g, "")
       : "";
     setCaption(plainText);
-    setPastedUrl(node.imageUrl && !node.imageUrl.startsWith("data:") ? node.imageUrl : "");
+    setPastedUrl("");
+    setActivePreviewIndex(0);
   }, [node?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!node) return null;
 
   const statusMeta = STATUS_META[node.status];
   const priorityMeta = PRIORITY_META[node.priority];
+
+  // Carousel image list
+  const images = node.imageUrls && node.imageUrls.length > 0
+    ? node.imageUrls
+    : node.imageUrl
+      ? [node.imageUrl]
+      : [];
 
   const handleCaptionChange = (val: string) => {
     setCaption(val);
@@ -107,7 +118,14 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
         ctx?.drawImage(img, 0, 0, width, height);
         
         const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
-        onUpdate({ imageUrl: dataUrl });
+        
+        // Append image to carousel
+        const nextImages = [...images, dataUrl];
+        onUpdate({ 
+          imageUrls: nextImages,
+          imageUrl: nextImages[0]
+        });
+        setActivePreviewIndex(nextImages.length - 1);
         setIsUploading(false);
       };
       img.src = event.target?.result as string;
@@ -116,18 +134,32 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
   };
 
   const handlePresetSelect = (url: string) => {
-    onUpdate({ imageUrl: url });
+    // Append preset image to carousel
+    const nextImages = [...images, url];
+    onUpdate({ 
+      imageUrls: nextImages,
+      imageUrl: nextImages[0] 
+    });
+    setActivePreviewIndex(nextImages.length - 1);
   };
 
   const handleUrlSubmit = () => {
     if (pastedUrl.trim()) {
-      onUpdate({ imageUrl: pastedUrl.trim() });
+      // Append image url to carousel
+      const nextImages = [...images, pastedUrl.trim()];
+      onUpdate({ 
+        imageUrls: nextImages,
+        imageUrl: nextImages[0] 
+      });
+      setActivePreviewIndex(nextImages.length - 1);
+      setPastedUrl("");
     }
   };
 
-  const handleRemoveImage = () => {
-    onUpdate({ imageUrl: "" });
+  const handleRemoveAllImages = () => {
+    onUpdate({ imageUrls: [], imageUrl: "" });
     setPastedUrl("");
+    setActivePreviewIndex(0);
   };
 
   return (
@@ -191,6 +223,8 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
               flexDirection: "column",
               height: "100%",
               minWidth: "300px",
+              maxHeight: "90vh",
+              overflowY: "auto",
             }}
             className="w-full md:w-1/2"
           >
@@ -206,9 +240,9 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
               <span style={{ fontSize: "12px", fontWeight: 700, color: isDark ? "#737373" : "#8e8e8e", textTransform: "uppercase", letterSpacing: "0.06em" }}>
                 Post Image Workspace
               </span>
-              {node.imageUrl && (
+              {images.length > 0 && (
                 <button
-                  onClick={handleRemoveImage}
+                  onClick={handleRemoveAllImages}
                   style={{
                     background: "none",
                     border: "none",
@@ -218,11 +252,12 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
                     cursor: "pointer",
                   }}
                 >
-                  Remove Image
+                  Clear All
                 </button>
               )}
             </div>
 
+            {/* Main Preview with Carousel Arrows */}
             <div
               style={{
                 width: "100%",
@@ -235,19 +270,69 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
                 overflow: "hidden",
               }}
             >
-              {node.imageUrl ? (
-                <img
-                  src={node.imageUrl}
-                  alt={node.title}
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                  }}
-                />
+              {images.length > 0 ? (
+                <>
+                  <img
+                    src={images[activePreviewIndex]}
+                    alt={node.title}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                    }}
+                  />
+                  {/* Arrows */}
+                  {images.length > 1 && (
+                    <>
+                      <button
+                        onClick={() => setActivePreviewIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1))}
+                        style={{
+                          position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)",
+                          width: "28px", height: "28px", borderRadius: "50%",
+                          background: isDark ? "rgba(28,28,30,0.85)" : "rgba(255,255,255,0.85)", 
+                          color: isDark ? "#fff" : "#000", border: "none",
+                          display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 10,
+                          boxShadow: "0 2px 6px rgba(0,0,0,0.2)"
+                        }}
+                      >
+                        <ChevronLeft size={16} />
+                      </button>
+                      <button
+                        onClick={() => setActivePreviewIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0))}
+                        style={{
+                          position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)",
+                          width: "28px", height: "28px", borderRadius: "50%",
+                          background: isDark ? "rgba(28,28,30,0.85)" : "rgba(255,255,255,0.85)", 
+                          color: isDark ? "#fff" : "#000", border: "none",
+                          display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 10,
+                          boxShadow: "0 2px 6px rgba(0,0,0,0.2)"
+                        }}
+                      >
+                        <ChevronRight size={16} />
+                      </button>
+                      {/* Dots overlay */}
+                      <div
+                        style={{
+                          position: "absolute", bottom: "12px", left: "50%", transform: "translateX(-50%)",
+                          display: "flex", gap: "4px", background: "rgba(0,0,0,0.35)", padding: "3px 6px", borderRadius: "99px"
+                        }}
+                      >
+                        {images.map((_, i) => (
+                          <div
+                            key={i}
+                            style={{
+                              width: "5px", height: "5px", borderRadius: "50%",
+                              background: activePreviewIndex === i ? "#fff" : "rgba(255,255,255,0.4)"
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </>
               ) : (
                 <div
                   style={{
@@ -272,7 +357,81 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
               )}
             </div>
 
-            <div style={{ padding: "16px", flex: 1, display: "flex", flexDirection: "column" }}>
+            {/* Horizontal Carousel Thumbnail Strip */}
+            <div style={{ padding: "14px 16px 4px", borderBottom: isDark ? "1px solid #2d2d2d" : "1px solid #f0f0f0" }}>
+              <label style={{ display: "block", fontSize: "10px", fontWeight: 700, color: isDark ? "#8e8e8e" : "#8e8e8e", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "8px" }}>
+                Carousel Slides ({images.length} images)
+              </label>
+              <div 
+                style={{ 
+                  display: "flex", 
+                  gap: "8px", 
+                  overflowX: "auto", 
+                  paddingBottom: "8px",
+                  scrollBehavior: "smooth"
+                }}
+              >
+                {images.map((imgUrl, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => setActivePreviewIndex(idx)}
+                    style={{
+                      position: "relative",
+                      width: "56px",
+                      height: "56px",
+                      borderRadius: "8px",
+                      border: activePreviewIndex === idx ? `2px solid ${node.color}` : "2px solid transparent",
+                      overflow: "hidden",
+                      cursor: "pointer",
+                      flexShrink: 0,
+                      background: isDark ? "#1c1c1e" : "#e5e5e5",
+                    }}
+                  >
+                    <img src={imgUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    {/* Delete item */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const next = images.filter((_, i) => i !== idx);
+                        onUpdate({
+                          imageUrls: next,
+                          imageUrl: next.length > 0 ? next[0] : "",
+                        });
+                        setActivePreviewIndex((prev) => Math.min(prev, Math.max(0, next.length - 1)));
+                      }}
+                      style={{
+                        position: "absolute",
+                        top: "2px",
+                        right: "2px",
+                        width: "16px",
+                        height: "16px",
+                        borderRadius: "50%",
+                        background: "rgba(0,0,0,0.65)",
+                        color: "#fff",
+                        border: "none",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "9px",
+                        cursor: "pointer",
+                        fontWeight: "bold",
+                        lineHeight: 1
+                      }}
+                      title="Delete slide"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                {images.length === 0 && (
+                  <span style={{ fontSize: "11px", fontStyle: "italic", color: isDark ? "#737373" : "#8e8e8e", padding: "10px 0" }}>
+                    No slides. Select presets or upload below.
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div style={{ padding: "16px", display: "flex", flexDirection: "column" }}>
               <div
                 style={{
                   display: "flex",
@@ -306,7 +465,7 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
                 ))}
               </div>
 
-              <div style={{ flex: 1, overflowY: "auto" }}>
+              <div style={{ flex: 1 }}>
                 {activeTab === "presets" && (
                   <div
                     style={{
@@ -320,7 +479,7 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
                         key={preset.label}
                         onClick={() => handlePresetSelect(preset.url)}
                         style={{
-                          border: node.imageUrl === preset.url ? `2px solid ${node.color}` : "2px solid transparent",
+                          border: "2px solid transparent",
                           borderRadius: "8px",
                           overflow: "hidden",
                           aspectRatio: "1/1",
@@ -393,7 +552,7 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
                       <span style={{ fontSize: "12px", fontWeight: 600, color: isDark ? "#f5f5f5" : "#262626" }}>
                         {isUploading ? "Uploading & Resizing..." : "Select Local Image"}
                       </span>
-                      <span style={{ fontSize: "10px", color: isDark ? "#737373" : "#8e8e8e" }}>Resizes & compresses base64 string automatically</span>
+                      <span style={{ fontSize: "10px", color: isDark ? "#737373" : "#8e8e8e" }}>Append image to carousel array</span>
                     </button>
                   </div>
                 )}
@@ -430,7 +589,7 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
                           cursor: "pointer",
                         }}
                       >
-                        Set
+                        Add
                       </button>
                     </div>
                   </div>
@@ -449,6 +608,7 @@ export function NodeDetailPanel({ node, onClose, onUpdate, onDelete }: Props) {
               height: "100%",
               overflowY: "auto",
               background: isDark ? "#1c1c1e" : "#ffffff",
+              maxHeight: "90vh",
             }}
             className="w-full md:w-1/2"
           >
