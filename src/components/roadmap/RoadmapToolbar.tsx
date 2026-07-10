@@ -35,14 +35,6 @@ export function RoadmapToolbar({
   const isDark = theme === "dark";
   const zoom = Math.round(canvasTransform.scale * 100);
 
-  const btnCls = `
-    flex items-center justify-center w-9 h-9 rounded-xl
-    text-[#555] hover:text-black dark:text-gray-400 dark:hover:text-white
-    hover:bg-[#f0f0f0] active:bg-[#e8e8e8] dark:hover:bg-zinc-800 dark:active:bg-zinc-700
-    transition-all duration-150 cursor-pointer border border-transparent
-    hover:border-[#e0e0e0] dark:hover:border-zinc-700
-  `.trim();
-
   const zoomIn = () => {
     const s = Math.min(canvasTransform.scale * 1.2, 3);
     onTransformChange({ ...canvasTransform, scale: s });
@@ -65,6 +57,28 @@ export function RoadmapToolbar({
         gap: 6,
       }}
     >
+      {/* Local Styles for precise light/dark rendering regardless of Tailwind compilation */}
+      <style>{`
+        .rm-tb-btn {
+          color: ${isDark ? "#d4d4d4" : "#555555"} !important;
+          background: transparent;
+          border: 1px solid transparent;
+          transition: all 0.15s ease;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+        }
+        .rm-tb-btn:hover {
+          color: ${isDark ? "#ffffff" : "#000000"} !important;
+          background: ${isDark ? "#2c2c2e" : "#f0f0f0"} !important;
+          border-color: ${isDark ? "#3a3a3c" : "#e0e0e0"} !important;
+        }
+        .rm-tb-btn:active {
+          background: ${isDark ? "#3a3a3c" : "#e8e8e8"} !important;
+        }
+      `}</style>
+
       {/* Add node */}
       <button
         onClick={onAddNode}
@@ -120,7 +134,7 @@ export function RoadmapToolbar({
             : "0 4px 16px rgba(0,0,0,0.08)",
         }}
       >
-        <button className={btnCls} onClick={zoomIn} title="Zoom in">
+        <button className="w-9 h-9 rounded-xl rm-tb-btn" onClick={zoomIn} title="Zoom in">
           <ZoomIn size={16} />
         </button>
 
@@ -130,7 +144,7 @@ export function RoadmapToolbar({
             textAlign: "center",
             fontSize: 10,
             fontWeight: 700,
-            color: isDark ? "#737373" : "#aaa",
+            color: isDark ? "#d4d4d4" : "#666666",
             padding: "2px 0",
             letterSpacing: "0.04em",
           }}
@@ -138,23 +152,23 @@ export function RoadmapToolbar({
           {zoom}%
         </div>
 
-        <button className={btnCls} onClick={zoomOut} title="Zoom out">
+        <button className="w-9 h-9 rounded-xl rm-tb-btn" onClick={zoomOut} title="Zoom out">
           <ZoomOut size={16} />
         </button>
 
         <div style={{ height: 1, background: isDark ? "#2d2d2d" : "#f0f0f0", margin: "2px 0" }} />
 
-        <button className={btnCls} onClick={onResetView} title="Reset view">
+        <button className="w-9 h-9 rounded-xl rm-tb-btn" onClick={onResetView} title="Reset view">
           <Maximize2 size={15} />
         </button>
 
-        <button className={btnCls} onClick={onAutoLayout} title="Auto-layout nodes">
+        <button className="w-9 h-9 rounded-xl rm-tb-btn" onClick={onAutoLayout} title="Auto-layout nodes">
           <LayoutTemplate size={15} />
         </button>
 
         <div style={{ height: 1, background: isDark ? "#2d2d2d" : "#f0f0f0", margin: "2px 0" }} />
 
-        <button className={btnCls} onClick={onExportPng} title="Export as PNG">
+        <button className="w-9 h-9 rounded-xl rm-tb-btn" onClick={onExportPng} title="Export as PNG">
           <Download size={15} />
         </button>
       </div>
@@ -165,18 +179,19 @@ export function RoadmapToolbar({
           background: isDark ? "#1e1e1e" : "#ffffff",
           border: isDark ? "1px solid #2d2d2d" : "1px solid #e8e8e8",
           borderRadius: 10,
-          padding: "6px 10px",
+          padding: "6px 12px",
           display: "flex",
           gap: 10,
           boxShadow: isDark ? "0 2px 8px rgba(0,0,0,0.3)" : "0 2px 8px rgba(0,0,0,0.05)",
+          alignItems: "center",
         }}
       >
-        <span style={{ fontSize: 10, fontWeight: 700, color: isDark ? "#737373" : "#aaa" }}>
-          <span style={{ color: isDark ? "#e5e5e5" : "#333" }}>{nodeCount}</span> nodes
+        <span style={{ fontSize: 10, fontWeight: 700, color: isDark ? "#a3a3a3" : "#777777" }}>
+          <span style={{ color: isDark ? "#ffffff" : "#262626", marginRight: 3 }}>{nodeCount}</span> nodes
         </span>
-        <span style={{ fontSize: 10, color: isDark ? "#2d2d2d" : "#ddd" }}>·</span>
-        <span style={{ fontSize: 10, fontWeight: 700, color: isDark ? "#737373" : "#aaa" }}>
-          <span style={{ color: isDark ? "#e5e5e5" : "#333" }}>{edgeCount}</span> edges
+        <span style={{ fontSize: 10, color: isDark ? "#444444" : "#dddddd" }}>·</span>
+        <span style={{ fontSize: 10, fontWeight: 700, color: isDark ? "#a3a3a3" : "#777777" }}>
+          <span style={{ color: isDark ? "#ffffff" : "#262626", marginRight: 3 }}>{edgeCount}</span> edges
         </span>
       </div>
     </div>
