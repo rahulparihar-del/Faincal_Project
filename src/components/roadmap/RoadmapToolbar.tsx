@@ -1,9 +1,8 @@
 "use client";
 
 import React from "react";
-import {
-  Plus, ZoomIn, ZoomOut, Maximize2, LayoutTemplate, Download
-} from "lucide-react";
+import { Plus, ZoomIn, ZoomOut, Maximize2, LayoutTemplate, Download } from "lucide-react";
+import { useTheme } from "@/context/ThemeContext";
 
 interface CanvasTransform {
   x: number;
@@ -32,14 +31,16 @@ export function RoadmapToolbar({
   nodeCount,
   edgeCount,
 }: Props) {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const zoom = Math.round(canvasTransform.scale * 100);
 
   const btnCls = `
     flex items-center justify-center w-9 h-9 rounded-xl
-    text-[#555] hover:text-black
-    hover:bg-[#f0f0f0] active:bg-[#e8e8e8]
+    text-[#555] hover:text-black dark:text-gray-400 dark:hover:text-white
+    hover:bg-[#f0f0f0] active:bg-[#e8e8e8] dark:hover:bg-zinc-800 dark:active:bg-zinc-700
     transition-all duration-150 cursor-pointer border border-transparent
-    hover:border-[#e0e0e0]
+    hover:border-[#e0e0e0] dark:hover:border-zinc-700
   `.trim();
 
   const zoomIn = () => {
@@ -80,13 +81,25 @@ export function RoadmapToolbar({
           fontSize: 12,
           fontWeight: 700,
           cursor: "pointer",
-          boxShadow: "0 4px 16px rgba(124,58,237,0.3)",
+          boxShadow: isDark 
+            ? "0 4px 16px rgba(124,58,237,0.2)"
+            : "0 4px 16px rgba(124,58,237,0.3)",
           transition: "all 0.2s",
           letterSpacing: "-0.01em",
           whiteSpace: "nowrap",
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "0 6px 24px rgba(124,58,237,0.45)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
-        onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "0 4px 16px rgba(124,58,237,0.3)"; e.currentTarget.style.transform = "translateY(0)"; }}
+        onMouseEnter={(e) => { 
+          e.currentTarget.style.boxShadow = isDark 
+            ? "0 6px 24px rgba(124,58,237,0.35)"
+            : "0 6px 24px rgba(124,58,237,0.45)"; 
+          e.currentTarget.style.transform = "translateY(-1px)"; 
+        }}
+        onMouseLeave={(e) => { 
+          e.currentTarget.style.boxShadow = isDark
+            ? "0 4px 16px rgba(124,58,237,0.2)"
+            : "0 4px 16px rgba(124,58,237,0.3)"; 
+          e.currentTarget.style.transform = "translateY(0)"; 
+        }}
       >
         <Plus size={15} />
         Add Node
@@ -95,14 +108,16 @@ export function RoadmapToolbar({
       {/* Control group */}
       <div
         style={{
-          background: "#ffffff",
-          border: "1px solid #e8e8e8",
+          background: isDark ? "#1e1e1e" : "#ffffff",
+          border: isDark ? "1px solid #2d2d2d" : "1px solid #e8e8e8",
           borderRadius: 14,
           padding: 6,
           display: "flex",
           flexDirection: "column",
           gap: 2,
-          boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
+          boxShadow: isDark 
+            ? "0 4px 16px rgba(0,0,0,0.3)" 
+            : "0 4px 16px rgba(0,0,0,0.08)",
         }}
       >
         <button className={btnCls} onClick={zoomIn} title="Zoom in">
@@ -115,7 +130,7 @@ export function RoadmapToolbar({
             textAlign: "center",
             fontSize: 10,
             fontWeight: 700,
-            color: "#aaa",
+            color: isDark ? "#737373" : "#aaa",
             padding: "2px 0",
             letterSpacing: "0.04em",
           }}
@@ -127,7 +142,7 @@ export function RoadmapToolbar({
           <ZoomOut size={16} />
         </button>
 
-        <div style={{ height: 1, background: "#f0f0f0", margin: "2px 0" }} />
+        <div style={{ height: 1, background: isDark ? "#2d2d2d" : "#f0f0f0", margin: "2px 0" }} />
 
         <button className={btnCls} onClick={onResetView} title="Reset view">
           <Maximize2 size={15} />
@@ -137,7 +152,7 @@ export function RoadmapToolbar({
           <LayoutTemplate size={15} />
         </button>
 
-        <div style={{ height: 1, background: "#f0f0f0", margin: "2px 0" }} />
+        <div style={{ height: 1, background: isDark ? "#2d2d2d" : "#f0f0f0", margin: "2px 0" }} />
 
         <button className={btnCls} onClick={onExportPng} title="Export as PNG">
           <Download size={15} />
@@ -147,21 +162,21 @@ export function RoadmapToolbar({
       {/* Stats pill */}
       <div
         style={{
-          background: "#ffffff",
-          border: "1px solid #e8e8e8",
+          background: isDark ? "#1e1e1e" : "#ffffff",
+          border: isDark ? "1px solid #2d2d2d" : "1px solid #e8e8e8",
           borderRadius: 10,
           padding: "6px 10px",
           display: "flex",
           gap: 10,
-          boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+          boxShadow: isDark ? "0 2px 8px rgba(0,0,0,0.3)" : "0 2px 8px rgba(0,0,0,0.05)",
         }}
       >
-        <span style={{ fontSize: 10, fontWeight: 700, color: "#aaa" }}>
-          <span style={{ color: "#333" }}>{nodeCount}</span> nodes
+        <span style={{ fontSize: 10, fontWeight: 700, color: isDark ? "#737373" : "#aaa" }}>
+          <span style={{ color: isDark ? "#e5e5e5" : "#333" }}>{nodeCount}</span> nodes
         </span>
-        <span style={{ fontSize: 10, color: "#ddd" }}>·</span>
-        <span style={{ fontSize: 10, fontWeight: 700, color: "#aaa" }}>
-          <span style={{ color: "#333" }}>{edgeCount}</span> edges
+        <span style={{ fontSize: 10, color: isDark ? "#2d2d2d" : "#ddd" }}>·</span>
+        <span style={{ fontSize: 10, fontWeight: 700, color: isDark ? "#737373" : "#aaa" }}>
+          <span style={{ color: isDark ? "#e5e5e5" : "#333" }}>{edgeCount}</span> edges
         </span>
       </div>
     </div>

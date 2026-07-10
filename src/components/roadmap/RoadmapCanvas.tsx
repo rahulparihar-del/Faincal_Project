@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { RoadmapNode as NodeType, RoadmapEdge, HandleSide } from "./types";
 import { RoadmapNodeCard } from "./RoadmapNode";
 import { EdgeLayer } from "./EdgeLayer";
+import { useTheme } from "@/context/ThemeContext";
 
 interface CanvasTransform {
   x: number;
@@ -39,6 +40,7 @@ export function RoadmapCanvas({
   canvasTransform,
   onTransformChange,
 }: Props) {
+  const { theme } = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
   const isPanningRef = useRef(false);
   const lastPanPos = useRef({ x: 0, y: 0 });
@@ -215,7 +217,7 @@ export function RoadmapCanvas({
     <div
       ref={containerRef}
       className="relative w-full h-full overflow-hidden select-none"
-      style={{ cursor: isPanningRef.current ? "grabbing" : "grab", background: "#f5f5f5" }}
+      style={{ cursor: isPanningRef.current ? "grabbing" : "grab", background: theme === "dark" ? "#121212" : "#f5f5f5" }}
       onPointerDown={onCanvasPointerDown}
       onPointerMove={onCanvasPointerMove}
       onPointerUp={onCanvasPointerUp}
@@ -237,7 +239,7 @@ export function RoadmapCanvas({
             height={gridSize}
             patternUnits="userSpaceOnUse"
           >
-            <circle cx={0} cy={0} r={0.8} fill="rgba(0,0,0,0.12)" />
+            <circle cx={0} cy={0} r={0.8} fill={theme === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.12)"} />
           </pattern>
         </defs>
         <rect width="100%" height="100%" fill="url(#rm-grid)" />
@@ -314,8 +316,8 @@ export function RoadmapCanvas({
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
           <div className="text-center">
             <div className="text-6xl mb-4 opacity-30">🗺️</div>
-            <p className="text-black/30 text-lg font-semibold">Double-click anywhere to add a node</p>
-            <p className="text-black/20 text-sm mt-1">Or use the + button in the toolbar</p>
+            <p className="text-black/30 dark:text-white/30 text-lg font-semibold">Double-click anywhere to add a node</p>
+            <p className="text-black/20 dark:text-white/20 text-sm mt-1">Or use the + button in the toolbar</p>
           </div>
         </div>
       )}

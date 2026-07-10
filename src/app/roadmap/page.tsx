@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useSupabaseTable } from "@/lib/hooks/useSupabaseTable";
+import { useTheme } from "@/context/ThemeContext";
 import {
   RoadmapNode,
   RoadmapEdge,
@@ -107,6 +108,7 @@ export default function RoadmapPage() {
   );
 
   const activeProjectId = "instagram";
+  const { theme } = useTheme();
   const [selectedNode, setSelectedNode] = useState<RoadmapNode | null>(null);
   const [canvasTransform, setCanvasTransform] = useState({ x: 80, y: 60, scale: 0.85 }); // Zoomed out slightly by default
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -282,7 +284,7 @@ export default function RoadmapPage() {
         /* Cancel the AppShell padding so the canvas fills edge-to-edge */
         margin: "-1.25rem -1.25rem -2rem",
         height: "calc(100vh - 64px)",
-        background: "#f5f5f5",
+        background: theme === "dark" ? "#121212" : "#f5f5f5",
         position: "relative",
         overflow: "hidden",
       }}

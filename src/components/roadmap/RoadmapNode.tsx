@@ -3,6 +3,7 @@
 import React, { useRef } from "react";
 import { RoadmapNode, HandleSide, STATUS_META, PRIORITY_META } from "./types";
 import { Film, Layers, Image as ImageIcon, Sparkles, Heart, MessageCircle, Send, Bookmark, Camera } from "lucide-react";
+import { useTheme } from "@/context/ThemeContext";
 
 const HANDLE_SIDES: HandleSide[] = ["top", "bottom", "left", "right"];
 
@@ -32,6 +33,9 @@ export function RoadmapNodeCard({
   onHandleDragStart,
   onHandleDrop,
 }: Props) {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+  
   const statusMeta = STATUS_META[node.status];
   const priorityMeta = PRIORITY_META[node.priority];
   const isDraggingRef = useRef(false);
@@ -78,12 +82,14 @@ export function RoadmapNodeCard({
       style={{
         position: "relative",
         borderRadius: 14,
-        background: "#ffffff",
-        border: "1px solid #dbdbdb",
-        boxShadow: "0 4px 18px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04)",
+        background: isDark ? "#1e1e1e" : "#ffffff",
+        border: isDark ? "1px solid #2d2d2d" : "1px solid #dbdbdb",
+        boxShadow: isDark 
+          ? "0 10px 30px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.2)"
+          : "0 4px 18px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04)",
         cursor: "grab",
         userSelect: "none",
-        transition: "box-shadow 0.2s ease, transform 0.15s ease",
+        transition: "box-shadow 0.2s ease, transform 0.15s ease, border-color 0.2s, background-color 0.2s",
         width: 260,
         height: 430,
         overflow: "visible",
@@ -105,12 +111,12 @@ export function RoadmapNodeCard({
             height: 14,
             borderRadius: "50%",
             background: node.color,
-            border: "3.5px solid #ffffff",
+            border: isDark ? "3.5px solid #1e1e1e" : "3.5px solid #ffffff",
             cursor: "crosshair",
             opacity: 0,
             transition: "opacity 0.15s, transform 0.15s",
             zIndex: 30,
-            boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.3)",
           }}
           className="rm-handle"
           onPointerDown={(e) => {
@@ -139,7 +145,7 @@ export function RoadmapNodeCard({
           alignItems: "center",
           justifyContent: "space-between",
           padding: "10px 12px",
-          borderBottom: "1px solid #efefef",
+          borderBottom: isDark ? "1px solid #2d2d2d" : "1px solid #efefef",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -161,13 +167,13 @@ export function RoadmapNodeCard({
                 width: "100%",
                 height: "100%",
                 borderRadius: "50%",
-                background: "#fff",
+                background: isDark ? "#1e1e1e" : "#fff",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 fontSize: 10,
                 fontWeight: 700,
-                color: "#262626",
+                color: isDark ? "#f5f5f5" : "#262626",
               }}
             >
               IG
@@ -178,7 +184,7 @@ export function RoadmapNodeCard({
               style={{
                 fontSize: 11,
                 fontWeight: 700,
-                color: "#262626",
+                color: isDark ? "#f5f5f5" : "#262626",
                 maxWidth: 110,
                 overflow: "hidden",
                 textOverflow: "ellipsis",
@@ -191,7 +197,7 @@ export function RoadmapNodeCard({
             <span
               style={{
                 fontSize: 9,
-                color: "#8e8e8e",
+                color: isDark ? "#a8a8a8" : "#8e8e8e",
                 display: "flex",
                 alignItems: "center",
                 gap: 3,
@@ -211,8 +217,8 @@ export function RoadmapNodeCard({
             fontSize: 9,
             fontWeight: 700,
             color: statusMeta.color,
-            background: statusMeta.bg,
-            border: `1px solid ${statusMeta.border}`,
+            background: isDark ? "rgba(255,255,255,0.04)" : statusMeta.bg,
+            border: isDark ? `1px solid ${statusMeta.color}77` : `1px solid ${statusMeta.border}`,
             padding: "2px 6px",
             borderRadius: 4,
             textTransform: "uppercase",
@@ -229,9 +235,9 @@ export function RoadmapNodeCard({
           width: "100%",
           paddingBottom: "100%", // aspect-ratio 1:1
           position: "relative",
-          background: "#fafafa",
+          background: isDark ? "#121212" : "#fafafa",
           overflow: "hidden",
-          borderBottom: "1px solid #efefef",
+          borderBottom: isDark ? "1px solid #2d2d2d" : "1px solid #efefef",
         }}
       >
         {node.imageUrl ? (
@@ -255,7 +261,9 @@ export function RoadmapNodeCard({
               left: 0,
               width: "100%",
               height: "100%",
-              background: `linear-gradient(135deg, ${node.color}22, ${node.color}11)`,
+              background: isDark 
+                ? `linear-gradient(135deg, ${node.color}15, ${node.color}05)`
+                : `linear-gradient(135deg, ${node.color}22, ${node.color}11)`,
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
@@ -264,7 +272,7 @@ export function RoadmapNodeCard({
             }}
           >
             <Camera size={26} style={{ color: node.color, opacity: 0.6 }} />
-            <span style={{ fontSize: 10, color: "#8e8e8e", fontWeight: 600 }}>Click to add image</span>
+            <span style={{ fontSize: 10, color: isDark ? "#737373" : "#8e8e8e", fontWeight: 600 }}>Click to add image</span>
           </div>
         )}
       </div>
@@ -276,7 +284,7 @@ export function RoadmapNodeCard({
           alignItems: "center",
           justifyContent: "space-between",
           padding: "8px 10px 4px",
-          color: "#262626",
+          color: isDark ? "#f5f5f5" : "#262626",
         }}
       >
         <div style={{ display: "flex", gap: 10 }}>
@@ -294,7 +302,7 @@ export function RoadmapNodeCard({
           <div
             style={{
               fontSize: 11,
-              color: "#262626",
+              color: isDark ? "#e5e5e5" : "#262626",
               lineHeight: 1.4,
               overflow: "hidden",
               display: "-webkit-box",
@@ -303,11 +311,11 @@ export function RoadmapNodeCard({
               marginBottom: 4,
             }}
           >
-            <span style={{ fontWeight: 700, marginRight: 5 }}>brand_strategy</span>
+            <span style={{ fontWeight: 700, marginRight: 5, color: isDark ? "#ffffff" : "#262626" }}>brand_strategy</span>
             {stripHtml(node.richContent)}
           </div>
         ) : (
-          <div style={{ fontSize: 10, color: "#8e8e8e", fontStyle: "italic", marginBottom: 4 }}>
+          <div style={{ fontSize: 10, color: isDark ? "#737373" : "#8e8e8e", fontStyle: "italic", marginBottom: 4 }}>
             No description added yet.
           </div>
         )}
@@ -321,7 +329,7 @@ export function RoadmapNodeCard({
                 style={{
                   fontSize: 10,
                   fontWeight: 600,
-                  color: "#00376b", // Instagram blue tag link color
+                  color: isDark ? "#9ecaff" : "#00376b", // Instagram blue tag link color
                 }}
               >
                 #{tag}
@@ -332,7 +340,7 @@ export function RoadmapNodeCard({
 
         {/* Scheduled date indicator */}
         {node.dueDate && (
-          <div style={{ fontSize: 9, color: "#8e8e8e", marginTop: 6, fontWeight: 500 }}>
+          <div style={{ fontSize: 9, color: isDark ? "#737373" : "#8e8e8e", marginTop: 6, fontWeight: 500 }}>
             Scheduled for: {node.dueDate}
           </div>
         )}
@@ -344,9 +352,13 @@ export function RoadmapNodeCard({
           opacity: 1 !important;
         }
         .rm-node:hover {
-          box-shadow: 0 10px 30px rgba(0,0,0,0.12), 0 3px 10px rgba(0,0,0,0.06) !important;
+          box-shadow: ${
+            isDark 
+              ? "0 15px 40px rgba(0,0,0,0.6), 0 3px 12px rgba(0,0,0,0.4) !important" 
+              : "0 10px 30px rgba(0,0,0,0.12), 0 3px 10px rgba(0,0,0,0.06) !important"
+          };
           transform: translateY(-2px);
-          border-color: #a8a8a8 !important;
+          border-color: ${isDark ? "#555555" : "#a8a8a8"} !important;
         }
       `}</style>
     </div>
