@@ -231,7 +231,7 @@ function BrowserPreview({ url }: { url: string }) {
           </div>
         )}
         <iframe
-          src={url}
+          src={url && (url.startsWith("http://") || url.startsWith("https://")) ? `/api/proxy?url=${encodeURIComponent(url)}` : url}
           onLoad={() => setLoading(false)}
           className="w-full h-full border-none bg-white"
           title={`Preview of ${host}`}
