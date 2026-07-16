@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 
 /* ─── Types ─────────────────────────────────────────────────── */
-interface Account { username: string; password: string }
+interface Account { username: string; password: string; url?: string; linkedUrl?: string; }
 interface StashItem {
   id: string;
   title: string;
@@ -81,49 +81,18 @@ const catColor: Record<string, string> = {
 
 /* ─── Credential Card ────────────────────────────────────────── */
 function CredCard({
-  item, onDelete, onToggleWatched, onUpdateAccounts,
+  item, onDelete, onToggleWatched, onOpenDetails,
 }: {
   item: StashItem;
   onDelete: (id: string) => void;
   onToggleWatched: (id: string) => void;
-  onUpdateAccounts: (id: string, accs: Account[]) => void;
+  onOpenDetails: (item: StashItem) => void;
 }) {
   const fav   = faviconOf(item.url);
   const host  = hostnameOf(item.url);
-  const open  = () => item.url && window.open(item.url, "_blank", "noopener,noreferrer");
-
-  const [expanded, setExpanded]         = useState(false);
-  const [showPassMap, setShowPassMap]   = useState<Record<number, boolean>>({});
-  const [copiedUser, setCopiedUser]     = useState<number | null>(null);
-  const [copiedPass, setCopiedPass]     = useState<number | null>(null);
-  const [addingAcc, setAddingAcc]       = useState(false);
-  const [newUser, setNewUser]           = useState("");
-  const [newPass, setNewPass]           = useState("");
-  const [showNewPass, setShowNewPass]   = useState(false);
   const [imgErr, setImgErr]             = useState(false);
 
   const accs = item.accounts?.length ? item.accounts : [];
-
-  const copy = async (text: string, type: "user" | "pass", idx: number) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      if (type === "user") {
-        setCopiedUser(idx);
-        setTimeout(() => setCopiedUser(null), 1500);
-      } else {
-        setCopiedPass(idx);
-        setTimeout(() => setCopiedPass(null), 1500);
-      }
-    } catch { /* ignore */ }
-  };
-
-  const genPass = () => {
-    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=";
-    const arr = new Uint32Array(16);
-    window.crypto.getRandomValues(arr);
-    setNewPass(Array.from(arr).map(n => chars[n % chars.length]).join(""));
-    setShowNewPass(true);
-  };
 
   return (
     <motion.div
@@ -132,7 +101,8 @@ function CredCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.2 }}
-      className={`group relative bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-zinc-200/40 dark:hover:shadow-black/50 hover:border-zinc-350 dark:hover:border-zinc-700 ${item.watched ? "opacity-60" : ""}`}
+      onClick={() => onOpenDetails(item)}
+      className={`group relative bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800/80 rounded-3xl overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-zinc-200/40 dark:hover:shadow-black/50 hover:border-zinc-350 dark:hover:border-zinc-700 cursor-pointer flex flex-col justify-between min-h-[160px] ${item.watched ? "opacity-60" : ""}`}
     >
       {/* Header Area */}
       <div className="p-5 pb-3 flex items-start gap-4">
@@ -154,24 +124,22 @@ function CredCard({
             </h3>
           </div>
           {host && (
-            <button onClick={open} className="flex items-center gap-1 text-xs text-zinc-400 dark:text-zinc-500 hover:text-amber-500 transition-colors mt-1 cursor-pointer">
+            <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">
               <span className="truncate max-w-[150px] font-medium">{host}</span>
-              <ExternalLink size={10} className="shrink-0" />
-            </button>
+            </p>
           )}
           {item.linkedUrl && (
             <div className="mt-1 flex items-center gap-1 text-[11px] text-zinc-400 dark:text-zinc-500">
               <span className="font-semibold text-zinc-400/80 dark:text-zinc-500/80 uppercase tracking-wider text-[9px]">Linked:</span>
-              <a href={item.linkedUrl} target="_blank" rel="noopener noreferrer" className="hover:text-amber-500 transition-colors inline-flex items-center gap-0.5 underline">
+              <span className="truncate max-w-[120px] underline">
                 {hostnameOf(item.linkedUrl) || item.linkedUrl}
-                <ExternalLink size={8} className="shrink-0" />
-              </a>
+              </span>
             </div>
           )}
         </div>
 
         {/* Actions inside group hover */}
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
           {item.category && (
             <span className={`text-[9px] font-extrabold px-2.5 py-1 border rounded-full uppercase tracking-wider shrink-0 ${catColor[item.category] ?? catColor.Other}`}>
               {item.category}
@@ -194,161 +162,488 @@ function CredCard({
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="px-5 pb-5 space-y-4">
-        {accs.length === 0 ? (
-          <p className="text-xs text-zinc-400 text-center py-2 bg-zinc-50 dark:bg-zinc-950/40 rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800">
-            No credentials saved.
-          </p>
-        ) : (
-          <div className="space-y-3.5">
-            {(expanded ? accs : accs.slice(0, 1)).map((acc, idx) => (
-              <div key={idx} className="space-y-2 bg-zinc-50/70 dark:bg-zinc-950/40 border border-zinc-200/50 dark:border-zinc-800/50 rounded-2xl p-3.5 relative">
-                {accs.length > 1 && (
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-[9px] font-extrabold text-zinc-400 uppercase tracking-widest">Account #{idx + 1}</span>
-                    <button
-                      onClick={() => {
-                        if (window.confirm("Remove this account option?")) {
-                          onUpdateAccounts(item.id, accs.filter((_, i) => i !== idx));
-                        }
-                      }}
-                      className="text-zinc-400 hover:text-red-500 p-0.5 rounded transition-colors cursor-pointer"
-                      title="Remove account option"
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-                )}
-
-                {/* Email Display */}
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Mail size={12} className="text-zinc-400 shrink-0" />
-                    <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 select-all truncate">{acc.username || "—"}</span>
-                  </div>
-                  {acc.username && (
-                    <button
-                      onClick={() => copy(acc.username, "user", idx)}
-                      className="p-1.5 rounded-lg hover:bg-zinc-200/50 dark:hover:bg-zinc-800/80 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-all cursor-pointer shrink-0"
-                    >
-                      {copiedUser === idx ? (
-                        <span className="text-[10px] font-bold text-green-500 flex items-center gap-0.5"><Check size={11} /> Copied</span>
-                      ) : (
-                        <Copy size={12} />
-                      )}
-                    </button>
-                  )}
-                </div>
-
-                {/* Password Display */}
-                <div className="flex items-center justify-between gap-3 border-t border-zinc-200/30 dark:border-zinc-800/30 pt-2.5 mt-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Key size={12} className="text-zinc-400 shrink-0" />
-                    <span className="text-xs font-mono font-bold text-zinc-700 dark:text-zinc-300 tracking-widest select-all">
-                      {showPassMap[idx] ? acc.password : "••••••••••"}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      onClick={() => setShowPassMap(p => ({ ...p, [idx]: !p[idx] }))}
-                      className="p-1.5 rounded-lg hover:bg-zinc-200/50 dark:hover:bg-zinc-800/80 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-all cursor-pointer"
-                    >
-                      {showPassMap[idx] ? <EyeOff size={12} /> : <Eye size={12} />}
-                    </button>
-                    {acc.password && (
-                      <button
-                        onClick={() => copy(acc.password, "pass", idx)}
-                        className="p-1.5 rounded-lg hover:bg-zinc-200/50 dark:hover:bg-zinc-800/80 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-all cursor-pointer"
-                      >
-                        {copiedPass === idx ? (
-                          <span className="text-[10px] font-bold text-green-500 flex items-center gap-0.5"><Check size={11} /> Copied</span>
-                        ) : (
-                          <Copy size={12} />
-                        )}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Expand / collapse triggers */}
-        {accs.length > 1 && (
-          <button
-            onClick={() => setExpanded(v => !v)}
-            className="flex items-center gap-1 text-[10px] font-bold text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors cursor-pointer w-fit"
-          >
-            <ChevronDown size={12} className={`transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
-            {expanded ? "SHOW LESS" : `VIEW ${accs.length - 1} MORE ACCOUNT${accs.length - 1 > 1 ? "S" : ""}`}
-          </button>
-        )}
-
-        {/* Note Context panel */}
-        {item.context && (
-          <div className="space-y-1 bg-zinc-50/40 dark:bg-zinc-950/20 border border-zinc-200/40 dark:border-zinc-850/40 rounded-2xl p-3">
-            <span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest block">Notes</span>
-            <p className="text-[11px] text-zinc-600 dark:text-zinc-400 leading-relaxed font-medium whitespace-pre-wrap">
-              {item.context}
-            </p>
-          </div>
-        )}
-
-        {/* Inline Add Account Form */}
-        {addingAcc ? (
-          <div className="space-y-2.5 p-3.5 bg-zinc-50/50 dark:bg-zinc-950/30 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl mt-1">
-            <div className="flex justify-between items-center">
-              <span className="text-[9px] font-extrabold text-zinc-400 uppercase tracking-widest">Add Additional Login</span>
-            </div>
-            <input
-              value={newUser} onChange={e => setNewUser(e.target.value)}
-              placeholder="Username / Email"
-              className="w-full bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 focus:outline-none"
-            />
-            <div className="flex items-center gap-2 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 w-full">
-              <input
-                type={showNewPass ? "text" : "password"}
-                value={newPass} onChange={e => setNewPass(e.target.value)}
-                placeholder="Password"
-                className="flex-1 bg-transparent text-xs focus:outline-none min-w-0"
-              />
-              <button type="button" onClick={() => setShowNewPass(v => !v)} className="text-zinc-400 hover:text-zinc-650 cursor-pointer"><Eye size={12} /></button>
-              <button type="button" onClick={genPass} className="text-zinc-400 hover:text-zinc-650 cursor-pointer" title="Generate"><RefreshCw size={12} /></button>
-            </div>
-            <div className="flex justify-end gap-1.5 pt-1">
-              <button onClick={() => { setAddingAcc(false); setNewUser(""); setNewPass(""); }} className="px-3 py-1.5 rounded-lg text-[10px] font-bold text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-850 cursor-pointer">Cancel</button>
-              <button
-                onClick={() => {
-                  if (!newUser.trim() && !newPass.trim()) return;
-                  onUpdateAccounts(item.id, [...accs, { username: newUser.trim(), password: newPass }]);
-                  setAddingAcc(false); setNewUser(""); setNewPass("");
-                }}
-                className="px-3.5 py-1.5 rounded-lg bg-zinc-950 dark:bg-zinc-100 text-white dark:text-zinc-950 text-[10px] font-bold cursor-pointer"
-              >Add</button>
-            </div>
-          </div>
-        ) : (
-          <button
-            onClick={() => setAddingAcc(true)}
-            className="flex items-center justify-center gap-1.5 px-3 py-2.5 w-full rounded-2xl text-[10px] font-bold text-zinc-500 dark:text-zinc-400 border border-dashed border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-950/20 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all cursor-pointer"
-          >
-            <Plus size={11} /> Add Another Account
-          </button>
-        )}
+      {/* Account Count Badge */}
+      <div className="px-5 pb-4 pt-1 flex items-center justify-between mt-auto">
+        <span className="text-[10px] font-extrabold px-2.5 py-1 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded-lg">
+          {accs.length} {accs.length === 1 ? "Credential" : "Credentials"}
+        </span>
+        <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-bold group-hover:text-amber-500 transition-colors">
+          View details &rarr;
+        </span>
       </div>
 
       {/* Card Footer info */}
-      <div className="px-5 py-3.5 bg-zinc-50/40 dark:bg-zinc-950/10 border-t border-zinc-100 dark:border-zinc-900/60 flex items-center justify-between text-[9px] font-bold text-zinc-400 uppercase tracking-widest mt-auto">
+      <div className="px-5 py-3.5 bg-zinc-50/40 dark:bg-zinc-950/10 border-t border-zinc-100 dark:border-zinc-900/60 flex items-center justify-between text-[9px] font-bold text-zinc-400 uppercase tracking-widest">
         <span className="flex items-center gap-1"><Clock size={10} /> {timeAgo(item.createdAt)}</span>
-        {item.url && (
-          <button onClick={open} className="flex items-center gap-1 hover:text-amber-500 transition-colors cursor-pointer">
-            Go to login <ExternalLink size={10} />
-          </button>
-        )}
       </div>
     </motion.div>
+  );
+}
+
+/* ─── Mock Browser Preview Component ────────────────────────── */
+function BrowserPreview({ url }: { url: string }) {
+  const [loading, setLoading] = useState(true);
+  const host = hostnameOf(url);
+
+  useEffect(() => {
+    setLoading(true);
+  }, [url]);
+
+  if (!url) {
+    return (
+      <div className="w-full h-56 bg-zinc-50 dark:bg-zinc-950 rounded-2xl border border-dashed border-zinc-200/60 dark:border-zinc-800/60 flex flex-col items-center justify-center text-zinc-400 p-4">
+        <Globe size={32} className="text-zinc-300 dark:text-zinc-700 mb-2" />
+        <span className="text-xs font-semibold">No website connected</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full border border-zinc-250 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-sm bg-white dark:bg-zinc-900 flex flex-col h-80">
+      {/* Browser Chrome Header */}
+      <div className="bg-zinc-100 dark:bg-zinc-900 px-4 py-2.5 flex items-center gap-3 border-b border-zinc-200 dark:border-zinc-800">
+        {/* Window Controls */}
+        <div className="flex gap-1.5 shrink-0">
+          <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
+          <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
+          <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
+        </div>
+        {/* Address Bar */}
+        <div className="flex-1 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2.5 py-1 flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400 min-w-0">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <Lock size={10} className="text-green-500 shrink-0" />
+            <span className="truncate select-all">{url}</span>
+          </div>
+          <a
+            href={url} target="_blank" rel="noopener noreferrer"
+            className="hover:text-amber-500 p-0.5 rounded transition-colors shrink-0"
+            title="Open in new tab"
+          >
+            <ExternalLink size={10} />
+          </a>
+        </div>
+      </div>
+      {/* Browser Viewport */}
+      <div className="relative w-full flex-1 bg-white dark:bg-zinc-900">
+        {loading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-zinc-50/50 dark:bg-zinc-900/50 backdrop-blur-[1px] z-10">
+            <Loader2 className="animate-spin text-zinc-400" size={20} />
+          </div>
+        )}
+        <iframe
+          src={url}
+          onLoad={() => setLoading(false)}
+          className="w-full h-full border-none bg-white"
+          title={`Preview of ${host}`}
+          sandbox="allow-scripts allow-same-origin allow-forms"
+        />
+        {/* Fallback info layer at the bottom in case embedding is blocked */}
+        <div className="absolute bottom-0 inset-x-0 bg-zinc-50/90 dark:bg-zinc-900/90 backdrop-blur-[2px] border-t border-zinc-200/50 dark:border-zinc-800/50 px-3 py-2 flex items-center justify-between text-[10px] text-zinc-500">
+          <span>Security policies may prevent some sites from embedding.</span>
+          <a href={url} target="_blank" rel="noopener noreferrer" className="text-amber-500 font-bold hover:underline flex items-center gap-0.5">
+            Open Directly <ExternalLink size={9} />
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Details Modal ─────────────────────────────────────────── */
+function DetailsModal({
+  item, onClose, onUpdateAccounts, onDelete,
+}: {
+  item: StashItem;
+  onClose: () => void;
+  onUpdateAccounts: (id: string, accs: Account[]) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [activeAccIdx, setActiveAccIdx] = useState(0);
+  const [showPassMap, setShowPassMap] = useState<Record<number, boolean>>({});
+  const [copiedUser, setCopiedUser] = useState<number | null>(null);
+  const [copiedPass, setCopiedPass] = useState<number | null>(null);
+
+  // Inline "Add Account" form state
+  const [addingAcc, setAddingAcc] = useState(false);
+  const [newUser, setNewUser] = useState("");
+  const [newPass, setNewPass] = useState("");
+  const [newUrl, setNewUrl] = useState("");
+  const [newLinkedUrl, setNewLinkedUrl] = useState("");
+  const [showNewPass, setShowNewPass] = useState(false);
+
+  const accs = item.accounts?.length ? item.accounts : [];
+  const activeAcc = accs[activeAccIdx] || accs[0];
+
+  const copy = async (text: string, type: "user" | "pass", idx: number) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      if (type === "user") {
+        setCopiedUser(idx);
+        setTimeout(() => setCopiedUser(null), 1500);
+      } else {
+        setCopiedPass(idx);
+        setTimeout(() => setCopiedPass(null), 1500);
+      }
+    } catch { /* ignore */ }
+  };
+
+  const genPass = () => {
+    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=";
+    const arr = new Uint32Array(16);
+    window.crypto.getRandomValues(arr);
+    setNewPass(Array.from(arr).map(n => chars[n % chars.length]).join(""));
+    setShowNewPass(true);
+  };
+
+  const fav = faviconOf(item.url);
+  const host = hostnameOf(item.url);
+  const [imgErr, setImgErr] = useState(false);
+
+  // The website to preview for the active account
+  const previewUrl = activeAcc
+    ? (activeAcc.linkedUrl || activeAcc.url || item.linkedUrl || item.url)
+    : (item.linkedUrl || item.url);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm"
+      />
+      {/* Sheet */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        transition={{ type: "spring", duration: 0.4 }}
+        className="relative w-full max-w-4xl h-[85vh] bg-white dark:bg-zinc-900 sm:rounded-3xl rounded-t-3xl border border-zinc-200/80 dark:border-zinc-800/80 shadow-2xl z-10 overflow-hidden flex flex-col"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 dark:border-zinc-800/60 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-150 dark:border-zinc-850 flex items-center justify-center overflow-hidden shrink-0">
+              {fav && !imgErr ? (
+                <img src={fav} alt="" width={22} height={22} className="object-contain" onError={() => setImgErr(true)} />
+              ) : (
+                <Globe size={18} className="text-zinc-400" />
+              )}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-black text-zinc-900 dark:text-zinc-50">
+                  {item.title || "Unnamed Service"}
+                </h3>
+                {item.category && (
+                  <span className={`text-[9px] font-extrabold px-2 py-0.5 border rounded-full uppercase tracking-wider ${catColor[item.category] ?? catColor.Other}`}>
+                    {item.category}
+                  </span>
+                )}
+              </div>
+              {host && <p className="text-[11px] text-zinc-400">{host}</p>}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                if (window.confirm("Delete this entire password entry?")) {
+                  onDelete(item.id);
+                  onClose();
+                }
+              }}
+              className="p-2 rounded-xl text-zinc-400 hover:text-red-500 hover:bg-red-500/10 transition-all cursor-pointer"
+              title="Delete site"
+            >
+              <Trash2 size={16} />
+            </button>
+            <button onClick={onClose} className="p-2 rounded-xl text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all cursor-pointer">
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* Two-Column Content Layout */}
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
+          {/* Left Column: Accounts list & adding form */}
+          <div className="w-full md:w-[320px] border-r border-zinc-100 dark:border-zinc-800 flex flex-col bg-zinc-50/50 dark:bg-zinc-950/20 overflow-y-auto">
+            <div className="p-4 space-y-3">
+              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block px-1">
+                Saved Accounts ({accs.length})
+              </span>
+              
+              <div className="space-y-2">
+                {accs.map((acc, idx) => {
+                  const isActive = idx === activeAccIdx;
+                  return (
+                    <div
+                      key={idx}
+                      onClick={() => setActiveAccIdx(idx)}
+                      className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between group/acc ${
+                        isActive
+                          ? "bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-700 shadow-sm"
+                          : "bg-transparent border-transparent hover:bg-zinc-100/50 dark:hover:bg-zinc-800/30"
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className={`text-xs font-bold truncate ${isActive ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-500"}`}>
+                          {acc.username || "Unnamed Account"}
+                        </p>
+                        {(acc.linkedUrl || item.linkedUrl) && (
+                          <p className="text-[10px] text-zinc-400 truncate mt-0.5">
+                            {hostnameOf(acc.linkedUrl || item.linkedUrl || "")}
+                          </p>
+                        )}
+                      </div>
+                      
+                      {accs.length > 1 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (window.confirm("Remove this account?")) {
+                              const updated = accs.filter((_, i) => i !== idx);
+                              onUpdateAccounts(item.id, updated);
+                              if (activeAccIdx >= updated.length) {
+                                setActiveAccIdx(Math.max(0, updated.length - 1));
+                              }
+                            }
+                          }}
+                          className="p-1 text-zinc-400 hover:text-red-500 rounded-lg hover:bg-red-500/10 opacity-0 group-hover/acc:opacity-100 transition-opacity cursor-pointer ml-2"
+                          title="Remove Account"
+                        >
+                          <X size={12} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Inline Add Account Form inside Modal */}
+              {addingAcc ? (
+                <div className="p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl space-y-3 shadow-inner">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[9px] font-extrabold text-zinc-400 uppercase tracking-widest">New Login</span>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-zinc-400 uppercase">Username / Email</label>
+                    <input
+                      value={newUser} onChange={e => setNewUser(e.target.value)}
+                      placeholder="Username / Email"
+                      className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-2.5 py-1.5 text-xs text-zinc-900 dark:text-zinc-50 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-zinc-400 uppercase">Password</label>
+                    <div className="flex items-center gap-1.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-2.5 py-1.5 w-full">
+                      <input
+                        type={showNewPass ? "text" : "password"}
+                        value={newPass} onChange={e => setNewPass(e.target.value)}
+                        placeholder="Password"
+                        className="flex-1 bg-transparent text-xs focus:outline-none min-w-0"
+                      />
+                      <button type="button" onClick={() => setShowNewPass(v => !v)} className="text-zinc-400 hover:text-zinc-650 cursor-pointer"><Eye size={12} /></button>
+                      <button type="button" onClick={genPass} className="text-zinc-400 hover:text-zinc-650 cursor-pointer" title="Generate"><RefreshCw size={12} /></button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-zinc-400 uppercase">Website URL (optional)</label>
+                    <input
+                      value={newUrl} onChange={e => setNewUrl(e.target.value)}
+                      placeholder="e.g. https://supabase.com"
+                      className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-2.5 py-1.5 text-xs text-zinc-900 dark:text-zinc-50 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-zinc-400 uppercase">Linked Website URL (optional)</label>
+                    <input
+                      value={newLinkedUrl} onChange={e => setNewLinkedUrl(e.target.value)}
+                      placeholder="e.g. https://my-app.vercel.app"
+                      className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-2.5 py-1.5 text-xs text-zinc-900 dark:text-zinc-50 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-1.5 pt-1">
+                    <button
+                      onClick={() => { setAddingAcc(false); setNewUser(""); setNewPass(""); setNewUrl(""); setNewLinkedUrl(""); }}
+                      className="px-3 py-1.5 rounded-lg text-[10px] font-bold text-zinc-550 hover:bg-zinc-100 dark:hover:bg-zinc-805 cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (!newUser.trim() && !newPass.trim()) return;
+                        const merged = [
+                          ...accs,
+                          {
+                            username: newUser.trim(),
+                            password: newPass,
+                            url: newUrl.trim() ? normalizeUrl(newUrl) : undefined,
+                            linkedUrl: newLinkedUrl.trim() ? normalizeUrl(newLinkedUrl) : undefined
+                          }
+                        ];
+                        onUpdateAccounts(item.id, merged);
+                        setActiveAccIdx(merged.length - 1);
+                        setAddingAcc(false); setNewUser(""); setNewPass(""); setNewUrl(""); setNewLinkedUrl("");
+                      }}
+                      className="px-3.5 py-1.5 rounded-lg bg-zinc-950 dark:bg-zinc-100 text-white dark:text-zinc-950 text-[10px] font-bold cursor-pointer"
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setAddingAcc(true)}
+                  className="flex items-center justify-center gap-1.5 px-3 py-3 w-full rounded-2xl text-[10px] font-bold text-zinc-500 dark:text-zinc-400 border border-dashed border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100/50 dark:hover:bg-zinc-800/30 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all cursor-pointer"
+                >
+                  <Plus size={11} /> Add Another Account
+                </button>
+              )}
+            </div>
+            
+            {/* Notes Section inside Left Pane */}
+            {item.context && (
+              <div className="p-4 border-t border-zinc-100 dark:border-zinc-800 mt-auto bg-zinc-50/20 dark:bg-zinc-950/10">
+                <span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest block mb-1">
+                  Notes
+                </span>
+                <p className="text-[11px] text-zinc-600 dark:text-zinc-400 leading-relaxed font-medium whitespace-pre-wrap">
+                  {item.context}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Right Column: Credentials View & Browser Preview */}
+          <div className="flex-1 p-6 overflow-y-auto flex flex-col gap-5 min-w-0">
+            {activeAcc ? (
+              <>
+                {/* Credentials details panel */}
+                <div className="bg-zinc-50 dark:bg-zinc-955/40 border border-zinc-200/50 dark:border-zinc-800/50 rounded-2xl p-4.5 space-y-4 shrink-0">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-extrabold text-zinc-400 uppercase tracking-widest">
+                      Active Credentials
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Username Display */}
+                    <div className="space-y-1 bg-white dark:bg-zinc-900 border border-zinc-200/40 dark:border-zinc-800/40 rounded-xl p-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1">
+                          <Mail size={10} /> Username / Email
+                        </span>
+                        {activeAcc.username && (
+                          <button
+                            onClick={() => copy(activeAcc.username, "user", activeAccIdx)}
+                            className="p-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 transition-all cursor-pointer"
+                          >
+                            {copiedUser === activeAccIdx ? (
+                              <span className="text-[9px] font-bold text-green-500 flex items-center gap-0.5"><Check size={10} /> Copied</span>
+                            ) : (
+                              <Copy size={11} />
+                            )}
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 select-all truncate mt-1">
+                        {activeAcc.username || "—"}
+                      </p>
+                    </div>
+
+                    {/* Password Display */}
+                    <div className="space-y-1 bg-white dark:bg-zinc-900 border border-zinc-200/40 dark:border-zinc-800/40 rounded-xl p-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1">
+                          <Key size={10} /> Password
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => setShowPassMap(p => ({ ...p, [activeAccIdx]: !p[activeAccIdx] }))}
+                            className="p-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 transition-all cursor-pointer"
+                          >
+                            {showPassMap[activeAccIdx] ? <EyeOff size={11} /> : <Eye size={11} />}
+                          </button>
+                          {activeAcc.password && (
+                            <button
+                              onClick={() => copy(activeAcc.password, "pass", activeAccIdx)}
+                              className="p-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 transition-all cursor-pointer"
+                            >
+                              {copiedPass === activeAccIdx ? (
+                                <span className="text-[9px] font-bold text-green-500 flex items-center gap-0.5"><Check size={10} /> Copied</span>
+                              ) : (
+                                <Copy size={11} />
+                              )}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-xs font-mono font-bold text-zinc-700 dark:text-zinc-300 tracking-wider select-all mt-1">
+                        {showPassMap[activeAccIdx] ? activeAcc.password : "••••••••••••••••"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Connected URLs */}
+                  <div className="flex flex-col gap-2 pt-2 border-t border-zinc-200/30 dark:border-zinc-800/30">
+                    {/* Primary Url */}
+                    {(activeAcc.url || item.url) && (
+                      <div className="flex items-center justify-between text-[11px] text-zinc-500 bg-white dark:bg-zinc-900 px-3 py-2 rounded-xl border border-zinc-200/30 dark:border-zinc-800/30">
+                        <span className="font-semibold text-zinc-400/80 uppercase tracking-wider text-[9px] flex items-center gap-1">
+                          <Link2 size={10} /> Website Portal:
+                        </span>
+                        <a
+                          href={activeAcc.url || item.url} target="_blank" rel="noopener noreferrer"
+                          className="hover:text-amber-500 transition-colors inline-flex items-center gap-1 underline font-medium select-all"
+                        >
+                          {activeAcc.url || item.url}
+                          <ExternalLink size={10} />
+                        </a>
+                      </div>
+                    )}
+                    {/* Linked Url */}
+                    {(activeAcc.linkedUrl || item.linkedUrl) && (
+                      <div className="flex items-center justify-between text-[11px] text-zinc-550 bg-white dark:bg-zinc-900 px-3 py-2 rounded-xl border border-zinc-200/30 dark:border-zinc-800/30">
+                        <span className="font-semibold text-zinc-400/80 uppercase tracking-wider text-[9px] flex items-center gap-1">
+                          <Globe size={10} /> Connected Website:
+                        </span>
+                        <a
+                          href={activeAcc.linkedUrl || item.linkedUrl} target="_blank" rel="noopener noreferrer"
+                          className="hover:text-amber-500 transition-colors inline-flex items-center gap-1 underline font-medium select-all"
+                        >
+                          {activeAcc.linkedUrl || item.linkedUrl}
+                          <ExternalLink size={10} />
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Browser preview */}
+                <div className="flex-1 flex flex-col min-h-0">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-[10px] font-extrabold text-zinc-400 uppercase tracking-widest flex items-center gap-1">
+                      <Globe size={11} /> Connected Site Live Preview
+                    </span>
+                  </div>
+                  <BrowserPreview url={previewUrl} />
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center flex-1 text-zinc-400 py-10">
+                <Key size={32} className="text-zinc-300 dark:text-zinc-700 mb-2" />
+                <p className="text-xs font-semibold">Select an account to view credentials & live preview</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    </div>
   );
 }
 
@@ -567,9 +862,12 @@ export default function VaultPage() {
   useEffect(() => { recordsRef.current = records; }, [records]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [searchQ, setSearchQ]         = useState("");
   const [filterCat, setFilterCat]     = useState<string>("All");
   const [showArchived, setShowArchived] = useState(false);
+
+  const currentItem = stash.find(i => i.id === selectedItemId);
 
   const hasMeta = records.some(r => r.id === META_ID);
   const mode: "setup" | "unlock" = hasMeta ? "unlock" : "setup";
@@ -689,7 +987,15 @@ export default function VaultPage() {
       slug(i.title) === slug(cleanTitle) || (cleanUrl && hostnameOf(i.url) === hostnameOf(cleanUrl))
     );
     if (existing) {
-      const merged = [...(existing.accounts || []), { username: data.username.trim(), password: data.password }];
+      const merged = [
+        ...(existing.accounts || []),
+        {
+          username: data.username.trim(),
+          password: data.password,
+          url: cleanUrl || undefined,
+          linkedUrl: cleanLinkedUrl || undefined
+        }
+      ];
       await updateAccounts(existing.id, merged);
       setIsModalOpen(false);
       return;
@@ -698,7 +1004,14 @@ export default function VaultPage() {
     const payload = {
       title: cleanTitle, url: cleanUrl, context: data.context.trim(),
       category: data.category,
-      accounts: [{ username: data.username.trim(), password: data.password }],
+      accounts: [
+        {
+          username: data.username.trim(),
+          password: data.password,
+          url: cleanUrl || undefined,
+          linkedUrl: cleanLinkedUrl || undefined
+        }
+      ],
       linkedUrl: cleanLinkedUrl,
     };
     const enc = await encryptJSON(key, payload);
@@ -869,7 +1182,7 @@ export default function VaultPage() {
                       key={item.id} item={item}
                       onDelete={remove}
                       onToggleWatched={toggleWatched}
-                      onUpdateAccounts={updateAccounts}
+                      onOpenDetails={(item) => setSelectedItemId(item.id)}
                     />
                   ))}
                 </AnimatePresence>
@@ -905,6 +1218,18 @@ export default function VaultPage() {
       <AnimatePresence>
         {isModalOpen && (
           <AddModal onClose={() => setIsModalOpen(false)} onAdd={handleAdd} />
+        )}
+      </AnimatePresence>
+
+      {/* Details Modal */}
+      <AnimatePresence>
+        {currentItem && (
+          <DetailsModal
+            item={currentItem}
+            onClose={() => setSelectedItemId(null)}
+            onUpdateAccounts={updateAccounts}
+            onDelete={remove}
+          />
         )}
       </AnimatePresence>
     </div>
