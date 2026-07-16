@@ -402,6 +402,9 @@ export default function VaultPage() {
   // Decrypted items (only in memory while unlocked).
   const [stash, setStash] = useState<StashItem[]>([]);
   const keyRef = useRef<CryptoKey | null>(null);
+  // Always-current mirror of records to avoid stale closures in verify().
+  const recordsRef = useRef<VaultRecord[]>(records);
+  useEffect(() => { recordsRef.current = records; }, [records]);
 
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
@@ -497,7 +500,9 @@ export default function VaultPage() {
 
   const verify = async (pin: string): Promise<boolean> => {
     try {
-      const metaRec = records.find((r) => r.id === META_ID);
+      // Use recordsRef to always read the latest records, never a stale closure.
+      const currentRecords = recordsRef.current;
+      const metaRec = currentRecords.find((r) => r.id === META_ID);
 
       if (!metaRec || !metaRec.salt || !metaRec.check) {
         // First-time setup: create salt + verifier under the chosen PIN.
@@ -506,7 +511,7 @@ export default function VaultPage() {
         const check = await encryptJSON(key, MAGIC);
         const meta: VaultRecord = { id: META_ID, salt: bytesToB64(salt), check };
         keyRef.current = key;
-        const items = records.filter((r) => r.id !== META_ID && r.enc);
+        const items = currentRecords.filter((r) => r.id !== META_ID && r.enc);
         setRecords([meta, ...items]);
         setStash(await decryptAll(items, key));
         return true;
@@ -518,7 +523,7 @@ export default function VaultPage() {
       const value = await decryptJSON<string>(key, metaRec.check); // throws on wrong PIN
       if (value !== MAGIC) return false;
       keyRef.current = key;
-      const items = records.filter((r) => r.id !== META_ID && r.enc);
+      const items = currentRecords.filter((r) => r.id !== META_ID && r.enc);
       setStash(await decryptAll(items, key));
       return true;
     } catch {
