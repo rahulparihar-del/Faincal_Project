@@ -101,19 +101,17 @@ function CredCard({
   const [showNewPass, setShowNewPass]   = useState(false);
   const [imgErr, setImgErr]             = useState(false);
 
-  const accs = item.accounts?.length
-    ? item.accounts
-    : [];
+  const accs = item.accounts?.length ? item.accounts : [];
 
   const copy = async (text: string, type: "user" | "pass", idx: number) => {
     try {
       await navigator.clipboard.writeText(text);
       if (type === "user") {
         setCopiedUser(idx);
-        setTimeout(() => setCopiedUser(null), 2000);
+        setTimeout(() => setCopiedUser(null), 1500);
       } else {
         setCopiedPass(idx);
-        setTimeout(() => setCopiedPass(null), 2000);
+        setTimeout(() => setCopiedPass(null), 1500);
       }
     } catch { /* ignore */ }
   };
@@ -129,167 +127,214 @@ function CredCard({
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: 14 }}
+      initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      transition={{ duration: 0.25 }}
-      className={`group relative bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-lg dark:hover:shadow-black/30 hover:border-zinc-300 dark:hover:border-zinc-700 ${item.watched ? "opacity-55" : ""}`}
+      transition={{ duration: 0.2 }}
+      className={`group relative bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-zinc-200/40 dark:hover:shadow-black/50 hover:border-zinc-350 dark:hover:border-zinc-700 ${item.watched ? "opacity-60" : ""}`}
     >
-      {/* Top banner with favicon */}
-      <div className="relative h-16 bg-gradient-to-br from-zinc-50 to-zinc-100 dark:from-zinc-800/60 dark:to-zinc-900/80 flex items-center px-4 gap-3 border-b border-zinc-200/60 dark:border-zinc-800/60">
-        {/* Favicon / fallback */}
-        <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 flex items-center justify-center shadow-sm shrink-0 overflow-hidden">
+      {/* Header Area */}
+      <div className="p-5 pb-3 flex items-start gap-4">
+        {/* Favicon Icon */}
+        <div className="w-12 h-12 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-150 dark:border-zinc-850 flex items-center justify-center shadow-inner shrink-0 overflow-hidden">
           {fav && !imgErr ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={fav} alt="" width={22} height={22} className="object-contain" onError={() => setImgErr(true)} />
+            <img src={fav} alt="" width={24} height={24} className="object-contain" onError={() => setImgErr(true)} />
           ) : (
-            <Globe size={18} className="text-zinc-400" />
+            <Globe size={20} className="text-zinc-400 dark:text-zinc-600" />
           )}
         </div>
+
+        {/* Text details */}
         <div className="flex-1 min-w-0">
-          <h3 className={`font-bold text-sm leading-tight truncate text-zinc-900 dark:text-zinc-50 ${item.watched ? "line-through" : ""}`}>
-            {item.title || "Unnamed"}
-          </h3>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className={`font-black text-[15px] leading-tight text-zinc-900 dark:text-zinc-50 tracking-tight truncate ${item.watched ? "line-through text-zinc-400" : ""}`}>
+              {item.title || "Unnamed"}
+            </h3>
+          </div>
           {host && (
-            <button onClick={open} className="flex items-center gap-1 text-[11px] text-zinc-400 hover:text-amber-500 transition-colors mt-0.5 w-fit cursor-pointer">
-              <span className="truncate max-w-[140px]">{host}</span>
-              <ExternalLink size={9} className="shrink-0" />
+            <button onClick={open} className="flex items-center gap-1 text-xs text-zinc-400 dark:text-zinc-500 hover:text-amber-500 transition-colors mt-1 cursor-pointer">
+              <span className="truncate max-w-[150px] font-medium">{host}</span>
+              <ExternalLink size={10} className="shrink-0" />
             </button>
           )}
         </div>
-        {/* Category badge */}
-        {item.category && (
-          <span className={`text-[9px] font-bold px-2 py-0.5 border rounded-full uppercase tracking-wider shrink-0 ${catColor[item.category] ?? catColor.Other}`}>
-            {item.category}
-          </span>
-        )}
-        {/* Archive / delete */}
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+
+        {/* Actions inside group hover */}
+        <div className="flex items-center gap-1 shrink-0">
+          {item.category && (
+            <span className={`text-[9px] font-extrabold px-2.5 py-1 border rounded-full uppercase tracking-wider shrink-0 ${catColor[item.category] ?? catColor.Other}`}>
+              {item.category}
+            </span>
+          )}
           <button
             onClick={() => onToggleWatched(item.id)}
-            className={`w-7 h-7 flex items-center justify-center rounded-lg transition-all cursor-pointer ${item.watched ? "text-green-500 bg-green-500/10" : "text-zinc-400 hover:text-green-500 hover:bg-green-500/10"}`}
+            className={`w-7 h-7 flex items-center justify-center rounded-lg transition-all cursor-pointer ${item.watched ? "text-green-500 bg-green-500/10" : "text-zinc-400 dark:text-zinc-500 hover:text-green-500 hover:bg-green-500/10"}`}
             title={item.watched ? "Unarchive" : "Archive"}
           >
-            <CircleCheckBig size={13} />
+            <CircleCheckBig size={14} />
           </button>
           <button
             onClick={() => { if (window.confirm("Delete this entry?")) onDelete(item.id); }}
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-400 hover:text-red-500 hover:bg-red-500/10 transition-all cursor-pointer"
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-400 dark:text-zinc-500 hover:text-red-500 hover:bg-red-500/10 transition-all cursor-pointer"
             title="Delete"
           >
-            <Trash2 size={13} />
+            <Trash2 size={14} />
           </button>
         </div>
       </div>
 
-      {/* Accounts list */}
-      <div className="p-4 space-y-3">
+      {/* Main Content Area */}
+      <div className="px-5 pb-5 space-y-4">
         {accs.length === 0 ? (
-          <p className="text-[11px] text-zinc-400 text-center py-1">No credentials saved.</p>
+          <p className="text-xs text-zinc-400 text-center py-2 bg-zinc-50 dark:bg-zinc-950/40 rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800">
+            No credentials saved.
+          </p>
         ) : (
-          (expanded ? accs : accs.slice(0, 1)).map((acc, idx) => (
-            <div key={idx} className={`space-y-2 ${idx > 0 ? "pt-3 border-t border-zinc-100 dark:border-zinc-800/60" : ""}`}>
-              {accs.length > 1 && (
-                <div className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider">Account #{idx + 1}</div>
-              )}
-              {/* Email / Username row */}
-              <div className="flex items-center gap-2">
-                <Mail size={11} className="text-zinc-400 shrink-0" />
-                <span className="flex-1 text-xs font-mono text-zinc-700 dark:text-zinc-300 truncate">{acc.username || "—"}</span>
-                {acc.username && (
-                  <button onClick={() => copy(acc.username, "user", idx)} className="p-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-all cursor-pointer" title="Copy email">
-                    {copiedUser === idx ? <Check size={11} className="text-green-500" /> : <Copy size={11} />}
-                  </button>
+          <div className="space-y-3.5">
+            {(expanded ? accs : accs.slice(0, 1)).map((acc, idx) => (
+              <div key={idx} className="space-y-2 bg-zinc-50/70 dark:bg-zinc-950/40 border border-zinc-200/50 dark:border-zinc-800/50 rounded-2xl p-3.5 relative">
+                {accs.length > 1 && (
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[9px] font-extrabold text-zinc-400 uppercase tracking-widest">Account #{idx + 1}</span>
+                    <button
+                      onClick={() => {
+                        if (window.confirm("Remove this account option?")) {
+                          onUpdateAccounts(item.id, accs.filter((_, i) => i !== idx));
+                        }
+                      }}
+                      className="text-zinc-400 hover:text-red-500 p-0.5 rounded transition-colors cursor-pointer"
+                      title="Remove account option"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
                 )}
+
+                {/* Email Display */}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Mail size={12} className="text-zinc-400 shrink-0" />
+                    <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 select-all truncate">{acc.username || "—"}</span>
+                  </div>
+                  {acc.username && (
+                    <button
+                      onClick={() => copy(acc.username, "user", idx)}
+                      className="p-1.5 rounded-lg hover:bg-zinc-200/50 dark:hover:bg-zinc-800/80 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-all cursor-pointer shrink-0"
+                    >
+                      {copiedUser === idx ? (
+                        <span className="text-[10px] font-bold text-green-500 flex items-center gap-0.5"><Check size={11} /> Copied</span>
+                      ) : (
+                        <Copy size={12} />
+                      )}
+                    </button>
+                  )}
+                </div>
+
+                {/* Password Display */}
+                <div className="flex items-center justify-between gap-3 border-t border-zinc-200/30 dark:border-zinc-800/30 pt-2.5 mt-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Key size={12} className="text-zinc-400 shrink-0" />
+                    <span className="text-xs font-mono font-bold text-zinc-700 dark:text-zinc-300 tracking-widest select-all">
+                      {showPassMap[idx] ? acc.password : "••••••••••"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => setShowPassMap(p => ({ ...p, [idx]: !p[idx] }))}
+                      className="p-1.5 rounded-lg hover:bg-zinc-200/50 dark:hover:bg-zinc-800/80 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-all cursor-pointer"
+                    >
+                      {showPassMap[idx] ? <EyeOff size={12} /> : <Eye size={12} />}
+                    </button>
+                    {acc.password && (
+                      <button
+                        onClick={() => copy(acc.password, "pass", idx)}
+                        className="p-1.5 rounded-lg hover:bg-zinc-200/50 dark:hover:bg-zinc-800/80 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-all cursor-pointer"
+                      >
+                        {copiedPass === idx ? (
+                          <span className="text-[10px] font-bold text-green-500 flex items-center gap-0.5"><Check size={11} /> Copied</span>
+                        ) : (
+                          <Copy size={12} />
+                        )}
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
-              {/* Password row */}
-              <div className="flex items-center gap-2">
-                <Key size={11} className="text-zinc-400 shrink-0" />
-                <span className="flex-1 text-xs font-mono text-zinc-700 dark:text-zinc-300 tracking-wider">
-                  {showPassMap[idx] ? acc.password : "••••••••••"}
-                </span>
-                <button onClick={() => setShowPassMap(p => ({ ...p, [idx]: !p[idx] }))} className="p-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-all cursor-pointer">
-                  {showPassMap[idx] ? <EyeOff size={11} /> : <Eye size={11} />}
-                </button>
-                {acc.password && (
-                  <button onClick={() => copy(acc.password, "pass", idx)} className="p-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-all cursor-pointer" title="Copy password">
-                    {copiedPass === idx ? <Check size={11} className="text-green-500" /> : <Copy size={11} />}
-                  </button>
-                )}
-              </div>
-            </div>
-          ))
+            ))}
+          </div>
         )}
 
-        {/* Expand/collapse multiple accounts */}
+        {/* Expand / collapse triggers */}
         {accs.length > 1 && (
           <button
             onClick={() => setExpanded(v => !v)}
-            className="flex items-center gap-1 text-[10px] font-semibold text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors cursor-pointer"
+            className="flex items-center gap-1 text-[10px] font-bold text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors cursor-pointer w-fit"
           >
-            <ChevronDown size={12} className={`transition-transform ${expanded ? "rotate-180" : ""}`} />
-            {expanded ? "Show less" : `+${accs.length - 1} more account${accs.length - 1 > 1 ? "s" : ""}`}
+            <ChevronDown size={12} className={`transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
+            {expanded ? "SHOW LESS" : `VIEW ${accs.length - 1} MORE ACCOUNT${accs.length - 1 > 1 ? "S" : ""}`}
           </button>
         )}
 
-        {/* Notes */}
+        {/* Note Context panel */}
         {item.context && (
-          <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed bg-zinc-50 dark:bg-zinc-950/40 rounded-xl px-3 py-2 border border-zinc-100 dark:border-zinc-800/40">
-            {item.context}
-          </p>
+          <div className="space-y-1 bg-zinc-50/40 dark:bg-zinc-950/20 border border-zinc-200/40 dark:border-zinc-850/40 rounded-2xl p-3">
+            <span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest block">Notes</span>
+            <p className="text-[11px] text-zinc-600 dark:text-zinc-400 leading-relaxed font-medium whitespace-pre-wrap">
+              {item.context}
+            </p>
+          </div>
         )}
 
-        {/* Add another account inline */}
+        {/* Inline Add Account Form */}
         {addingAcc ? (
-          <div className="space-y-2 pt-2 border-t border-zinc-100 dark:border-zinc-800/50">
-            <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider">Add Account</p>
+          <div className="space-y-2.5 p-3.5 bg-zinc-50/50 dark:bg-zinc-950/30 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl mt-1">
+            <div className="flex justify-between items-center">
+              <span className="text-[9px] font-extrabold text-zinc-400 uppercase tracking-widest">Add Additional Login</span>
+            </div>
             <input
               value={newUser} onChange={e => setNewUser(e.target.value)}
-              placeholder="Email / Username"
-              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-lg px-3 py-1.5 text-xs focus:outline-none"
+              placeholder="Username / Email"
+              className="w-full bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 focus:outline-none"
             />
-            <div className="flex gap-1">
-              <div className="flex-1 flex items-center gap-1 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-lg px-3 py-1.5">
-                <input
-                  type={showNewPass ? "text" : "password"}
-                  value={newPass} onChange={e => setNewPass(e.target.value)}
-                  placeholder="Password"
-                  className="flex-1 bg-transparent text-xs focus:outline-none min-w-0"
-                />
-                <button onClick={() => setShowNewPass(v => !v)} className="text-zinc-400 cursor-pointer">{showNewPass ? <EyeOff size={11} /> : <Eye size={11} />}</button>
-                <button onClick={genPass} className="text-zinc-400 cursor-pointer" title="Generate"><RefreshCw size={11} /></button>
-              </div>
+            <div className="flex items-center gap-2 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 w-full">
+              <input
+                type={showNewPass ? "text" : "password"}
+                value={newPass} onChange={e => setNewPass(e.target.value)}
+                placeholder="Password"
+                className="flex-1 bg-transparent text-xs focus:outline-none min-w-0"
+              />
+              <button type="button" onClick={() => setShowNewPass(v => !v)} className="text-zinc-400 hover:text-zinc-650 cursor-pointer"><Eye size={12} /></button>
+              <button type="button" onClick={genPass} className="text-zinc-400 hover:text-zinc-650 cursor-pointer" title="Generate"><RefreshCw size={12} /></button>
             </div>
-            <div className="flex justify-end gap-1.5">
-              <button onClick={() => { setAddingAcc(false); setNewUser(""); setNewPass(""); }} className="px-2.5 py-1 text-[10px] font-bold text-zinc-500 hover:bg-zinc-100 rounded-lg cursor-pointer">Cancel</button>
+            <div className="flex justify-end gap-1.5 pt-1">
+              <button onClick={() => { setAddingAcc(false); setNewUser(""); setNewPass(""); }} className="px-3 py-1.5 rounded-lg text-[10px] font-bold text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-850 cursor-pointer">Cancel</button>
               <button
                 onClick={() => {
                   if (!newUser.trim() && !newPass.trim()) return;
                   onUpdateAccounts(item.id, [...accs, { username: newUser.trim(), password: newPass }]);
                   setAddingAcc(false); setNewUser(""); setNewPass("");
                 }}
-                className="px-3 py-1 text-[10px] font-bold bg-zinc-950 dark:bg-zinc-100 text-white dark:text-zinc-950 rounded-lg cursor-pointer"
+                className="px-3.5 py-1.5 rounded-lg bg-zinc-950 dark:bg-zinc-100 text-white dark:text-zinc-950 text-[10px] font-bold cursor-pointer"
               >Add</button>
             </div>
           </div>
         ) : (
           <button
             onClick={() => setAddingAcc(true)}
-            className="flex items-center gap-1 text-[10px] font-semibold text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors cursor-pointer"
+            className="flex items-center justify-center gap-1.5 px-3 py-2.5 w-full rounded-2xl text-[10px] font-bold text-zinc-500 dark:text-zinc-400 border border-dashed border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-950/20 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all cursor-pointer"
           >
-            <Plus size={11} /> Add account
+            <Plus size={11} /> Add Another Account
           </button>
         )}
       </div>
 
-      {/* Footer */}
-      <div className="px-4 pb-3 flex items-center justify-between">
-        <span className="flex items-center gap-1 text-[9px] font-semibold text-zinc-400 uppercase tracking-wide">
-          <Clock size={9} /> {timeAgo(item.createdAt)}
-        </span>
+      {/* Card Footer info */}
+      <div className="px-5 py-3.5 bg-zinc-50/40 dark:bg-zinc-950/10 border-t border-zinc-100 dark:border-zinc-900/60 flex items-center justify-between text-[9px] font-bold text-zinc-400 uppercase tracking-widest mt-auto">
+        <span className="flex items-center gap-1"><Clock size={10} /> {timeAgo(item.createdAt)}</span>
         {item.url && (
-          <button onClick={open} className="flex items-center gap-1 text-[10px] font-bold text-zinc-400 hover:text-amber-500 transition-colors cursor-pointer">
-            <ExternalLink size={10} /> Open
+          <button onClick={open} className="flex items-center gap-1 hover:text-amber-500 transition-colors cursor-pointer">
+            Go to login <ExternalLink size={10} />
           </button>
         )}
       </div>
