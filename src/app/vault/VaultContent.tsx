@@ -318,7 +318,7 @@ function DetailsModal({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
         transition={{ type: "spring", duration: 0.4 }}
-        className="relative w-full max-w-4xl h-[85vh] bg-white dark:bg-zinc-900 sm:rounded-3xl rounded-t-3xl border border-zinc-200/80 dark:border-zinc-800/80 shadow-2xl z-10 overflow-hidden flex flex-col"
+        className="relative w-full max-w-6xl h-[90vh] bg-white dark:bg-zinc-900 sm:rounded-3xl rounded-t-3xl border border-zinc-200/80 dark:border-zinc-800/80 shadow-2xl z-10 overflow-hidden flex flex-col"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 dark:border-zinc-800/60 shrink-0">
@@ -396,10 +396,15 @@ function DetailsModal({
                         )}
                       </div>
                       
-                      {accs.length > 1 && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (accs.length === 1) {
+                            if (window.confirm("This is the last account. Deleting it will remove this entire service. Proceed?")) {
+                              onDelete(item.id);
+                              onClose();
+                            }
+                          } else {
                             if (window.confirm("Remove this account?")) {
                               const updated = accs.filter((_, i) => i !== idx);
                               onUpdateAccounts(item.id, updated);
@@ -407,13 +412,13 @@ function DetailsModal({
                                 setActiveAccIdx(Math.max(0, updated.length - 1));
                               }
                             }
-                          }}
-                          className="p-1 text-zinc-400 hover:text-red-500 rounded-lg hover:bg-red-500/10 opacity-0 group-hover/acc:opacity-100 transition-opacity cursor-pointer ml-2"
-                          title="Remove Account"
-                        >
-                          <X size={12} />
-                        </button>
-                      )}
+                          }
+                        }}
+                        className="p-1.5 text-zinc-400 hover:text-red-500 rounded-lg hover:bg-red-500/10 transition-colors cursor-pointer ml-2 shrink-0"
+                        title="Remove Account"
+                      >
+                        <X size={12} />
+                      </button>
                     </div>
                   );
                 })}
@@ -526,9 +531,29 @@ function DetailsModal({
                 {/* Credentials details panel */}
                 <div className="bg-zinc-50 dark:bg-zinc-955/40 border border-zinc-200/50 dark:border-zinc-800/50 rounded-2xl p-4.5 space-y-4 shrink-0">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-extrabold text-zinc-400 uppercase tracking-widest">
+                    <span className="text-[10px] font-extrabold text-zinc-400 tracking-widest uppercase">
                       Active Credentials
                     </span>
+                    <button
+                      onClick={() => {
+                        if (accs.length === 1) {
+                          if (window.confirm("This is the last account. Deleting it will remove this entire service. Proceed?")) {
+                            onDelete(item.id);
+                            onClose();
+                          }
+                        } else {
+                          if (window.confirm("Delete this active account?")) {
+                            const updated = accs.filter((_, i) => i !== activeAccIdx);
+                            onUpdateAccounts(item.id, updated);
+                            setActiveAccIdx(Math.max(0, updated.length - 1));
+                          }
+                        }
+                      }}
+                      className="flex items-center gap-1.5 text-[10px] font-bold text-red-500 hover:text-red-600 transition-colors cursor-pointer shrink-0"
+                      title="Delete this account option"
+                    >
+                      <Trash2 size={11} /> Delete Account
+                    </button>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
