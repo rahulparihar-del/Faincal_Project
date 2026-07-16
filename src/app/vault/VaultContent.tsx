@@ -24,6 +24,7 @@ interface StashItem {
   watched: boolean;
   createdAt: string;
   category?: string;
+  linkedUrl?: string;
 }
 interface VaultRecord {
   id: string;
@@ -157,6 +158,15 @@ function CredCard({
               <span className="truncate max-w-[150px] font-medium">{host}</span>
               <ExternalLink size={10} className="shrink-0" />
             </button>
+          )}
+          {item.linkedUrl && (
+            <div className="mt-1 flex items-center gap-1 text-[11px] text-zinc-400 dark:text-zinc-500">
+              <span className="font-semibold text-zinc-400/80 dark:text-zinc-500/80 uppercase tracking-wider text-[9px]">Linked:</span>
+              <a href={item.linkedUrl} target="_blank" rel="noopener noreferrer" className="hover:text-amber-500 transition-colors inline-flex items-center gap-0.5 underline">
+                {hostnameOf(item.linkedUrl) || item.linkedUrl}
+                <ExternalLink size={8} className="shrink-0" />
+              </a>
+            </div>
           )}
         </div>
 
@@ -347,7 +357,7 @@ function AddModal({
   onClose, onAdd,
 }: {
   onClose: () => void;
-  onAdd: (data: { title: string; url: string; username: string; password: string; context: string; category: string }) => void;
+  onAdd: (data: { title: string; url: string; username: string; password: string; context: string; category: string; linkedUrl: string }) => void;
 }) {
   const [title, setTitle]           = useState("");
   const [url, setUrl]               = useState("");
@@ -355,6 +365,7 @@ function AddModal({
   const [password, setPassword]     = useState("");
   const [context, setContext]       = useState("");
   const [category, setCategory]     = useState("Other");
+  const [linkedUrl, setLinkedUrl]   = useState("");
   const [showPass, setShowPass]     = useState(false);
   const [imgErr, setImgErr]         = useState(false);
   const [urlPreviewed, setUrlPrev]  = useState("");
@@ -442,6 +453,19 @@ function AddModal({
             </div>
           </div>
 
+          {/* Linked Project/App URL */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Linked Website / App URL <span className="normal-case font-normal">(optional)</span></label>
+            <div className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-xl px-3 py-2 focus-within:border-zinc-900 dark:focus-within:border-zinc-300 transition-all">
+              <Globe size={13} className="text-zinc-400 shrink-0" />
+              <input
+                value={linkedUrl} onChange={e => setLinkedUrl(e.target.value)}
+                placeholder="e.g. localhost:3000 or my-app.vercel.app"
+                className="flex-1 bg-transparent text-sm text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 focus:outline-none min-w-0"
+              />
+            </div>
+          </div>
+
           {/* Site name + category */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -516,7 +540,7 @@ function AddModal({
             Cancel
           </button>
           <button
-            onClick={() => onAdd({ title, url, username, password, context, category })}
+            onClick={() => onAdd({ title, url, username, password, context, category, linkedUrl })}
             disabled={!valid}
             className="flex items-center gap-1.5 px-5 py-2 rounded-xl bg-zinc-950 dark:bg-zinc-100 text-white dark:text-zinc-950 text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-all cursor-pointer shadow-sm"
           >
@@ -575,6 +599,7 @@ export default function VaultPage() {
         const p = await decryptJSON<{
           title: string; url: string; context: string; category?: string;
           username?: string; password?: string; accounts?: Account[];
+          linkedUrl?: string;
         }>(key, r.enc);
         let accounts = p.accounts || [];
         if (!accounts.length && (p.username || p.password))
@@ -584,6 +609,7 @@ export default function VaultPage() {
           context: p.context || "", accounts, category: p.category,
           watched: !!r.watched,
           createdAt: r.createdAt || new Date(0).toISOString(),
+          linkedUrl: p.linkedUrl || "",
         });
       } catch { /* skip undecryptable */ }
     }
@@ -646,6 +672,7 @@ export default function VaultPage() {
   /* Mutations */
   const handleAdd = useCallback(async (data: {
     title: string; url: string; username: string; password: string; context: string; category: string;
+    linkedUrl?: string;
   }) => {
     const key = keyRef.current;
     if (!key) return;
@@ -655,6 +682,7 @@ export default function VaultPage() {
     const createdAt = new Date().toISOString();
     const cleanUrl  = data.url.trim() ? normalizeUrl(data.url) : "";
     const cleanTitle = data.title.trim() || hostnameOf(cleanUrl) || "Unnamed";
+    const cleanLinkedUrl = data.linkedUrl?.trim() ? normalizeUrl(data.linkedUrl) : "";
 
     // Dedup: merge into existing card if same title/domain
     const existing = stash.find(i =>
@@ -671,6 +699,7 @@ export default function VaultPage() {
       title: cleanTitle, url: cleanUrl, context: data.context.trim(),
       category: data.category,
       accounts: [{ username: data.username.trim(), password: data.password }],
+      linkedUrl: cleanLinkedUrl,
     };
     const enc = await encryptJSON(key, payload);
     const rec: VaultRecord = { id, enc, watched: false, createdAt };
@@ -678,6 +707,7 @@ export default function VaultPage() {
     setStash(prev => [{
       id, title: cleanTitle, url: cleanUrl, context: data.context.trim(),
       category: data.category, accounts: payload.accounts, watched: false, createdAt,
+      linkedUrl: cleanLinkedUrl,
     }, ...prev]);
     setIsModalOpen(false);
   }, [stash, setRecords]);
@@ -714,6 +744,7 @@ export default function VaultPage() {
       return (
         i.title.toLowerCase().includes(q) ||
         hostnameOf(i.url).includes(q) ||
+        (i.linkedUrl && hostnameOf(i.linkedUrl).includes(q)) ||
         i.accounts.some(a => a.username.toLowerCase().includes(q))
       );
     }
