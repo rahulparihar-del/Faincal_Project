@@ -397,7 +397,12 @@ function StashCard({
 export default function VaultPage() {
   const [locked, setLocked] = useState(true);
   const [autoLocked, setAutoLocked] = useState(false);
-  const [records, setRecords, isReady, isSynced] = useSupabaseTable<VaultRecord>("vault_items", STORAGE_KEY, []);
+  const [records, setRecords, isReady, isSynced] = useSupabaseTable<VaultRecord>(
+    "vault_items",
+    STORAGE_KEY,
+    [],
+    { noLocalStorage: true } // passwords must never be cached in browser localStorage
+  );
 
   // Decrypted items (only in memory while unlocked).
   const [stash, setStash] = useState<StashItem[]>([]);

@@ -13,11 +13,15 @@ import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
  *
  * If Supabase isn't configured, it transparently falls back to localStorage so
  * the app keeps working during setup.
+ *
+ * Pass `noLocalStorage: true` for sensitive tables (e.g. vault) so that data
+ * is never cached in the browser's readable localStorage — Supabase only.
  */
 export function useSupabaseTable<T extends { id: string }>(
   table: string,
   storageKey: string,
-  initialValue: T[]
+  initialValue: T[],
+  { noLocalStorage = false }: { noLocalStorage?: boolean } = {}
 ) {
   const [data, setData] = useState<T[]>(initialValue);
   const [isReady, setIsReady] = useState(false);
@@ -27,6 +31,7 @@ export function useSupabaseTable<T extends { id: string }>(
   const dataRef = useRef<T[]>(initialValue);
 
   const readLocal = useCallback((): T[] => {
+    if (noLocalStorage) return initialValue;
     try {
       const raw = window.localStorage.getItem(storageKey);
       return raw ? (JSON.parse(raw) as T[]) : initialValue;
@@ -36,15 +41,23 @@ export function useSupabaseTable<T extends { id: string }>(
     }
     // initialValue intentionally excluded; it's a stable [] from the caller.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storageKey]);
+  }, [storageKey, noLocalStorage]);
 
   // ── Initial load (with one-time localStorage -> Supabase migration) ──
   useEffect(() => {
     let active = true;
     const migratedFlag = `${storageKey}__migrated`;
 
+    // If noLocalStorage, purge any previously cached data for this key.
+    if (noLocalStorage) {
+      try {
+        window.localStorage.removeItem(storageKey);
+        window.localStorage.removeItem(migratedFlag);
+      } catch { /* ignore */ }
+    }
+
     // 1. Immediately load local cache so the UI is ready instantly
-    const local = readLocal();
+    const local = readLocal(); // returns [] when noLocalStorage=true
     setData(local);
     dataRef.current = local;
     setIsReady(true);
@@ -97,11 +110,13 @@ export function useSupabaseTable<T extends { id: string }>(
           setData(records);
           dataRef.current = records;
 
-          // Keep localStorage updated with fresh data
-          try {
-            window.localStorage.setItem(storageKey, JSON.stringify(records));
-          } catch (err) {
-            console.warn(`Error writing localStorage cache for key "${storageKey}":`, err);
+          // Keep localStorage updated with fresh data (skip for noLocalStorage tables)
+          if (!noLocalStorage) {
+            try {
+              window.localStorage.setItem(storageKey, JSON.stringify(records));
+            } catch (err) {
+              console.warn(`Error writing localStorage cache for key "${storageKey}":`, err);
+            }
           }
         }
 
@@ -118,11 +133,13 @@ export function useSupabaseTable<T extends { id: string }>(
   // ── Persist a diff to Supabase (or localStorage fallback) ──
   const persist = useCallback(
     (prev: T[], next: T[]) => {
-      // Always write to localStorage as a cache mirror to prevent data loss
-      try {
-        window.localStorage.setItem(storageKey, JSON.stringify(next));
-      } catch (error) {
-        console.warn(`Error writing localStorage cache for key "${storageKey}":`, error);
+      // Write to localStorage as a cache mirror — skipped for noLocalStorage tables.
+      if (!noLocalStorage) {
+        try {
+          window.localStorage.setItem(storageKey, JSON.stringify(next));
+        } catch (error) {
+          console.warn(`Error writing localStorage cache for key "${storageKey}":`, error);
+        }
       }
 
       if (!isSupabaseConfigured || !supabase) {
@@ -162,7 +179,7 @@ export function useSupabaseTable<T extends { id: string }>(
         }
       })();
     },
-    [table, storageKey]
+    [table, storageKey, noLocalStorage]
   );
 
   const setValue = useCallback(
