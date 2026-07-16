@@ -397,7 +397,7 @@ function StashCard({
 export default function VaultPage() {
   const [locked, setLocked] = useState(true);
   const [autoLocked, setAutoLocked] = useState(false);
-  const [records, setRecords, isReady] = useSupabaseTable<VaultRecord>("vault_items", STORAGE_KEY, []);
+  const [records, setRecords, isReady, isSynced] = useSupabaseTable<VaultRecord>("vault_items", STORAGE_KEY, []);
 
   // Decrypted items (only in memory while unlocked).
   const [stash, setStash] = useState<StashItem[]>([]);
@@ -416,9 +416,12 @@ export default function VaultPage() {
   const hasMeta = records.some((r) => r.id === META_ID);
   const mode: "setup" | "unlock" = hasMeta ? "unlock" : "setup";
 
-  // Auto-initialize vault with PIN "2001" if it is completely uninitialized.
+  // Auto-initialize vault with PIN "2001" only once Supabase has responded,
+  // so we never overwrite an existing meta record that hasn't loaded yet.
   useEffect(() => {
-    if (!isReady) return;
+    // Wait until both the local cache AND Supabase have been read before
+    // deciding the vault is truly empty (prevents salt-overwrite on slow loads).
+    if (!isReady || !isSynced) return;
     const hasMetaRecord = records.some((r) => r.id === META_ID);
     if (!hasMetaRecord) {
       const initVault = async () => {
@@ -435,7 +438,7 @@ export default function VaultPage() {
       };
       initVault();
     }
-  }, [isReady, records, setRecords]);
+  }, [isReady, isSynced, records, setRecords]);
 
   /* Clear all decrypted material from memory. */
   const wipe = () => {
@@ -713,15 +716,18 @@ export default function VaultPage() {
 
       <AnimatePresence mode="wait">
         {locked ? (
-          !isReady ? (
+          !isReady || !isSynced ? (
             <motion.div
               key="loading"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="flex items-center justify-center min-h-[calc(100vh-200px)] text-[#999]"
+              className="flex flex-col items-center justify-center gap-3 min-h-[calc(100vh-200px)] text-[#999]"
             >
               <Loader2 className="animate-spin" size={24} />
+              {isReady && !isSynced && (
+                <span className="text-xs text-zinc-400 dark:text-zinc-600">Syncing vault…</span>
+              )}
             </motion.div>
           ) : (
             <VaultLock

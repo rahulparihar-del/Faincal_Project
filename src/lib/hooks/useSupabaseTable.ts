@@ -21,6 +21,8 @@ export function useSupabaseTable<T extends { id: string }>(
 ) {
   const [data, setData] = useState<T[]>(initialValue);
   const [isReady, setIsReady] = useState(false);
+  // isSynced becomes true once Supabase has responded (or immediately if not configured).
+  const [isSynced, setIsSynced] = useState(!isSupabaseConfigured);
   // Mirror of the latest data so writes can diff without stale closures.
   const dataRef = useRef<T[]>(initialValue);
 
@@ -102,6 +104,9 @@ export function useSupabaseTable<T extends { id: string }>(
             console.warn(`Error writing localStorage cache for key "${storageKey}":`, err);
           }
         }
+
+        // Mark as synced regardless of error so callers are never blocked forever.
+        if (active) setIsSynced(true);
       })();
     }
 
@@ -174,5 +179,5 @@ export function useSupabaseTable<T extends { id: string }>(
     [persist]
   );
 
-  return [data, setValue, isReady] as const;
+  return [data, setValue, isReady, isSynced] as const;
 }
