@@ -299,6 +299,23 @@ function DetailsModal({
   const host = hostnameOf(item.url);
   const [imgErr, setImgErr] = useState(false);
 
+  const [isEditing, setIsEditing] = useState(false);
+  const [editUser, setEditUser] = useState("");
+  const [editPass, setEditPass] = useState("");
+  const [editUrl, setEditUrl] = useState("");
+  const [editLinkedUrl, setEditLinkedUrl] = useState("");
+  const [showEditPass, setShowEditPass] = useState(false);
+
+  useEffect(() => {
+    if (activeAcc) {
+      setEditUser(activeAcc.username || "");
+      setEditPass(activeAcc.password || "");
+      setEditUrl(activeAcc.url || item.url || "");
+      setEditLinkedUrl(activeAcc.linkedUrl || item.linkedUrl || "");
+    }
+    setIsEditing(false);
+  }, [activeAccIdx, item.id]);
+
   // The website to preview for the active account
   const previewUrl = activeAcc
     ? (activeAcc.linkedUrl || activeAcc.url || item.linkedUrl || item.url)
@@ -517,7 +534,7 @@ function DetailsModal({
                 <span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest block mb-1">
                   Notes
                 </span>
-                <p className="text-[11px] text-zinc-600 dark:text-zinc-400 leading-relaxed font-medium whitespace-pre-wrap">
+                <p className="text-[11px] text-zinc-650 dark:text-zinc-400 leading-relaxed font-medium whitespace-pre-wrap">
                   {item.context}
                 </p>
               </div>
@@ -529,31 +546,80 @@ function DetailsModal({
             {activeAcc ? (
               <>
                 {/* Credentials details panel */}
-                <div className="bg-zinc-50 dark:bg-zinc-955/40 border border-zinc-200/50 dark:border-zinc-800/50 rounded-2xl p-4.5 space-y-4 shrink-0">
+                <div className="bg-zinc-50 dark:bg-zinc-950/40 border border-zinc-200/50 dark:border-zinc-800/50 rounded-2xl p-4.5 space-y-4 shrink-0">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-extrabold text-zinc-400 tracking-widest uppercase">
-                      Active Credentials
+                      {isEditing ? "Editing Credentials" : "Active Credentials"}
                     </span>
-                    <button
-                      onClick={() => {
-                        if (accs.length === 1) {
-                          if (window.confirm("This is the last account. Deleting it will remove this entire service. Proceed?")) {
-                            onDelete(item.id);
-                            onClose();
-                          }
-                        } else {
-                          if (window.confirm("Delete this active account?")) {
-                            const updated = accs.filter((_, i) => i !== activeAccIdx);
-                            onUpdateAccounts(item.id, updated);
-                            setActiveAccIdx(Math.max(0, updated.length - 1));
-                          }
-                        }
-                      }}
-                      className="flex items-center gap-1.5 text-[10px] font-bold text-red-500 hover:text-red-600 transition-colors cursor-pointer shrink-0"
-                      title="Delete this account option"
-                    >
-                      <Trash2 size={11} /> Delete Account
-                    </button>
+                    <div className="flex items-center gap-3 shrink-0">
+                      {isEditing ? (
+                        <>
+                          <button
+                            onClick={() => {
+                              const updatedAccs = accs.map((acc, idx) => {
+                                if (idx === activeAccIdx) {
+                                  return {
+                                    username: editUser.trim(),
+                                    password: editPass,
+                                    url: editUrl.trim() ? normalizeUrl(editUrl) : undefined,
+                                    linkedUrl: editLinkedUrl.trim() ? normalizeUrl(editLinkedUrl) : undefined
+                                  };
+                                }
+                                return acc;
+                              });
+                              onUpdateAccounts(item.id, updatedAccs);
+                              setIsEditing(false);
+                            }}
+                            className="flex items-center gap-1 text-[10px] font-bold text-green-600 dark:text-green-400 hover:opacity-80 transition-opacity cursor-pointer"
+                          >
+                            <Check size={11} /> Save
+                          </button>
+                          <button
+                            onClick={() => {
+                              setIsEditing(false);
+                              if (activeAcc) {
+                                setEditUser(activeAcc.username || "");
+                                setEditPass(activeAcc.password || "");
+                                setEditUrl(activeAcc.url || item.url || "");
+                                setEditLinkedUrl(activeAcc.linkedUrl || item.linkedUrl || "");
+                              }
+                            }}
+                            className="flex items-center gap-1 text-[10px] font-bold text-zinc-500 hover:opacity-80 transition-opacity cursor-pointer"
+                          >
+                            <X size={11} /> Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => setIsEditing(true)}
+                            className="flex items-center gap-1 text-[10px] font-bold text-amber-500 hover:text-amber-600 transition-colors cursor-pointer"
+                          >
+                            <RefreshCw size={11} /> Edit Details
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (accs.length === 1) {
+                                if (window.confirm("This is the last account. Deleting it will remove this entire service. Proceed?")) {
+                                  onDelete(item.id);
+                                  onClose();
+                                }
+                              } else {
+                                if (window.confirm("Delete this active account?")) {
+                                  const updated = accs.filter((_, i) => i !== activeAccIdx);
+                                  onUpdateAccounts(item.id, updated);
+                                  setActiveAccIdx(Math.max(0, updated.length - 1));
+                                }
+                              }
+                            }}
+                            className="flex items-center gap-1.5 text-[10px] font-bold text-red-500 hover:text-red-600 transition-colors cursor-pointer shrink-0"
+                            title="Delete this account option"
+                          >
+                            <Trash2 size={11} /> Delete Account
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -563,7 +629,7 @@ function DetailsModal({
                         <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1">
                           <Mail size={10} /> Username / Email
                         </span>
-                        {activeAcc.username && (
+                        {!isEditing && activeAcc.username && (
                           <button
                             onClick={() => copy(activeAcc.username, "user", activeAccIdx)}
                             className="p-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 transition-all cursor-pointer"
@@ -576,9 +642,17 @@ function DetailsModal({
                           </button>
                         )}
                       </div>
-                      <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 select-all truncate mt-1">
-                        {activeAcc.username || "—"}
-                      </p>
+                      {isEditing ? (
+                        <input
+                          value={editUser}
+                          onChange={e => setEditUser(e.target.value)}
+                          className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-2 py-1 text-xs text-zinc-900 dark:text-zinc-50 focus:outline-none mt-1"
+                        />
+                      ) : (
+                        <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 select-all truncate mt-1">
+                          {activeAcc.username || "—"}
+                        </p>
+                      )}
                     </div>
 
                     {/* Password Display */}
@@ -588,63 +662,126 @@ function DetailsModal({
                           <Key size={10} /> Password
                         </span>
                         <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => setShowPassMap(p => ({ ...p, [activeAccIdx]: !p[activeAccIdx] }))}
-                            className="p-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 transition-all cursor-pointer"
-                          >
-                            {showPassMap[activeAccIdx] ? <EyeOff size={11} /> : <Eye size={11} />}
-                          </button>
-                          {activeAcc.password && (
-                            <button
-                              onClick={() => copy(activeAcc.password, "pass", activeAccIdx)}
-                              className="p-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 transition-all cursor-pointer"
-                            >
-                              {copiedPass === activeAccIdx ? (
-                                <span className="text-[9px] font-bold text-green-500 flex items-center gap-0.5"><Check size={10} /> Copied</span>
-                              ) : (
-                                <Copy size={11} />
+                          {isEditing ? (
+                            <>
+                              <button
+                                onClick={() => setShowEditPass(v => !v)}
+                                className="p-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 transition-all cursor-pointer"
+                              >
+                                {showEditPass ? <EyeOff size={11} /> : <Eye size={11} />}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=";
+                                  const arr = new Uint32Array(16);
+                                  window.crypto.getRandomValues(arr);
+                                  setEditPass(Array.from(arr).map(n => chars[n % chars.length]).join(""));
+                                  setShowEditPass(true);
+                                }}
+                                className="p-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 transition-all cursor-pointer"
+                                title="Generate Password"
+                              >
+                                <RefreshCw size={11} />
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => setShowPassMap(p => ({ ...p, [activeAccIdx]: !p[activeAccIdx] }))}
+                                className="p-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 transition-all cursor-pointer"
+                              >
+                                {showPassMap[activeAccIdx] ? <EyeOff size={11} /> : <Eye size={11} />}
+                              </button>
+                              {activeAcc.password && (
+                                <button
+                                  onClick={() => copy(activeAcc.password, "pass", activeAccIdx)}
+                                  className="p-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 transition-all cursor-pointer"
+                                >
+                                  {copiedPass === activeAccIdx ? (
+                                    <span className="text-[9px] font-bold text-green-500 flex items-center gap-0.5"><Check size={10} /> Copied</span>
+                                  ) : (
+                                    <Copy size={11} />
+                                  )}
+                                </button>
                               )}
-                            </button>
+                            </>
                           )}
                         </div>
                       </div>
-                      <p className="text-xs font-mono font-bold text-zinc-700 dark:text-zinc-300 tracking-wider select-all mt-1">
-                        {showPassMap[activeAccIdx] ? activeAcc.password : "••••••••••••••••"}
-                      </p>
+                      {isEditing ? (
+                        <input
+                          type={showEditPass ? "text" : "password"}
+                          value={editPass}
+                          onChange={e => setEditPass(e.target.value)}
+                          className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-2 py-1 text-xs text-zinc-900 dark:text-zinc-50 focus:outline-none mt-1 font-mono"
+                        />
+                      ) : (
+                        <p className="text-xs font-mono font-bold text-zinc-700 dark:text-zinc-300 tracking-wider select-all mt-1">
+                          {showPassMap[activeAccIdx] ? activeAcc.password : "••••••••••••••••"}
+                        </p>
+                      )}
                     </div>
                   </div>
 
                   {/* Connected URLs */}
                   <div className="flex flex-col gap-2 pt-2 border-t border-zinc-200/30 dark:border-zinc-800/30">
                     {/* Primary Url */}
-                    {(activeAcc.url || item.url) && (
-                      <div className="flex items-center justify-between text-[11px] text-zinc-500 bg-white dark:bg-zinc-900 px-3 py-2 rounded-xl border border-zinc-200/30 dark:border-zinc-800/30">
+                    {isEditing ? (
+                      <div className="flex flex-col gap-1 text-[11px] bg-white dark:bg-zinc-900 px-3 py-2 rounded-xl border border-zinc-200/30 dark:border-zinc-800/30">
                         <span className="font-semibold text-zinc-400/80 uppercase tracking-wider text-[9px] flex items-center gap-1">
-                          <Link2 size={10} /> Website Portal:
+                          <Link2 size={10} /> Website Portal URL:
                         </span>
-                        <a
-                          href={activeAcc.url || item.url} target="_blank" rel="noopener noreferrer"
-                          className="hover:text-amber-500 transition-colors inline-flex items-center gap-1 underline font-medium select-all"
-                        >
-                          {activeAcc.url || item.url}
-                          <ExternalLink size={10} />
-                        </a>
+                        <input
+                          value={editUrl}
+                          onChange={e => setEditUrl(e.target.value)}
+                          placeholder="e.g. https://supabase.com"
+                          className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-2.5 py-1 text-xs text-zinc-900 dark:text-zinc-50 focus:outline-none"
+                        />
                       </div>
+                    ) : (
+                      (activeAcc.url || item.url) && (
+                        <div className="flex items-center justify-between text-[11px] text-zinc-500 bg-white dark:bg-zinc-900 px-3 py-2 rounded-xl border border-zinc-200/30 dark:border-zinc-800/30">
+                          <span className="font-semibold text-zinc-400/80 uppercase tracking-wider text-[9px] flex items-center gap-1">
+                            <Link2 size={10} /> Website Portal:
+                          </span>
+                          <a
+                            href={activeAcc.url || item.url} target="_blank" rel="noopener noreferrer"
+                            className="hover:text-amber-500 transition-colors inline-flex items-center gap-1 underline font-medium select-all"
+                          >
+                            {activeAcc.url || item.url}
+                            <ExternalLink size={10} />
+                          </a>
+                        </div>
+                      )
                     )}
                     {/* Linked Url */}
-                    {(activeAcc.linkedUrl || item.linkedUrl) && (
-                      <div className="flex items-center justify-between text-[11px] text-zinc-550 bg-white dark:bg-zinc-900 px-3 py-2 rounded-xl border border-zinc-200/30 dark:border-zinc-800/30">
+                    {isEditing ? (
+                      <div className="flex flex-col gap-1 text-[11px] bg-white dark:bg-zinc-900 px-3 py-2 rounded-xl border border-zinc-200/30 dark:border-zinc-800/30">
                         <span className="font-semibold text-zinc-400/80 uppercase tracking-wider text-[9px] flex items-center gap-1">
-                          <Globe size={10} /> Connected Website:
+                          <Globe size={10} /> Connected Website URL:
                         </span>
-                        <a
-                          href={activeAcc.linkedUrl || item.linkedUrl} target="_blank" rel="noopener noreferrer"
-                          className="hover:text-amber-500 transition-colors inline-flex items-center gap-1 underline font-medium select-all"
-                        >
-                          {activeAcc.linkedUrl || item.linkedUrl}
-                          <ExternalLink size={10} />
-                        </a>
+                        <input
+                          value={editLinkedUrl}
+                          onChange={e => setEditLinkedUrl(e.target.value)}
+                          placeholder="e.g. https://my-app.vercel.app"
+                          className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-2.5 py-1 text-xs text-zinc-900 dark:text-zinc-50 focus:outline-none"
+                        />
                       </div>
+                    ) : (
+                      (activeAcc.linkedUrl || item.linkedUrl) && (
+                        <div className="flex items-center justify-between text-[11px] text-zinc-550 bg-white dark:bg-zinc-900 px-3 py-2 rounded-xl border border-zinc-200/30 dark:border-zinc-800/30">
+                          <span className="font-semibold text-zinc-400/80 uppercase tracking-wider text-[9px] flex items-center gap-1">
+                            <Globe size={10} /> Connected Website:
+                          </span>
+                          <a
+                            href={activeAcc.linkedUrl || item.linkedUrl} target="_blank" rel="noopener noreferrer"
+                            className="hover:text-amber-500 transition-colors inline-flex items-center gap-1 underline font-medium select-all"
+                          >
+                            {activeAcc.linkedUrl || item.linkedUrl}
+                            <ExternalLink size={10} />
+                          </a>
+                        </div>
+                      )
                     )}
                   </div>
                 </div>
